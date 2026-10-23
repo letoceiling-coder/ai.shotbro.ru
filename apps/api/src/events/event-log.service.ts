@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import type { Db } from "@shotbro/db/client";
 import { eventLog, outboxEvent } from "@shotbro/db/schema";
@@ -38,21 +38,27 @@ export class EventLogService {
   }
 
   async listSince(projectId: string, afterId?: string, limit = 100) {
-    let afterAt: Date | undefined;
+    let cursorRow: (typeof eventLog.$inferSelect) | undefined;
     if (afterId) {
       const [cursor] = await this.db.select().from(eventLog).where(eq(eventLog.id, afterId)).limit(1);
-      if (cursor) afterAt = cursor.createdAt;
+      if (!cursor) return [];
+      cursorRow = cursor;
     }
-    const rows = await this.db
+    let rows = await this.db
       .select()
       .from(eventLog)
-      .where(
-        afterAt
-          ? and(eq(eventLog.projectId, projectId), gt(eventLog.createdAt, afterAt))
-          : eq(eventLog.projectId, projectId),
-      )
+      .where(eq(eventLog.projectId, projectId))
       .orderBy(eventLog.createdAt)
-      .limit(limit);
+      .limit(cursorRow ? limit + 50 : limit);
+    if (cursorRow && afterId) {
+      const cursorMs = cursorRow.createdAt.getTime();
+      rows = rows.filter((r) => {
+        if (r.id === afterId) return false;
+        const ms = r.createdAt.getTime();
+        return ms > cursorMs || (ms === cursorMs && r.id !== afterId);
+      });
+    }
+    rows = rows.slice(0, limit);
     return rows.map((r) => ({
       eventId: r.id,
       type: r.type,

@@ -11,6 +11,71 @@ function headers(extra: Record<string, string> = {}) {
   return h;
 }
 
+function sleepMs(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function authSessionFromResponse(res: Response): Promise<AuthSession> {
+  const setCookie = res.headers.getSetCookie?.() ?? [];
+  const cookie = setCookie.map((c) => c.split(";")[0]).join("; ");
+  const body = (await res.json()) as { user: { id: string; email: string } };
+  return { cookie, userId: body.user.id, email: body.user.email };
+}
+
+/** Sign-in with Retry-After respect on HTTP 429 (does not disable rate limits). */
+export async function signIn(email: string, password: string): Promise<AuthSession> {
+  const maxAttempts = 8;
+  let lastDetail = "";
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(`${base}/api/auth/sign-in/email`, {
+      method: "POST",
+      headers: headers({
+        "Content-Type": "application/json",
+        Origin: process.env.INTEGRATION_ORIGIN ?? "https://ai.shotbro.ru",
+      }),
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("Retry-After");
+      const waitSec = retryAfter ? Math.min(parseInt(retryAfter, 10) || 30, 120) : 30;
+      await sleepMs(waitSec * 1000);
+      continue;
+    }
+    if (!res.ok) {
+      lastDetail = await res.text().catch(() => "");
+      throw new Error(`signIn ${res.status}${lastDetail ? `: ${lastDetail.slice(0, 200)}` : ""}`);
+    }
+    return authSessionFromResponse(res);
+  }
+  throw new Error(`signIn 429: rate limited after ${maxAttempts} attempts${lastDetail ? `: ${lastDetail.slice(0, 120)}` : ""}`);
+}
+
+/** Fixed staging integration users (no sign-up during test run). */
+export function integrationCredentials(slot: "A" | "B"): { email: string; password: string } {
+  if (slot === "A") {
+    const email = process.env.INTEGRATION_USER_A_EMAIL ?? process.env.E2E_TEST_EMAIL;
+    const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
+    if (!email || !password) {
+      throw new Error("Set INTEGRATION_USER_A_EMAIL/PASSWORD or E2E_TEST_EMAIL/PASSWORD");
+    }
+    return { email, password };
+  }
+  const email = process.env.INTEGRATION_USER_B_EMAIL ?? "e2e-phase2-b@shotbro.test";
+  const password =
+    process.env.INTEGRATION_USER_B_PASSWORD ??
+    process.env.INTEGRATION_USER_A_PASSWORD ??
+    process.env.E2E_TEST_PASSWORD;
+  if (!password) {
+    throw new Error("Set INTEGRATION_USER_B_PASSWORD or E2E_TEST_PASSWORD");
+  }
+  return { email, password };
+}
+
+export async function signInIntegrationUser(slot: "A" | "B"): Promise<AuthSession> {
+  const { email, password } = integrationCredentials(slot);
+  return signIn(email, password);
+}
+
 export async function signUp(email: string, password: string, name: string): Promise<AuthSession> {
   const res = await fetch(`${base}/api/auth/sign-up/email`, {
     method: "POST",

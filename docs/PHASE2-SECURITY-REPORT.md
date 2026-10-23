@@ -1,53 +1,60 @@
-# Phase 2 security report
+# Phase 2 security report (Release Candidate)
 
 Date: 2026-10-23  
-Scope: staging API (`ai-shotbro-staging`), integration suite `apps/api/test/integration/security-isolation.integration.spec.ts`
+Scope: staging API (`ai-shotbro-staging`), integration suite under `apps/api/test/integration/`
 
-## Controls implemented
+## Controls
 
-| Control | Status |
-|---------|--------|
-| Better Auth session cookies | IMPLEMENTED |
-| SessionGuard on `/api/v1/*` (except health) | IMPLEMENTED |
-| Workspace/project access policy | IMPLEMENTED |
-| `ALLOW_PUBLIC_REGISTER` gate | IMPLEMENTED (default false) |
-| Optional `STAGING_GATE_SECRET` + `X-Shotbro-Staging-Gate` | IMPLEMENTED |
-| nginx basic auth script for `/api/` | IMPLEMENTED (`scripts/nginx-staging-lockdown.sh`) |
-| Global rate limit (120 req/min) | IMPLEMENTED (ThrottlerGuard) |
-| Upload MIME allowlist + magic-byte sniff | IMPLEMENTED |
-| CORS restricted to `TRUSTED_ORIGINS` | IMPLEMENTED |
-| OpenRouter boot guard | IMPLEMENTED |
+| Control | IMPLEMENTED | TESTED | DEPLOYED |
+|---------|-------------|--------|----------|
+| Better Auth session cookies | ✓ | ✓ | ✓ |
+| SessionGuard on `/api/v1/*` | ✓ | ✓ | ✓ |
+| Workspace / project access policy | ✓ | ✓ | ✓ |
+| `ALLOW_PUBLIC_REGISTER=false` (RC) | ✓ | ✓ | ✓ |
+| Global rate limit (120/min) | ✓ | partial (429 on burst signup) | ✓ |
+| Upload MIME allowlist + sniff | ✓ | ✓ | ✓ (+ PDF `%PDF-`) |
+| CORS `TRUSTED_ORIGINS` | ✓ | — | ✓ |
+| OpenRouter disabled | ✓ | — | ✓ |
+| Optional staging gate header | ✓ | manual | optional |
+| Idempotency (messages, approvals) | ✓ | ✓ approval | ✓ |
 
-## Integration tests (requires `RUN_INTEGRATION_TESTS=1`)
+## Integration tests (RC)
 
-Run against live API (see `scripts/run-integration-tests.sh`):
+Requires `RUN_INTEGRATION_TESTS=1` and live API. For signup-based suites, temporarily set `ALLOW_PUBLIC_REGISTER=true` on staging during a **single sequential** run (`fileParallelism: false`).
 
-- User A / User B isolation (projects, messages, SSE).
-- Unauthenticated `/users/me` → 401.
-- Logout → session invalid.
+| File | Coverage | RC status |
+|------|----------|-----------|
+| `security-isolation.integration.spec.ts` | cross-user projects, messages, SSE 403, logout, 401 | **10/10 passed** |
+| `approval-flow.integration.spec.ts` | approve, 409, reject, revision, idempotency | **4/4 passed** |
+| `approval-cross-tenant.integration.spec.ts` | foreign approve ≥403 | **1/1 passed** |
+| `upload-idor.integration.spec.ts` | complete, assets list, download URL | **3/3 passed** |
+| `upload-flow.integration.spec.ts` | presign PUT complete | **1/1 passed** |
+| `sse-replay.integration.spec.ts` | Last-Event-ID, no duplicate event id | **1/1 passed** |
 
-**Update 2026-10-23 (final fixes):**
+**Skipped tests count as failure for RC sign-off** — none skipped in successful maintenance run.
 
-- `security-isolation.integration.spec.ts` — 10/10 (projects/messages/SSE, logout, 401).
-- `upload-idor.integration.spec.ts` — upload session complete + assets list IDOR.
-- `approval-flow.integration.spec.ts` — approve + version conflict 409.
-- `sse-replay.integration.spec.ts` — Last-Event-ID replay.
+## Gaps (non-blocking for RC)
 
-Still manual / CI gap: CSRF double-submit fuzz, approval cross-tenant decide, automated OWASP scan.
+| Item | Status |
+|------|--------|
+| Automated CSRF fuzz | NOT IMPLEMENTED |
+| Dedicated rate-limit assertion test | NOT IMPLEMENTED |
+| OWASP ZAP / external scan | NOT RUN |
+| Session fixation / rotation matrix | manual only |
 
 ## Staging exposure
 
-- Public URL `https://ai.shotbro.ru/api/` proxies to staging port **3021**.
-- **Recommendation:** enable `nginx-staging-lockdown.sh` + set `STAGING_GATE_SECRET` on API + `ALLOW_PUBLIC_REGISTER=false`.
-- Direct port **3021** must remain bound to `127.0.0.1` only (verified in compose).
-
-## Findings / fixes this session
-
-1. **Nest DI under tsx** — missing `design:paramtypes`; fixed with explicit `@Inject()` (prevents auth bypass via broken guards).
-2. **Public staging API** — mitigated via gate header + nginx basic auth tooling; production cutover still blocked.
+- `https://ai.shotbro.ru/api/` → staging API `127.0.0.1:3021`
+- Port 3021 not public — verified in compose
+- Recommend: `scripts/nginx-staging-lockdown.sh` + `STAGING_GATE_SECRET`
 
 ## Blocked
 
-- Production Selectel keys (compromised; MinIO staging only).
-- SMTP on staging (Beget); **email verification not mandatory on staging** (`EMAIL_VERIFICATION_REQUIRED=false` until prod).
-- Full OWASP matrix automation.
+- Production Selectel credentials (compromised; do not reuse)
+- Mandatory email verification on production until SMTP secret rotation
+- Production storage cutover
+
+## Helpers
+
+- `signIn()` added in `http-helpers.ts` for tests without public signup
+- Download authorization covered in `upload-idor.integration.spec.ts`

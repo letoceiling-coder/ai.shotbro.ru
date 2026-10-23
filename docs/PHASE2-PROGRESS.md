@@ -2,9 +2,20 @@
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**
 
-Last updated: 2026-10-23 (Phase 2 acceptance pass)
+Last updated: 2026-10-23 (**Release Candidate** pass)
 
-Base commit: `2dd93b6` → **HEAD `66cfeb6`** on `phase2/backend`. Authoritative acceptance: **`docs/PHASE2-FINAL-ACCEPTANCE.md`**. VPS src: `/var/www/ai.shotbro.ru-src` (API/worker rebuilt; web REAL UI deployed on :3020).
+Base tag: **`phase2-rc1`** on `phase2/backend`. Authoritative: **`docs/PHASE2-FINAL-ACCEPTANCE.md`**. VPS images: api `71641e707cec`, worker `a85ce4b2d283`, web `a70ed5e6f61e`. Integration **20/0/0** (sign-in only).
+
+### RC snapshot
+
+| Area | IMPLEMENTED | TESTED | DEPLOYED |
+|------|-------------|--------|----------|
+| REAL Playwright chain (auth, approval×3, sse, multipart) | ✓ | ✓ 6 tests | ✓ |
+| SSE EventSource in `real-thread` | ✓ | ✓ | ✓ |
+| Visual regression 4 viewports | ✓ | ✓ 28 passed | ✓ |
+| Integration security + uploads + approvals | ✓ | ✓ 20 tests | ✓ |
+| Worker cleanup/reconcile dry-run + limits | ✓ | code | ✓ |
+| Production | partial | — | **BLOCKED** |
 
 ## Этап 0 — окружение и lint
 

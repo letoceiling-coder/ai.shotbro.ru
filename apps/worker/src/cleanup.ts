@@ -19,8 +19,12 @@ function s3Env() {
   };
 }
 
+const MAX_CLEANUP_OPS = Number(process.env.MEDIA_CLEANUP_MAX_OPS ?? "200");
+
 /** Expire stale upload sessions and abort orphaned multipart uploads. */
 export async function runMediaCleanup(log: { info: (o: unknown, msg?: string) => void }) {
+  const dryRun = process.env.MEDIA_CLEANUP_DRY_RUN === "true";
+  if (dryRun) log.info({ dryRun: true }, "media.cleanup dry-run (no deletes)");
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL required");
   const { db } = createDb(url);
@@ -37,11 +41,16 @@ export async function runMediaCleanup(log: { info: (o: unknown, msg?: string) =>
         inArray(uploadSession.status, ["INIT", "UPLOADING"]),
       ),
     )
-    .limit(200);
+    .limit(MAX_CLEANUP_OPS);
 
   let expired = 0;
   let aborted = 0;
   for (const row of stale) {
+    log.info({ sessionId: row.id, dryRun, key: row.storageKey }, dryRun ? "would expire session" : "expiring session");
+    if (dryRun) {
+      expired++;
+      continue;
+    }
     if (row.multipartUploadId) {
       try {
         await s3.send(
@@ -80,6 +89,10 @@ export async function runMediaCleanup(log: { info: (o: unknown, msg?: string) =>
     .limit(50);
   for (const row of failed) {
     if (row.multipartUploadId) {
+      if (dryRun) {
+        log.info({ sessionId: row.id }, "would abort failed multipart");
+        continue;
+      }
       try {
         await s3.send(
           new AbortMultipartUploadCommand({
@@ -106,6 +119,11 @@ export async function runMediaCleanup(log: { info: (o: unknown, msg?: string) =>
         .where(eq(uploadSession.multipartUploadId, u.UploadId))
         .limit(1);
       if (known.length) continue;
+      if (dryRun) {
+        log.info({ key: u.Key, uploadId: u.UploadId }, "would abort orphan multipart");
+        aborted++;
+        continue;
+      }
       await s3.send(
         new AbortMultipartUploadCommand({ Bucket: env.S3_BUCKET, Key: u.Key, UploadId: u.UploadId }),
       );

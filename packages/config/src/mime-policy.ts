@@ -43,6 +43,9 @@ export function sniffMime(buffer: Buffer): string | null {
   if (buffer.length >= 3 && buffer.toString("ascii", 0, 3) === "ID3") {
     return "audio/mpeg";
   }
+  if (buffer.length >= 5 && buffer.toString("ascii", 0, 5) === "%PDF-") {
+    return "application/pdf";
+  }
   return null;
 }
 

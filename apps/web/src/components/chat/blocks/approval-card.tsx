@@ -93,7 +93,7 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
                     ? "ghost"
                     : "secondary"
               }
-              disabled={pending || (displayStatus === "approved" && action.id === "approve")}
+              disabled={pending || displayStatus !== "pending"}
               onClick={() => void onAction(action.id)}
             >
               {action.label}

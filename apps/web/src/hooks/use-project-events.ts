@@ -1,0 +1,84 @@
+"use client";
+
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
+const SSE_EVENT_TYPES = [
+  "message.created",
+  "media.processing",
+  "media.completed",
+  "approval.created",
+] as const;
+
+function handleEventPayload(
+  qc: ReturnType<typeof useQueryClient>,
+  projectId: string,
+  raw: string,
+  lastIdRef: MutableRefObject<string | undefined>,
+) {
+  try {
+    const data = JSON.parse(raw) as { eventId?: string; type?: string };
+    if (data.eventId) lastIdRef.current = data.eventId;
+    if (data.type === "media.completed" || data.type === "media.processing") {
+      void qc.invalidateQueries({ queryKey: ["assets", projectId] });
+    }
+    if (data.type === "message.created" || data.type === "approval.created") {
+      void qc.invalidateQueries({ queryKey: ["messages"] });
+    }
+  } catch {
+    /* ignore malformed */
+  }
+}
+
+export function useProjectEvents(projectId: string | undefined) {
+  const qc = useQueryClient();
+  const lastIdRef = useRef<string | undefined>(undefined);
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let closed = false;
+
+    const connect = () => {
+      if (closed) return;
+      const after = lastIdRef.current;
+      const url = `/api/v1/projects/${projectId}/events/stream${
+        after ? `?after=${encodeURIComponent(after)}` : ""
+      }`;
+      es = new EventSource(url, { withCredentials: true });
+
+      es.onopen = () => setConnected(true);
+
+      const onNamed = (ev: Event) => {
+        const msg = ev as MessageEvent<string>;
+        if (msg.lastEventId) lastIdRef.current = msg.lastEventId;
+        handleEventPayload(qc, projectId, msg.data, lastIdRef);
+      };
+
+      for (const type of SSE_EVENT_TYPES) {
+        es.addEventListener(type, onNamed);
+      }
+
+      es.onerror = () => {
+        setConnected(false);
+        es?.close();
+        es = null;
+        retryTimer = setTimeout(connect, 3000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      es?.close();
+      setConnected(false);
+    };
+  }, [projectId, qc]);
+
+  return { connected, lastEventId: lastIdRef.current };
+}

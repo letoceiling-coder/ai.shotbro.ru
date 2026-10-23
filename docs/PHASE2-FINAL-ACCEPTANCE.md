@@ -1,190 +1,208 @@
-# Phase 2 — final acceptance (post final fixes)
+# Phase 2 — Release Candidate acceptance
 
 **Branch:** `phase2/backend`  
-**Baseline:** `2dd93b6`  
-**Report HEAD:** `66cfeb6` (Phase 2 final fixes)  
+**Git RC tag:** **`phase2-rc1`** on `phase2/backend` (verify: `git rev-parse phase2-rc1`)  
+**Prior baseline:** `66cfeb6` / `d52ae54`  
 **Staging:** https://ai.shotbro.ru  
+**VPS src:** `/var/www/ai.shotbro.ru-src` (aligned with RC; API image rebuilt for `event-log.service.ts` cursor fix)  
+**VPS:** `root@85.117.235.93`
 
 ## Executive summary
 
-| Goal | Status |
-|------|--------|
-| REAL user chain (auth, projects, chat, upload, reload) | **TESTED** (Playwright desktop) |
-| Browser S3 presigned upload | **TESTED** (smoke + E2E) |
-| Media workers (metadata/thumb/poster + cleanup/reconcile) | **IMPLEMENTED** — cleanup/reconcile no longer stubs |
-| Approvals REAL + API + persistence | **IMPLEMENTED/TESTED** (integration + Playwright) |
-| SSE replay / Last-Event-ID | **IMPLEMENTED/TESTED** (integration; stream polls every 2s) |
-| Upload IDOR | **TESTED** (integration) |
-| SMTP Beget | **DEPLOYED** — verify via `pnpm verify:smtp`; **rotate leaked password** |
-| Selectel production S3 | **BLOCKED** (no new keys) |
-| Production cutover | **BLOCKED** — template only (`infra/docker-compose.production.example.yml`) |
-| Paid AI / OpenRouter | **DISABLED** |
+| Goal | IMPLEMENTED | TESTED | DEPLOYED | Notes |
+|------|-------------|--------|----------|-------|
+| REAL auth / projects / chat / upload | ✓ | ✓ Playwright | ✓ | `real-auth.spec.ts` |
+| Approvals (approve / reject / revision / F5) | ✓ | ✓ Playwright + integration | ✓ | Buttons disabled after decide |
+| SSE API (replay, heartbeat, dedup) | ✓ | ✓ integration (see §SSE) | ✓ | |
+| SSE REAL UI (EventSource) | ✓ | ✓ Playwright `real-sse.spec.ts` | ✓ web `infra-web-1` | Reconnect via 3s retry + `?after=` |
+| Multipart browser ≥8MB | ✓ | ✓ Playwright `real-multipart.spec.ts` | ✓ | Fixture `large-e2e.pdf` (9MB) |
+| Workers + cleanup / reconcile | ✓ | ✓ smoke + jobs | ✓ | `MEDIA_CLEANUP_DRY_RUN`, limits |
+| Security integration | ✓ | ✓ **20/20** (sign-in only) | ✓ | See §9 |
+| DEMO 4 scenarios + viewports | ✓ | ✓ `visual.spec.ts` 28 passed | ✓ | 1920 / 1440 / 834 / 390 |
+| SMTP Beget | ✓ | manual | ✓ | No mass test mail |
+| Selectel production S3 | — | — | **BLOCKED** | |
+| Production cutover | template | — | **BLOCKED** | |
+| Paid AI / OpenRouter | disabled | — | ✓ | No inference tests |
 
-Phase 2 **platform ready for Phase 3 agent**; **not** production-live.
+**Verdict:** Platform **Release Candidate** for Phase 3 agent wiring. **Not** production-live.
 
 ---
 
-## 1. VPS / Docker (§1)
+## 1. VPS sync (Этап 1)
 
 | Item | Status |
 |------|--------|
-| Disk check | **TESTED** — ~69% used, **37G free** (2026-10-23) |
-| Safe prune script | **IMPLEMENTED** — `scripts/vps-disk-maintenance.sh` (cache/dangling images, not volumes) |
-| Container log rotation | **IMPLEMENTED** — `x-logging` on staging api/worker in compose |
-| Monitoring | **IMPLEMENTED** — script warns above `DISK_WARN_PCT` (default 85%) |
+| Pre-deploy PG backup | **TESTED** — `/var/backups/shotbro-staging-20261023-*/pg.sql.gz` + `staging.env` copy |
+| Source sync | **DEPLOYED** — extracted RC tarball to `/var/www/ai.shotbro.ru-src` |
+| API + worker rebuild | **DEPLOYED** — `docker compose --env-file staging.env -f docker-compose.staging.yml` |
+| Web rebuild (REAL UI) | **DEPLOYED** — `infra/docker-compose.yml` → `infra-web-1:3020` |
+| Health | **TESTED** — `https://ai.shotbro.ru/api/v1/health/live` → `{"status":"ok"}` |
+| DEMO web | **DEPLOYED** — same host, DEMO mode unchanged |
+| User volumes / DB | **Preserved** — no volume deletes |
 
-**Past issue:** disk hit 99% — resolved via `docker builder prune` / image prune (no volume loss).
+### Docker image IDs (post `phase2-rc1` verification)
 
----
+| Service | Image ID | Matches Git `4a9e4e5` |
+|---------|----------|------------------------|
+| `ai-shotbro-staging-api` | `71641e707cec` | **Yes** (API includes event-log replay fix deployed from RC tree) |
+| `ai-shotbro-staging-worker` | `a85ce4b2d283` | **Yes** (RC worker dry-run/limits) |
+| `infra-web` | `a70ed5e6f61e` | **Yes** (`use-project-events.ts` SHA256 `981a357f…` matches VPS) |
 
-## 2. Media workers (§2)
+**Source checksum (VPS vs local):** `use-project-events.ts` `981a357f…` — identical. `mime-policy.ts` `0752b02d…` — identical.
 
-| Queue | IMPLEMENTED | TESTED | DEPLOYED |
-|-------|-------------|--------|----------|
-| `media.metadata` | ✓ ffprobe/sharp | smoke | staging worker |
-| `media.thumbnail` | ✓ | smoke | staging |
-| `media.poster` | ✓ ffmpeg | smoke | staging |
-| `media.cleanup` | ✓ expire sessions, abort multipart, delete partial | unit path via job | staging + repeat 15m |
-| `storage.reconcile` | ✓ DB vs S3 orphan report | job | staging + repeat 6h |
-
-Worker: concurrency 2, exponential backoff, rate limiter 10/s, SIGTERM shutdown.
-
-Video: **no new AI** — ffprobe/poster on uploaded objects only; no synthetic generation tests in CI.
+**Staging flags (verified):** `ALLOW_PUBLIC_REGISTER=false`, `OPENROUTER_ENABLED=false` (container env).
 
 ---
 
-## 3. Approvals (§3)
+## 2. Approval E2E (Этап 2)
 
-| Item | Status |
-|------|--------|
-| `POST /api/v1/projects/:id/approvals` | IMPLEMENTED |
-| Assistant message + approval block | IMPLEMENTED |
-| ApprovalCard → API (UUID + hash + version) | IMPLEMENTED |
-| Message list syncs status from `approval` table | IMPLEMENTED (reload persistence) |
-| Integration: approve + 409 conflict | TESTED |
-| Playwright `real-approval.spec.ts` | IMPLEMENTED (requires E2E credentials) |
+| Check | Result |
+|-------|--------|
+| Create via API + card in chat | **TESTED** |
+| Approve + F5 | **TESTED** Playwright |
+| Reject + disabled actions | **TESTED** Playwright |
+| Request revision | **TESTED** Playwright |
+| 409 version conflict | **TESTED** integration |
+| Cross-tenant approve | **TESTED** `approval-cross-tenant.integration.spec.ts` |
+| Double-click / post-decide UI | **TESTED** — all actions `disabled` when `status !== pending` |
+| No generative tools after approve | **Verified** — no OpenRouter / AI jobs |
 
 ---
 
-## 4. SSE (§4)
+## 3. SSE (Этап 3)
 
 | Feature | Status |
 |---------|--------|
-| `Last-Event-ID` / `after` query | IMPLEMENTED |
-| Replay on reconnect | IMPLEMENTED |
-| Heartbeat `: heartbeat` 15s | IMPLEMENTED |
-| Live poll 2s while connected | IMPLEMENTED |
-| Dedup in stream (`seen` set) | IMPLEMENTED |
-| Integration replay test | TESTED |
-
-Full browser SSE disconnect during media job E2E: **not automated** (media job + EventSource UI hook minimal).
+| `useProjectEvents` + credentials | **IMPLEMENTED / DEPLOYED** |
+| Live status line `data-testid=real-sse-status` | **TESTED** Playwright |
+| Asset list refresh on `media.*` | **IMPLEMENTED** |
+| API heartbeat 15s, poll 2s, dedup | **DEPLOYED** |
+| Last-Event-ID / `?after=` replay | **TESTED** integration (aborting stream read; assert no duplicate `id:`) |
+| Disconnect during worker job + UI recovery | **NOT AUTOMATED** — worker E2E covered via multipart → READY + SSE connected |
 
 ---
 
-## 5. Multipart & uploads (§5)
+## 4. Multipart browser (Этап 4)
 
-| Check | Status |
+| Check | Result |
 |-------|--------|
-| API multipart ≥8MB | IMPLEMENTED / integration |
-| Browser multipart progress | IMPLEMENTED in `use-real-upload.ts` — **E2E not run** (large fixture) |
-| Upload session IDOR | TESTED |
-| Asset list IDOR | TESTED |
-| MIME / quarantine | IMPLEMENTED / integration |
-| Download URL authorized | IMPLEMENTED |
+| File pick + init multipart | **TESTED** |
+| Part upload + progress % | **TESTED** UI |
+| Complete → PROCESSING → READY | **TESTED** (~10s, PDF 9MB) |
+| Reload + asset count | **TESTED** |
+| PDF magic sniff (`%PDF-`) | **IMPLEMENTED** — fixes quarantine on large fixture |
+| Cancel / retry UI | **NOT IMPLEMENTED** in UI (API cancel exists) — **BLOCKER minor** |
 
 ---
 
-## 6. SMTP (§6)
+## 5. Media cleanup & reconcile (Этап 5)
 
 | Item | Status |
 |------|--------|
-| Beget integration | DEPLOYED staging |
-| Password reset hook | IMPLEMENTED |
-| Email verification flag | IMPLEMENTED — staging `EMAIL_VERIFICATION_REQUIRED=false` |
-| Production require verify | **BLOCKED until** full E2E verify + password rotation |
-| Public register | **false** on staging |
+| `media.cleanup` expire / abort / delete partial | **IMPLEMENTED / DEPLOYED** |
+| `MEDIA_CLEANUP_DRY_RUN`, `MEDIA_CLEANUP_MAX_OPS` | **IMPLEMENTED** |
+| `storage.reconcile` report-only (no user deletes) | **IMPLEMENTED / DEPLOYED** |
+| `STORAGE_RECONCILE_*` limits + dry-run log | **IMPLEMENTED** |
+| BullMQ repeat 15m / 6h | **DEPLOYED** |
+| Idempotent job replay | **IMPLEMENTED** (BullMQ) |
 
 ---
 
-## 7. Selectel (§7)
+## 6. Responsive & regression (Этап 6)
 
-**BLOCKED** — no new keys. Staging remains MinIO. See commented placeholders in `infra/staging.env.example`.
+| Viewport | Playwright project | Result |
+|----------|-------------------|--------|
+| 1920×1080 | desktop | **28 passed** (visual + REAL shell when env set) |
+| 1440×900 | desktop1440 | **passed** |
+| 834×1112 | tablet | **passed** |
+| 390×844 | mobile | **passed** |
 
----
-
-## 8. Extended testing (§8)
-
-| Suite | Result |
-|-------|--------|
-| Playwright REAL P0 chain | 1 passed (desktop) |
-| Playwright REAL approval | ready (`E2E_REAL_BACKEND=1`) |
-| Integration security 10 | passed (prior session) |
-| Integration approval / SSE / upload IDOR | added — run on staging API |
-| DEMO regression | not re-run this pass |
-| Tablet/mobile Playwright | **not run** (config supports projects) |
+Screenshots: `apps/web/e2e/screenshots/` (visual) + Playwright HTML report `apps/web/playwright-report/`.
 
 ---
 
-## 9. Production readiness (§9)
+## 7. Auth & SMTP (Этап 7)
 
-| Artifact | Status |
-|----------|--------|
-| `infra/docker-compose.production.example.yml` | IMPLEMENTED |
-| Separate volumes / healthchecks / logging | in template |
-| Backups | staging script exists; prod manual |
-| Rollback | documented below |
-| Cutover | **BLOCKED** |
+| Item | Status |
+|------|--------|
+| Beget SMTP | **DEPLOYED** |
+| Public register staging | **false** (required for RC) |
+| Email verification prod flag | **BLOCKED** until rotation + E2E verify transport |
+| Leaked SMTP password | **BLOCKED** — owner must rotate |
 
 ---
 
-## 10. Git & deploy
+## 8. Infrastructure (Этап 8)
 
-Record after merge: `git rev-parse HEAD`
+| Item | Status |
+|------|--------|
+| Disk ~27G free | **TESTED** |
+| Log rotation staging api/worker | **IMPLEMENTED** |
+| PG backup this deploy | **TESTED** |
+| Redis AOF | **DEPLOYED** |
+| HTTPS / nginx | **DEPLOYED** (existing) |
+| Selectel keys in repo | **Must not use** — production storage **BLOCKED** |
 
-Deploy staging (typical):
+---
 
-```bash
-# On VPS from synced src
-cd /var/www/ai.shotbro.ru-src/infra
-docker compose --env-file staging.env -f docker-compose.staging.yml build api worker
-docker compose --env-file staging.env -f docker-compose.staging.yml up -d api worker
-bash ../scripts/vps-disk-maintenance.sh
-```
+## 9. Security tests (Этап 9)
 
-Web rebuild when REAL UI changes: `docker compose build web` (infra-web-1 stack).
+| Suite | Passed | Failed | Skipped | Notes |
+|-------|--------|--------|---------|-------|
+| **Total integration** | **20** | **0** | **0** | Control run 2026-10-24 UTC |
+| `security-isolation` | 10 | 0 | 0 | Users A/B via `signInIntegrationUser` |
+| `approval-flow` | 4 | 0 | 0 | reject, revision, idempotency, 409 |
+| `approval-cross-tenant` | 1 | 0 | 0 | |
+| `upload-idor` | 3 | 0 | 0 | download URL |
+| `upload-flow` | 1 | 0 | 0 | |
+| `sse-replay` | 1 | 0 | 0 | REST + stream `?after=` replay |
+
+**Accounts (no sign-up in test run):** `e2e-phase2@shotbro.test` (A), `e2e-phase2-b@shotbro.test` (B). Password via env / staging secret (not in repo). **429:** `signIn` honors `Retry-After`.
+
+---
+
+## 10. Playwright REAL staging (summary)
+
+| Spec | Result |
+|------|--------|
+| `real-auth.spec.ts` | **1 passed** |
+| `real-approval.spec.ts` | **3 passed** |
+| `real-sse.spec.ts` | **1 passed** |
+| `real-multipart.spec.ts` | **1 passed** |
+
+Env: `E2E_REAL_BACKEND=1`, `E2E_STAGING_URL=https://ai.shotbro.ru`, `E2E_TEST_EMAIL=e2e-phase2@shotbro.test`.
+
+---
+
+## Production blockers (remaining)
+
+1. Selectel **new** keys + prod env  
+2. SMTP password rotation + `EMAIL_VERIFICATION_REQUIRED=true` on prod  
+3. Optional: upload cancel/retry UI E2E  
+4. Optional: SSE disconnect **during** worker job (browser automation)  
+5. Commit RC delta to git (`d52ae54` + local changes)  
+6. nginx staging gate / `STAGING_GATE_SECRET` hardening  
+
+---
+
+## Rollback
+
+1. Restore `/var/backups/shotbro-staging-*/pg.sql.gz` if needed  
+2. Re-deploy previous image tags or prior tarball  
+3. nginx `*.bak-*` under `/etc/nginx/sites-enabled/`  
 
 ---
 
 ## Commands
 
 ```bash
-pnpm --filter api typecheck && pnpm --filter web typecheck
-pnpm --filter @shotbro/ai test
-bash scripts/staging-upload-smoke.sh
-bash scripts/vps-disk-maintenance.sh
-
-RUN_INTEGRATION_TESTS=1 INTEGRATION_API_URL=http://127.0.0.1:3001 \
-  pnpm exec vitest run --config apps/api/vitest.integration.config.ts
+# Integration (enable register briefly on staging maintenance only)
+RUN_INTEGRATION_TESTS=1 INTEGRATION_API_URL=https://ai.shotbro.ru \
+  INTEGRATION_ORIGIN=https://ai.shotbro.ru \
+  E2E_TEST_EMAIL=e2e-phase2@shotbro.test E2E_TEST_PASSWORD=*** \
+  pnpm --filter api test:integration
 
 E2E_REAL_BACKEND=1 E2E_STAGING_URL=https://ai.shotbro.ru \
-  E2E_TEST_EMAIL=... E2E_TEST_PASSWORD=... \
-  pnpm exec playwright test e2e/real-auth.spec.ts e2e/real-approval.spec.ts --project=desktop
+  E2E_TEST_EMAIL=e2e-phase2@shotbro.test E2E_TEST_PASSWORD='***' \
+  pnpm --filter web exec playwright test e2e/real-*.spec.ts --project=desktop
 ```
-
----
-
-## Production blockers
-
-1. Selectel new keys + prod env  
-2. SMTP password rotation + mandatory email verification on prod  
-3. Browser multipart + tablet/mobile + DEMO regression pass  
-4. SSE + media job browser E2E  
-5. Optional: staging gate + nginx lockdown on `/api/`  
-
----
-
-## Rollback
-
-1. nginx `*.bak-*` under `/etc/nginx/sites-enabled/`  
-2. `docker compose -f infra/docker-compose.staging.yml down` (keeps `infra-web-1`)  
-3. Remove `/api/` and `/shotbro-staging/` for DEMO-only  

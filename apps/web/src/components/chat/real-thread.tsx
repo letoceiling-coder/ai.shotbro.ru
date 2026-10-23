@@ -10,6 +10,7 @@ import {
   useSendRealMessage,
 } from "@/hooks/use-real-studio";
 import { useRealUpload } from "@/hooks/use-real-upload";
+import { useProjectEvents } from "@/hooks/use-project-events";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { ChatMessage } from "./chat-message";
@@ -23,6 +24,7 @@ export function RealThread({ projectId }: { projectId: string }) {
   const { data: msgPage, isLoading } = useRealMessages(conversationId);
   const send = useSendRealMessage(conversationId);
   const upload = useRealUpload(projectId);
+  const { connected: sseConnected } = useProjectEvents(projectId);
   const { data: assets } = useQuery({
     queryKey: ["assets", projectId],
     queryFn: () => api.assets.list(projectId),
@@ -63,9 +65,27 @@ export function RealThread({ projectId }: { projectId: string }) {
         )}
       </div>
       <div className={`sticky bottom-0 border-t border-border bg-background/95 backdrop-blur ${CHAT_GUTTER} py-3`}>
-        {assets && assets.length > 0 ? (
+        <p
+          className={`${CHAT_COLUMN} mb-2 text-xs text-muted-foreground`}
+          data-testid="real-sse-status"
+        >
+          События: {sseConnected ? "подключено" : "переподключение…"}
+          {assets && assets.length > 0 ? ` · файлов: ${assets.length}` : ""}
+        </p>
+        {Array.isArray(assets) && assets.some((a: { status?: string }) => a.status && a.status !== "READY") ? (
+          <ul className={`${CHAT_COLUMN} mb-2 space-y-1 text-xs text-muted-foreground`}>
+            {(assets as Array<{ id: string; originalName?: string; status: string }>)
+              .filter((a) => a.status !== "READY")
+              .map((a) => (
+                <li key={a.id}>
+                  {a.originalName ?? a.id}: <span className="font-medium text-foreground">{a.status}</span>
+                </li>
+              ))}
+          </ul>
+        ) : null}
+        {upload.progressPct != null ? (
           <p className={`${CHAT_COLUMN} mb-2 text-xs text-muted-foreground`}>
-            Файлов в проекте: {assets.length}
+            Загрузка: {upload.progressPct}%
           </p>
         ) : null}
         {upload.isError ? (

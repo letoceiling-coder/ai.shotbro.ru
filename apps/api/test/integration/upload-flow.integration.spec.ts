@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { apiJson, expectOk2xx, requireIntegrationEnv, signUp, type AuthSession } from "./http-helpers";
+import { apiJson, expectOk2xx, requireIntegrationEnv, signInIntegrationUser, type AuthSession } from "./http-helpers";
 
 const png = readFileSync(resolve(process.cwd(), "test/fixtures/1x1.png"));
 
@@ -19,11 +19,11 @@ describe("Upload flow (integration)", () => {
 
   beforeAll(async () => {
     requireIntegrationEnv();
+    session = await signInIntegrationUser("A");
     const ts = Date.now();
-    session = await signUp(`upload-${ts}@test.local`, "TestPass123!", "Uploader");
     const created = await apiJson<{ id: string }>("/api/v1/projects", session, {
       method: "POST",
-      body: JSON.stringify({ title: "Upload test" }),
+      body: JSON.stringify({ title: `Upload test ${ts}` }),
     });
     projectId = created.json.id;
   });

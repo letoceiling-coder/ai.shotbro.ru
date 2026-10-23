@@ -4,8 +4,8 @@ import {
   apiRaw,
   expectOk2xx,
   requireIntegrationEnv,
+  signInIntegrationUser,
   signOut,
-  signUp,
   type AuthSession,
 } from "./http-helpers";
 
@@ -18,13 +18,13 @@ describe("Security isolation (integration)", () => {
 
   beforeAll(async () => {
     requireIntegrationEnv();
+    userA = await signInIntegrationUser("A");
+    userB = await signInIntegrationUser("B");
     const ts = Date.now();
-    userA = await signUp(`sec-a-${ts}@test.local`, "TestPass123!", "User A");
-    userB = await signUp(`sec-b-${ts}@test.local`, "TestPass123!", "User B");
 
     const created = await apiJson<{ id: string }>("/api/v1/projects", userA, {
       method: "POST",
-      body: JSON.stringify({ title: "SecTest Project", description: "iso" }),
+      body: JSON.stringify({ title: `SecTest ${ts}`, description: "iso" }),
     });
     expectOk2xx(created.status);
     projectId = created.json.id;
@@ -88,8 +88,7 @@ describe("Security isolation (integration)", () => {
   });
 
   it("logout invalidates session for protected route", async () => {
-    const ts = Date.now();
-    const u = await signUp(`logout-${ts}@test.local`, "TestPass123!", "Logout User");
+    const u = await signInIntegrationUser("A");
     const me1 = await apiJson("/api/v1/users/me", u);
     expect(me1.status).toBe(200);
     await signOut(u);

@@ -64,11 +64,11 @@ test.describe("REAL mode (requires API + DB)", () => {
         await fileChooser.setFiles(fixture);
       })(),
     ]);
-    await expect(page.getByText(/Файлов в проекте: [1-9]/)).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/файлов: [1-9]/i)).toBeVisible({ timeout: 90_000 });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Файлов в проекте: [1-9]/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/файлов: [1-9]/i)).toBeVisible({ timeout: 15_000 });
 
     await page.goto("/login", { waitUntil: "domcontentloaded" });
     await page.getByPlaceholder("Email").fill(creds.email);

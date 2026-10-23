@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, beforeAll } from "vitest";
-import { apiJson, requireIntegrationEnv, signUp, type AuthSession } from "./http-helpers";
+import { apiJson, requireIntegrationEnv, signInIntegrationUser, type AuthSession } from "./http-helpers";
 
 const png = readFileSync(resolve(process.cwd(), "test/fixtures/1x1.png"));
 
@@ -13,12 +13,12 @@ describe("Upload IDOR (integration)", () => {
 
   beforeAll(async () => {
     requireIntegrationEnv();
+    userA = await signInIntegrationUser("A");
+    userB = await signInIntegrationUser("B");
     const ts = Date.now();
-    userA = await signUp(`up-a-${ts}@test.local`, "TestPass123!", "A");
-    userB = await signUp(`up-b-${ts}@test.local`, "TestPass123!", "B");
     const proj = await apiJson<{ id: string }>("/api/v1/projects", userA, {
       method: "POST",
-      body: JSON.stringify({ title: "Upload IDOR" }),
+      body: JSON.stringify({ title: `Upload IDOR ${ts}` }),
     });
     projectId = proj.json.id;
     const init = await apiJson<{ sessionId: string; uploadUrl: string }>("/api/v1/uploads/init", userA, {
@@ -49,5 +49,17 @@ describe("Upload IDOR (integration)", () => {
   it("B cannot list A project assets", async () => {
     const assets = await apiJson(`/api/v1/projects/${projectId}/assets`, userB);
     expect(assets.status).toBe(403);
+  });
+
+  it("A completes upload; B cannot get download URL", async () => {
+    const done = await apiJson<{ assetId?: string }>(`/api/v1/uploads/${sessionId}/complete`, userA, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    expect(done.status).toBeLessThan(300);
+    const assetId = done.json.assetId;
+    expect(assetId).toBeTruthy();
+    const dl = await apiJson(`/api/v1/assets/${assetId}/download-url`, userB);
+    expect(dl.status).toBeGreaterThanOrEqual(403);
   });
 });

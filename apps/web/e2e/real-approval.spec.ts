@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { loginRealUser, openRealNewProject } from "./helpers/real-login";
 
 test.describe("REAL approvals", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
@@ -9,21 +10,8 @@ test.describe("REAL approvals", () => {
   });
 
   test("approve persists after reload", async ({ page }) => {
-    const email = process.env.E2E_TEST_EMAIL;
-    const password = process.env.E2E_TEST_PASSWORD;
-    test.skip(!email || !password, "E2E_TEST_EMAIL/PASSWORD required");
-
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
-    await page.getByPlaceholder("Email").fill(email!);
-    await page.getByPlaceholder("Пароль").fill(password!);
-    await page.getByRole("button", { name: "Войти" }).click();
-    await page.waitForURL("**/studio**", { timeout: 45_000 });
-
-    await page.goto("/studio", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Настройки" }).click();
-    await page.getByRole("button", { name: "REAL" }).click();
-    await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Новый проект" }).click();
+    await loginRealUser(page);
+    await openRealNewProject(page);
     await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible();
 
     const convRes = await page.request.get("/api/v1/projects?limit=5");
@@ -58,5 +46,48 @@ test.describe("REAL approvals", () => {
     await page.getByRole("button", { name: "REAL" }).click();
     await page.keyboard.press("Escape");
     await expect(page.getByText("Утверждено")).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("reject and revision disable actions", async ({ page }) => {
+    await loginRealUser(page);
+    await openRealNewProject(page);
+
+    const convRes = await page.request.get("/api/v1/projects?limit=5");
+    const projectId = ((await convRes.json()) as { items: Array<{ id: string }> }).items[0]?.id;
+    const convList = await page.request.get(`/api/v1/projects/${projectId}/conversations`);
+    const conversationId = ((await convList.json()) as Array<{ id: string }>)[0]?.id;
+
+    const rejectTitle = `E2E reject ${Date.now()}`;
+    await page.request.post(`/api/v1/projects/${projectId}/approvals`, {
+      data: {
+        conversationId,
+        title: rejectTitle,
+        targetType: "artifact",
+        targetId: "e2e-reject",
+        targetVersion: "v1",
+        payload: {},
+      },
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText(rejectTitle)).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Отклонить" }).click();
+    await expect(page.getByText("Отклонено")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Утвердить" })).toBeDisabled();
+
+    const revTitle = `E2E revision ${Date.now()}`;
+    await page.request.post(`/api/v1/projects/${projectId}/approvals`, {
+      data: {
+        conversationId,
+        title: revTitle,
+        targetType: "artifact",
+        targetId: "e2e-rev",
+        targetVersion: "v1",
+        payload: {},
+      },
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText(revTitle)).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Правки", disabled: false }).click();
+    await expect(page.getByText("Нужны правки")).toBeVisible({ timeout: 15_000 });
   });
 });

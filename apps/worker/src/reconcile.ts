@@ -16,9 +16,13 @@ function s3Env() {
 }
 
 const RECONCILE_PREFIX = "workspaces/";
+const MAX_RECONCILE_ASSETS = Number(process.env.STORAGE_RECONCILE_MAX_ASSETS ?? "500");
+const MAX_RECONCILE_LIST = Number(process.env.STORAGE_RECONCILE_MAX_LIST ?? "500");
 
-/** Report DB assets missing in S3 and S3 keys under workspaces/ with no active asset row. */
+/** Report DB assets missing in S3 and S3 keys under workspaces/ with no active asset row (never deletes user objects). */
 export async function runStorageReconcile(log: { info: (o: unknown, msg?: string) => void }) {
+  const dryRun = process.env.STORAGE_RECONCILE_DRY_RUN === "true";
+  log.info({ dryRun }, "storage.reconcile start (report-only)");
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL required");
   const { db } = createDb(url);
@@ -29,7 +33,7 @@ export async function runStorageReconcile(log: { info: (o: unknown, msg?: string
     .select({ id: asset.id, storageKey: asset.storageKey, status: asset.status })
     .from(asset)
     .where(isNull(asset.deletedAt))
-    .limit(500);
+    .limit(MAX_RECONCILE_ASSETS);
 
   let missingInS3 = 0;
   for (const row of rows) {
@@ -50,7 +54,7 @@ export async function runStorageReconcile(log: { info: (o: unknown, msg?: string
       new ListObjectsV2Command({
         Bucket: env.S3_BUCKET,
         Prefix: RECONCILE_PREFIX,
-        MaxKeys: 500,
+        MaxKeys: MAX_RECONCILE_LIST,
         ContinuationToken: token,
       }),
     );
