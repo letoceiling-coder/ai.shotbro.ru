@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { and, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, isNotNull, lt, or } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import type { Db } from "@shotbro/db/client";
 import { conversation, project, workspace, workspaceMember } from "@shotbro/db/schema";
@@ -29,9 +29,18 @@ export class ProjectsService {
     return ws!;
   }
 
-  async list(userId: string, cursor?: string, limit = 20) {
+  async list(
+    userId: string,
+    opts: { cursor?: string; limit?: number; q?: string; archived?: boolean } = {},
+  ) {
+    const { cursor, limit = 20, q, archived = false } = opts;
     const ws = await this.ensurePersonalWorkspace(userId, "Моё пространство");
     const conditions = [eq(project.workspaceId, ws.id), isNull(project.deletedAt)];
+    if (archived) conditions.push(isNotNull(project.archivedAt));
+    else conditions.push(isNull(project.archivedAt));
+    if (q?.trim()) {
+      conditions.push(or(ilike(project.title, `%${q.trim()}%`), ilike(project.description, `%${q.trim()}%`))!);
+    }
     if (cursor) conditions.push(lt(project.updatedAt, new Date(cursor)));
 
     const rows = await this.db
@@ -89,11 +98,58 @@ export class ProjectsService {
     await this.db
       .update(project)
       .set({
-        title: body.title,
-        description: body.description,
+        ...(body.title !== undefined ? { title: body.title } : {}),
+        ...(body.description !== undefined ? { description: body.description } : {}),
         updatedAt: new Date(),
       })
       .where(eq(project.id, projectId));
     return this.get(userId, projectId);
+  }
+
+  async duplicate(userId: string, projectId: string) {
+    const source = await this.get(userId, projectId);
+    const id = uuid();
+    const convId = uuid();
+    await this.db.transaction(async (tx) => {
+      await tx.insert(project).values({
+        id,
+        workspaceId: source.workspaceId,
+        ownerId: userId,
+        title: `${source.title} (копия)`,
+        description: source.description,
+        status: "ACTIVE",
+        mode: "REAL",
+        settings: source.settings ?? {},
+      });
+      await tx.insert(conversation).values({ id: convId, projectId: id, title: "Основной диалог" });
+    });
+    return this.get(userId, id);
+  }
+
+  async archive(userId: string, projectId: string) {
+    await this.access.assertProjectAccess(this.db, userId, projectId);
+    await this.db
+      .update(project)
+      .set({ archivedAt: new Date(), status: "ARCHIVED", updatedAt: new Date() })
+      .where(eq(project.id, projectId));
+    return this.get(userId, projectId);
+  }
+
+  async restore(userId: string, projectId: string) {
+    await this.access.assertProjectAccess(this.db, userId, projectId);
+    await this.db
+      .update(project)
+      .set({ archivedAt: null, status: "ACTIVE", updatedAt: new Date() })
+      .where(eq(project.id, projectId));
+    return this.get(userId, projectId);
+  }
+
+  async softDelete(userId: string, projectId: string) {
+    await this.access.assertProjectAccess(this.db, userId, projectId);
+    await this.db
+      .update(project)
+      .set({ deletedAt: new Date(), status: "DELETED", updatedAt: new Date() })
+      .where(eq(project.id, projectId));
+    return { ok: true };
   }
 }

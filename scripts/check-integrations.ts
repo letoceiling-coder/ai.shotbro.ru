@@ -90,6 +90,9 @@ async function main() {
 
   if (!live || !env) return;
 
+  if (process.env.SECRETS_ROTATED !== "true") {
+    console.warn("\n— S3 live checks SKIPPED (set SECRETS_ROTATED=true after key rotation) —");
+  } else {
   console.log("\n— S3 live checks —");
   if (!env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY) {
     console.error("  S3 credentials missing — skip live S3");
@@ -107,6 +110,7 @@ async function main() {
   const s3Ok =
     s3.headBucket && s3.putObject && s3.getObject && s3.deleteObject && s3.presignedUrl;
   if (!s3Ok) process.exitCode = 1;
+  }
 
   console.log("\n— SMTP live checks —");
   if (!env.EMAIL_ENABLED) {

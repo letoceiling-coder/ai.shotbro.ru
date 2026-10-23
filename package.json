@@ -4,10 +4,12 @@
   "packageManager": "pnpm@11.5.1",
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@nestjs/core",
       "sharp",
       "esbuild",
       "unrs-resolver",
-      "core-js-pure"
+      "core-js-pure",
+      "msgpackr-extract"
     ]
   },
   "scripts": {
@@ -31,6 +33,7 @@
   },
   "dependencies": {
     "@shotbro/config": "workspace:*",
-    "@shotbro/email": "workspace:*"
+    "@shotbro/email": "workspace:*",
+    "functions-have-names": "1.2.3"
   }
 }

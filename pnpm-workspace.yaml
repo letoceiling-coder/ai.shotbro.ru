@@ -3,16 +3,18 @@ packages:
   - "packages/*"
 
 allowBuilds:
-  '@nestjs/core': set this to true or false
-  '@scarf/scarf': set this to true or false
-  core-js-pure: set this to true or false
-  esbuild: set this to true or false
-  msgpackr-extract: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+  "@nestjs/core": true
+  "@scarf/scarf": true
+  core-js-pure: true
+  esbuild: true
+  msgpackr-extract: true
+  sharp: true
+  unrs-resolver: true
 
 onlyBuiltDependencies:
+  - "@nestjs/core"
   - sharp
   - esbuild
   - unrs-resolver
   - core-js-pure
+  - msgpackr-extract

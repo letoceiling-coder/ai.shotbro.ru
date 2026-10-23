@@ -5,12 +5,16 @@ import type { Db } from "@shotbro/db/client";
 import { conversation, message, messageAttachment, messageBlock } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
+import { EventLogService } from "../events/event-log.service";
+import { IdempotencyService } from "../common/idempotency.service";
 
 @Injectable()
 export class MessagesService {
   constructor(
     @Inject(DB) private readonly db: Db,
     private readonly access: AccessPolicyService,
+    private readonly events: EventLogService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   async list(userId: string, conversationId: string, cursor?: string, limit = 50) {
@@ -61,31 +65,41 @@ export class MessagesService {
     conversationId: string,
     input: { content: string; attachmentAssetIds?: string[]; idempotencyKey?: string },
   ) {
-    const [conv] = await this.db.select().from(conversation).where(eq(conversation.id, conversationId)).limit(1);
-    if (!conv) throw new NotFoundException();
-    await this.access.assertProjectAccess(this.db, userId, conv.projectId);
+    return this.idempotency.run(input.idempotencyKey, userId, `message:create:${conversationId}`, async () => {
+      const [conv] = await this.db.select().from(conversation).where(eq(conversation.id, conversationId)).limit(1);
+      if (!conv) throw new NotFoundException();
+      const { workspaceId } = await this.access.assertProjectAccess(this.db, userId, conv.projectId);
 
-    const id = uuid();
-    await this.db.insert(message).values({
-      id,
-      conversationId,
-      projectId: conv.projectId,
-      role: "user",
-      content: input.content,
-      status: "sent",
+      const id = uuid();
+      await this.db.insert(message).values({
+        id,
+        conversationId,
+        projectId: conv.projectId,
+        role: "user",
+        content: input.content,
+        status: "sent",
+      });
+
+      if (input.attachmentAssetIds?.length) {
+        await this.db.insert(messageAttachment).values(
+          input.attachmentAssetIds.map((assetId, position) => ({
+            id: uuid(),
+            messageId: id,
+            assetId,
+            position,
+          })),
+        );
+      }
+
+      await this.events.append({
+        workspaceId,
+        projectId: conv.projectId,
+        type: "message.created",
+        resourceId: id,
+        payload: { messageId: id, role: "user" },
+      });
+
+      return { id, role: "user" as const, content: input.content, conversationId };
     });
-
-    if (input.attachmentAssetIds?.length) {
-      await this.db.insert(messageAttachment).values(
-        input.attachmentAssetIds.map((assetId, position) => ({
-          id: uuid(),
-          messageId: id,
-          assetId,
-          position,
-        })),
-      );
-    }
-
-    return { id, role: "user" as const, content: input.content };
   }
 }

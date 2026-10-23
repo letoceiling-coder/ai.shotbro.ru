@@ -8,6 +8,9 @@ import { MessagesModule } from "./messages/messages.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { UploadsModule } from "./uploads/uploads.module";
 import { UsersController } from "./users/users.controller";
+import { ApprovalsModule } from "./approvals/approvals.module";
+import { EventsModule } from "./events/events.module";
+import { ConversationsModule } from "./conversations/conversations.module";
 
 @Module({
   imports: [
@@ -23,6 +26,9 @@ import { UsersController } from "./users/users.controller";
     ProjectsModule,
     MessagesModule,
     UploadsModule,
+    ApprovalsModule,
+    EventsModule,
+    ConversationsModule,
   ],
   controllers: [HealthController, UsersController],
 })

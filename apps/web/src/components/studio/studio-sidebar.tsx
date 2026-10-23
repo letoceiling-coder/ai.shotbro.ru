@@ -43,8 +43,11 @@ import {
 import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/store/studio-store";
 import { SettingsSheet } from "./settings-sheet";
+import { useStudioRuntimeMode } from "@/components/auth/studio-mode-provider";
+import { RealProjectsSidebar } from "./real-projects-sidebar";
 
 export function StudioSidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const { mode } = useStudioRuntimeMode();
   const collapsed = useStudioStore((s) => s.sidebarCollapsed);
   const setCollapsed = useStudioStore((s) => s.setSidebarCollapsed);
   const projects = useStudioStore((s) => s.projects);
@@ -104,6 +107,7 @@ export function StudioSidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
 
         <div className="space-y-2 px-3">
+          {mode === "DEMO" ? (
           <Button
             size="sm"
             className={cn("h-8 w-full justify-start gap-2", collapsed && "px-0")}
@@ -115,6 +119,7 @@ export function StudioSidebar({ onNavigate }: { onNavigate?: () => void }) {
             <Plus className="size-4 shrink-0" />
             {!collapsed ? "Новый проект" : null}
           </Button>
+          ) : null}
           {!collapsed ? (
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
@@ -135,6 +140,9 @@ export function StudioSidebar({ onNavigate }: { onNavigate?: () => void }) {
         ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+          {mode === "REAL" && !collapsed ? (
+            <RealProjectsSidebar onNavigate={onNavigate} />
+          ) : (
           <AnimatePresence initial={false}>
             {visibleProjects.map((project) => {
               const active = project.id === activeProjectId;
@@ -219,6 +227,7 @@ export function StudioSidebar({ onNavigate }: { onNavigate?: () => void }) {
               );
             })}
           </AnimatePresence>
+          )}
         </div>
 
         <div className="border-t border-border p-3">

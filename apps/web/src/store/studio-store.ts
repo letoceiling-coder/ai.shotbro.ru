@@ -19,6 +19,9 @@ type AdStageMap = Record<string, AdDemoStage>;
 interface StudioState {
   projects: Project[];
   activeProjectId: string;
+  /** REAL mode — server project UUID */
+  activeRealProjectId: string | null;
+  setActiveRealProject: (id: string | null) => void;
   sidebarCollapsed: boolean;
   qualityStrategy: QualityStrategy;
   adStages: AdStageMap;
@@ -69,6 +72,8 @@ export const useStudioStore = create<StudioState>()(
     (set, get) => ({
       projects: createInitialDemoProjects(),
       activeProjectId: "demo-ad",
+      activeRealProjectId: null,
+      setActiveRealProject: (id) => set({ activeRealProjectId: id }),
       sidebarCollapsed: false,
       qualityStrategy: "balance",
       adStages: { "demo-ad": "initial" },

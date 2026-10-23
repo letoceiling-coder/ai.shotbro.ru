@@ -15,6 +15,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useStudioStore } from "@/store/studio-store";
+import { useStudioRuntimeMode } from "@/components/auth/studio-mode-provider";
+import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 
 const statusLabels: Record<GenerationStatus, string> = {
   DRAFT: "Черновик",
@@ -41,6 +44,8 @@ export function SettingsSheet({
   const simulatorStatus = useStudioStore((s) => s.simulatorStatus);
   const setSimulatorStatus = useStudioStore((s) => s.setSimulatorStatus);
   const resetDemo = useStudioStore((s) => s.resetDemo);
+  const { mode, setMode } = useStudioRuntimeMode();
+  const session = authClient.useSession();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -49,6 +54,42 @@ export function SettingsSheet({
           <SheetTitle>Настройки · DEMO</SheetTitle>
         </SheetHeader>
         <div className="mt-6 space-y-6">
+          <section>
+            <h3 className="mb-2 text-sm font-medium">Режим студии</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button variant={mode === "DEMO" ? "default" : "secondary"} size="sm" onClick={() => setMode("DEMO")}>
+                DEMO
+              </Button>
+              <Button variant={mode === "REAL" ? "default" : "secondary"} size="sm" onClick={() => setMode("REAL")}>
+                REAL
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              DEMO — локальные сценарии. REAL — серверные проекты (нужен вход).
+            </p>
+          </section>
+          <Separator />
+          <section>
+            <h3 className="mb-2 text-sm font-medium">Аккаунт</h3>
+            {session.data?.user ? (
+              <div className="space-y-2 text-sm">
+                <p>{session.data.user.email}</p>
+                <Button variant="secondary" size="sm" onClick={() => authClient.signOut()}>
+                  Выйти
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button asChild size="sm" variant="secondary">
+                  <Link href="/login">Вход</Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link href="/register">Регистрация</Link>
+                </Button>
+              </div>
+            )}
+          </section>
+          <Separator />
           <section>
             <h3 className="mb-2 text-sm font-medium">Тема</h3>
             <div className="flex gap-2">

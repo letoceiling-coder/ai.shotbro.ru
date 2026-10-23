@@ -7,9 +7,18 @@ import { useActiveProject } from "@/store/studio-store";
 import { CHAT_COLUMN, CHAT_GUTTER } from "@/lib/layout";
 import { ChatMessage } from "./chat-message";
 import { ChatComposer } from "./chat-composer";
+import { useStudioRuntimeMode } from "@/components/auth/studio-mode-provider";
+import { RealThread } from "./real-thread";
+import { useStudioStore } from "@/store/studio-store";
 
 export function DemoThread() {
+  const { mode } = useStudioRuntimeMode();
+  const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
   const project = useActiveProject();
+
+  if (mode === "REAL" && activeRealProjectId) {
+    return <RealThread projectId={activeRealProjectId} />;
+  }
 
   if (!project) {
     return (
