@@ -4,7 +4,7 @@ Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEM
 
 Last updated: 2026-10-23 (Phase 2 acceptance pass)
 
-Base commit: `2dd93b6` → **HEAD `dfc5b68`** on `phase2/backend`. Authoritative acceptance: **`docs/PHASE2-FINAL-ACCEPTANCE.md`**. VPS src: `/var/www/ai.shotbro.ru-src` (API/worker rebuilt; web REAL UI deployed on :3020).
+Base commit: `2dd93b6` → **HEAD `66cfeb6`** on `phase2/backend`. Authoritative acceptance: **`docs/PHASE2-FINAL-ACCEPTANCE.md`**. VPS src: `/var/www/ai.shotbro.ru-src` (API/worker rebuilt; web REAL UI deployed on :3020).
 
 ## Этап 0 — окружение и lint
 
@@ -111,14 +111,14 @@ Base commit: `2dd93b6` → **HEAD `dfc5b68`** on `phase2/backend`. Authoritative
 - `studio.shotbro.ru` stack **not modified**.
 - Compromised Selectel/OpenRouter keys **not used** in staging (MinIO + new staging secrets).
 
-## Remaining blockers (post-P0)
+## Remaining blockers (post final fixes)
 
-1. ~~REAL browser E2E P0 chain~~ — **TESTED** (Playwright desktop, `dfc5b68`).
-2. ~~Security integration 10 cases~~ — **TESTED** (upload/approval IDOR cases still missing).
-3. ApprovalCard Playwright; REAL messages with approval blocks from API; SSE reconnect E2E.
-4. `storage.reconcile`; full `media.cleanup` (stub today).
-5. Production cutover (Selectel keys, prod volumes, `EMAIL_VERIFICATION_REQUIRED=true`, SMTP rotation verified).
-6. Playwright tablet/mobile + multipart browser upload E2E.
+1. ~~P0 Playwright chain~~ — TESTED (`dfc5b68`).
+2. ~~media.cleanup / storage.reconcile~~ — IMPLEMENTED (`66cfeb6`).
+3. ~~Approval API + REAL blocks + integration~~ — DONE; Playwright `real-approval.spec.ts` ready.
+4. ~~SSE Last-Event-ID integration~~ — TESTED; browser media-job SSE E2E still open.
+5. Production cutover (Selectel keys, prod env, SMTP rotate, `EMAIL_VERIFICATION_REQUIRED=true`).
+6. Playwright tablet/mobile; browser multipart ≥8MB; DEMO visual regression.
 
 ## Changed / added files (this session — summary)
 

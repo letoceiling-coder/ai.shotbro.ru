@@ -2,7 +2,7 @@
 
 **Branch:** `phase2/backend`  
 **Baseline:** `2dd93b6`  
-**Report HEAD:** see latest `git log -1` on this branch after final-fixes commit  
+**Report HEAD:** `66cfeb6` (Phase 2 final fixes)  
 **Staging:** https://ai.shotbro.ru  
 
 ## Executive summary
