@@ -1,0 +1,80 @@
+# Production template — do NOT deploy until Selectel keys rotated and secrets set.
+# Copy to docker-compose.production.yml + production.env (gitignored).
+name: ai-shotbro-production
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: ${PROD_POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${PROD_POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${PROD_POSTGRES_DB:?}
+    volumes:
+      - prod_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - prod_redis:/data
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    restart: unless-stopped
+    logging: *default-logging
+    env_file: production.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3031:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/v1/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.worker
+    restart: unless-stopped
+    logging: *default-logging
+    env_file: production.env
+    depends_on:
+      - redis
+      - postgres
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://ai.shotbro.ru}
+    ports:
+      - "127.0.0.1:3030:3000"
+
+volumes:
+  prod_pgdata:
+  prod_redis:
+
+# S3: set in production.env — S3_ENDPOINT=https://s3.ru-3.storage.selcloud.ru (BLOCKED until new keys)

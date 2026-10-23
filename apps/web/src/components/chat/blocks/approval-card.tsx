@@ -63,6 +63,15 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
         {block.description ? (
           <p className="text-sm text-muted-foreground">{block.description}</p>
         ) : null}
+        {displayStatus !== "pending" ? (
+          <Badge variant={displayStatus === "approved" ? "default" : "secondary"}>
+            {displayStatus === "approved"
+              ? "Утверждено"
+              : displayStatus === "rejected"
+                ? "Отклонено"
+                : "Нужны правки"}
+          </Badge>
+        ) : null}
         {block.tags?.length ? (
           <div className="flex flex-wrap gap-1.5">
             {block.tags.map((tag) => (

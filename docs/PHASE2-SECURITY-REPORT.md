@@ -26,9 +26,14 @@ Run against live API (see `scripts/run-integration-tests.sh`):
 - Unauthenticated `/users/me` → 401.
 - Logout → session invalid.
 
-Not yet automated in CI: upload session IDOR, approval IDOR, CSRF token double-submit (cookie SameSite), SQLi fuzzing.
+**Update 2026-10-23 (final fixes):**
 
-**Update 2026-10-23:** Integration suite `security-isolation.integration.spec.ts` — **10/10 passed** on staging API (projects/messages/SSE isolation, 401 unauthenticated, logout). Upload flow integration passed separately. Staging `ALLOW_PUBLIC_REGISTER=false`; `/api/auth/*` exempt from staging gate.
+- `security-isolation.integration.spec.ts` — 10/10 (projects/messages/SSE, logout, 401).
+- `upload-idor.integration.spec.ts` — upload session complete + assets list IDOR.
+- `approval-flow.integration.spec.ts` — approve + version conflict 409.
+- `sse-replay.integration.spec.ts` — Last-Event-ID replay.
+
+Still manual / CI gap: CSRF double-submit fuzz, approval cross-tenant decide, automated OWASP scan.
 
 ## Staging exposure
 

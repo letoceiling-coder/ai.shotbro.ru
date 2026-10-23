@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { v4 as uuid } from "uuid";
 import type { Db } from "@shotbro/db/client";
-import { approval, auditEvent } from "@shotbro/db/schema";
+import { approval, auditEvent, conversation, message, messageBlock } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { EventLogService } from "../events/event-log.service";
@@ -20,6 +20,82 @@ export class ApprovalsService {
 
   hashPayload(payload: Record<string, unknown>) {
     return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  }
+
+  async create(
+    userId: string,
+    projectId: string,
+    input: {
+      conversationId: string;
+      title: string;
+      description?: string;
+      targetType: string;
+      targetId: string;
+      targetVersion: string;
+      payload: Record<string, unknown>;
+    },
+  ) {
+    const { workspaceId } = await this.access.assertProjectAccess(this.db, userId, projectId);
+    const [conv] = await this.db
+      .select()
+      .from(conversation)
+      .where(eq(conversation.id, input.conversationId))
+      .limit(1);
+    if (!conv || conv.projectId !== projectId) throw new NotFoundException("Conversation not found");
+
+    const payloadHash = this.hashPayload(input.payload);
+    const approvalId = uuid();
+    await this.db.insert(approval).values({
+      id: approvalId,
+      projectId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      targetVersion: input.targetVersion,
+      payloadHash,
+      status: "PENDING",
+      requestedBy: userId,
+    });
+
+    const messageId = uuid();
+    const blockPayload = {
+      type: "approval",
+      title: input.title,
+      description: input.description,
+      status: "pending",
+      approvalId,
+      expectedVersion: input.targetVersion,
+      payloadHash,
+      actions: [
+        { id: "approve", label: "Утвердить", variant: "primary" },
+        { id: "reject", label: "Отклонить", variant: "secondary" },
+        { id: "request-revision", label: "Правки", variant: "ghost" },
+      ],
+    };
+
+    await this.db.insert(message).values({
+      id: messageId,
+      conversationId: input.conversationId,
+      projectId,
+      role: "assistant",
+      content: input.title,
+      status: "sent",
+    });
+    await this.db.insert(messageBlock).values({
+      id: uuid(),
+      messageId,
+      type: "approval",
+      payload: blockPayload,
+    });
+
+    await this.events.append({
+      workspaceId,
+      projectId,
+      type: "approval.created",
+      resourceId: approvalId,
+      payload: { approvalId, messageId },
+    });
+
+    return { approvalId, messageId, payloadHash, targetVersion: input.targetVersion };
   }
 
   async list(userId: string, projectId: string) {

@@ -56,11 +56,13 @@ export const ApprovalActionSchema = z.object({
 
 export const ApprovalBlockSchema = z.object({
   type: z.literal("approval"),
-  demo: z.literal(true),
+  demo: z.literal(true).optional(),
   title: z.string(),
   description: z.string().optional(),
   status: z.enum(["pending", "approved", "rejected", "revision"]),
   approvalId: z.string(),
+  expectedVersion: z.string().optional(),
+  payloadHash: z.string().optional(),
   actions: z.array(ApprovalActionSchema),
   tags: z.array(z.string()).optional(),
 });

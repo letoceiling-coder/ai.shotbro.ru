@@ -42,14 +42,33 @@ export class EventsController {
       res.write(`: heartbeat\n\n`);
     }, 15000);
 
-    const batch = await this.events.listSince(projectId, after);
-    for (const ev of batch) {
-      res.write(`id: ${ev.eventId}\n`);
-      res.write(`event: ${ev.type}\n`);
-      res.write(`data: ${JSON.stringify(ev)}\n\n`);
-    }
+    let lastId = after;
+    const seen = new Set<string>();
+
+    const pushBatch = async () => {
+      const batch = await this.events.listSince(projectId, lastId);
+      for (const ev of batch) {
+        if (seen.has(ev.eventId)) continue;
+        seen.add(ev.eventId);
+        lastId = ev.eventId;
+        res.write(`id: ${ev.eventId}\n`);
+        res.write(`event: ${ev.type}\n`);
+        res.write(`data: ${JSON.stringify(ev)}\n\n`);
+      }
+    };
+
+    await pushBatch();
+
+    const poll = setInterval(() => {
+      void pushBatch().catch(() => {
+        clearInterval(poll);
+        clearInterval(heartbeat);
+        res.end();
+      });
+    }, 2000);
 
     req.on("close", () => {
+      clearInterval(poll);
       clearInterval(heartbeat);
       res.end();
     });

@@ -10,6 +10,16 @@ const DecideSchema = z.object({
   idempotencyKey: z.string().optional(),
 });
 
+const CreateApprovalSchema = z.object({
+  conversationId: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  targetType: z.string().min(1),
+  targetId: z.string().min(1),
+  targetVersion: z.string().min(1),
+  payload: z.record(z.unknown()).default({}),
+});
+
 @Controller("api/v1")
 @UseGuards(SessionGuard)
 export class ApprovalsController {
@@ -18,6 +28,11 @@ export class ApprovalsController {
   @Get("projects/:projectId/approvals")
   list(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
     return this.approvals.list(req.user.id, projectId);
+  }
+
+  @Post("projects/:projectId/approvals")
+  create(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: unknown) {
+    return this.approvals.create(req.user.id, projectId, CreateApprovalSchema.parse(body));
   }
 
   @Post("approvals/:id/approve")

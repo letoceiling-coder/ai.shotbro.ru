@@ -40,6 +40,22 @@ export const api = {
     registry: () => apiFetch("/api/v1/ai/registry"),
   },
   approvals: {
+    create: (
+      projectId: string,
+      body: {
+        conversationId: string;
+        title: string;
+        description?: string;
+        targetType: string;
+        targetId: string;
+        targetVersion: string;
+        payload?: Record<string, unknown>;
+      },
+    ) =>
+      apiFetch(`/api/v1/projects/${projectId}/approvals`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     decide: (
       approvalId: string,
       action: "approve" | "reject" | "request-revision",

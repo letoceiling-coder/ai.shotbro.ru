@@ -3,7 +3,9 @@ import { Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { resolve } from "node:path";
 import pino from "pino";
+import { runMediaCleanup } from "./cleanup.js";
 import { processAssetMetadata } from "./process-asset.js";
+import { runStorageReconcile } from "./reconcile.js";
 
 loadEnv({ path: resolve(process.cwd(), "../../.env.production") });
 
@@ -15,6 +17,7 @@ const workerOpts = {
   connection,
   concurrency: 2,
   settings: { backoffStrategy: (attempts: number) => Math.min(attempts * 2000, 30_000) },
+  limiter: { max: 10, duration: 1000 },
 };
 
 new Worker(
@@ -48,13 +51,22 @@ new Worker(
 new Worker(
   "media.cleanup",
   async (job) => {
-    log.info({ jobId: job.id, data: job.data }, "media.cleanup stub");
-    return { ok: true };
+    log.info({ jobId: job.id }, "media.cleanup start");
+    return runMediaCleanup(log);
   },
   { ...workerOpts, concurrency: 1 },
 );
 
-log.info("SHOTBRO worker started (media jobs only, no AI)");
+new Worker(
+  "storage.reconcile",
+  async (job) => {
+    log.info({ jobId: job.id }, "storage.reconcile start");
+    return runStorageReconcile(log);
+  },
+  { ...workerOpts, concurrency: 1 },
+);
+
+log.info("SHOTBRO worker started (media + storage maintenance, no AI)");
 
 async function shutdown() {
   log.info("worker shutting down");

@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { and, desc, eq, isNull, lt } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import type { Db } from "@shotbro/db/client";
-import { conversation, message, messageAttachment, messageBlock } from "@shotbro/db/schema";
+import { approval, conversation, message, messageAttachment, messageBlock } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { EventLogService } from "../events/event-log.service";
@@ -42,12 +42,40 @@ export class MessagesService {
           .select()
           .from(messageAttachment)
           .where(eq(messageAttachment.messageId, m.id));
+        const mappedBlocks = await Promise.all(
+          blocks.map(async (b) => {
+            const payload: Record<string, unknown> = {
+              type: b.type,
+              ...(b.payload as Record<string, unknown>),
+            };
+            if (b.type === "approval" && typeof payload.approvalId === "string") {
+              const [ap] = await this.db
+                .select()
+                .from(approval)
+                .where(eq(approval.id, payload.approvalId))
+                .limit(1);
+              if (ap) {
+                payload.status =
+                  ap.status === "APPROVED"
+                    ? "approved"
+                    : ap.status === "REJECTED"
+                      ? "rejected"
+                      : ap.status === "REQUIRES_REVISION"
+                        ? "revision"
+                        : "pending";
+                payload.expectedVersion = ap.targetVersion;
+                payload.payloadHash = ap.payloadHash;
+              }
+            }
+            return payload;
+          }),
+        );
         return {
           id: m.id,
           role: m.role,
           content: m.content,
           createdAt: m.createdAt.toISOString(),
-          blocks: blocks.map((b) => ({ type: b.type, ...b.payload })),
+          blocks: mappedBlocks,
           attachments: attachments.map((a) => ({ assetId: a.assetId })),
         };
       }),

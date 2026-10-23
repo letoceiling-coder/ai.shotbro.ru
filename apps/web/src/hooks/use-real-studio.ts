@@ -52,14 +52,24 @@ export function useSendRealMessage(conversationId: string | undefined) {
   });
 }
 
-export function mapRealMessagesToChat(
-  items: Array<{ id: string; role: string; content: string; createdAt: string }>,
-): ChatMessage[] {
+type RealMessageItem = {
+  id: string;
+  role: string;
+  content: string;
+  createdAt: string;
+  blocks?: Array<{ type: string; [key: string]: unknown }>;
+  attachments?: Array<{ assetId: string }>;
+};
+
+export function mapRealMessagesToChat(items: RealMessageItem[]): ChatMessage[] {
   return items.map((m) => ({
     id: m.id,
     role: m.role === "user" ? "user" : "assistant",
     createdAt: m.createdAt,
-    blocks: [{ type: "text" as const, markdown: m.content }],
+    blocks:
+      m.blocks?.length
+        ? (m.blocks as ChatMessage["blocks"])
+        : [{ type: "text" as const, markdown: m.content }],
     attachments: [],
   }));
 }

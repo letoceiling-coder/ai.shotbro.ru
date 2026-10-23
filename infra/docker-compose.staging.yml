@@ -1,6 +1,12 @@
 # Isolated staging for ai.shotbro.ru Phase 2 — NOT studio.shotbro.ru stacks
 name: ai-shotbro-staging
 
+x-logging: &staging-logging
+  driver: json-file
+  options:
+    max-size: "30m"
+    max-file: "4"
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -57,6 +63,7 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.api
     restart: unless-stopped
+    logging: *staging-logging
     env_file:
       - path: ./staging.env
         required: true
@@ -97,6 +104,7 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.worker
     restart: unless-stopped
+    logging: *staging-logging
     env_file:
       - path: ./staging.env
         required: true
