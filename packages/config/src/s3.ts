@@ -1,4 +1,5 @@
 import {
+  CreateBucketCommand,
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetBucketCorsCommand,
@@ -19,6 +20,16 @@ export type S3ClientEnv = {
   S3_SECRET_ACCESS_KEY: string;
   S3_FORCE_PATH_STYLE: boolean;
 };
+
+/** Ensures bucket exists (staging MinIO bootstrap). No-op if HeadBucket succeeds. */
+export async function ensureS3Bucket(client: S3Client, bucket: string): Promise<void> {
+  try {
+    await client.send(new HeadBucketCommand({ Bucket: bucket }));
+    return;
+  } catch {
+    await client.send(new CreateBucketCommand({ Bucket: bucket }));
+  }
+}
 
 export function createS3Client(env: S3ClientEnv): S3Client {
   return new S3Client({

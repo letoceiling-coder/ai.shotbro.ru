@@ -27,7 +27,7 @@ export class UploadsService {
 
   constructor(
     @Inject(DB) private readonly db: Db,
-    private readonly access: AccessPolicyService,
+    @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
   ) {}
 
   buildStorageKey(workspaceId: string, projectId: string, assetId: string, filename: string) {

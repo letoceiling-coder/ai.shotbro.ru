@@ -4,13 +4,11 @@ WORKDIR /app
 COPY . .
 RUN pnpm config set verify-deps-before-run false \
   && pnpm config set strict-dep-builds false \
-  && pnpm install \
-  && pnpm --filter worker build
+  && pnpm install
 
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/apps/worker/dist ./dist
-COPY --from=builder /app/apps/worker/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-CMD ["node", "dist/main.js"]
+RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
+COPY --from=builder /app /app
+CMD ["pnpm", "exec", "tsx", "--tsconfig", "apps/worker/tsconfig.json", "apps/worker/src/main.ts"]

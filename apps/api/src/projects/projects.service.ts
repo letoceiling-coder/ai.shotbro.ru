@@ -10,7 +10,7 @@ import { AccessPolicyService } from "../access/access-policy.service";
 export class ProjectsService {
   constructor(
     @Inject(DB) private readonly db: Db,
-    private readonly access: AccessPolicyService,
+    @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
   ) {}
 
   async ensurePersonalWorkspace(userId: string, name: string) {

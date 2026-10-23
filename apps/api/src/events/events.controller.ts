@@ -12,8 +12,8 @@ import { DB } from "../database/database.module";
 @UseGuards(SessionGuard)
 export class EventsController {
   constructor(
-    private readonly events: EventLogService,
-    private readonly access: AccessPolicyService,
+    @Inject(EventLogService) private readonly events: EventLogService,
+    @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
     @Inject(DB) private readonly db: Db,
   ) {}
 

@@ -1,6 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { fromNodeHeaders } from "better-auth/node";
 import type { Auth } from "./auth.config";
+import { AUTH } from "./auth.constants";
 
 export type AuthedRequest = {
   user: { id: string; email: string; name: string; emailVerified: boolean };
@@ -8,7 +9,7 @@ export type AuthedRequest = {
 
 @Injectable()
 export class SessionGuard implements CanActivate {
-  constructor(private readonly auth: Auth) {}
+  constructor(@Inject(AUTH) private readonly auth: Auth) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();

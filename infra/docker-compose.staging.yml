@@ -1,0 +1,129 @@
+# Isolated staging for ai.shotbro.ru Phase 2 — NOT studio.shotbro.ru stacks
+name: ai-shotbro-staging
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shotbro_staging
+      POSTGRES_PASSWORD: ${STAGING_POSTGRES_PASSWORD:?set STAGING_POSTGRES_PASSWORD}
+      POSTGRES_DB: shotbro_staging
+    volumes:
+      - staging_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shotbro_staging -d shotbro_staging"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [staging_internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - staging_redis:/data
+    networks: [staging_internal]
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-06-13T11-33-47Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${STAGING_MINIO_USER:-shotbro_staging_minio}
+      MINIO_ROOT_PASSWORD: ${STAGING_MINIO_PASSWORD:?set STAGING_MINIO_PASSWORD}
+    volumes:
+      - staging_minio:/data
+    networks: [staging_internal]
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://shotbro_staging:${STAGING_POSTGRES_PASSWORD}@postgres:5432/shotbro_staging
+    entrypoint: ["sh", "-c", "cd packages/db && pnpm exec drizzle-kit migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [staging_internal]
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    restart: unless-stopped
+    env_file:
+      - path: ./staging.env
+        required: true
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: postgresql://shotbro_staging:${STAGING_POSTGRES_PASSWORD}@postgres:5432/shotbro_staging
+      REDIS_URL: redis://redis:6379
+      APP_URL: https://ai.shotbro.ru
+      TRUSTED_ORIGINS: https://ai.shotbro.ru,http://127.0.0.1:3000
+      OPENROUTER_ENABLED: "false"
+      EMAIL_ENABLED: "false"
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: shotbro-staging
+      S3_FORCE_PATH_STYLE: "true"
+      S3_ACCESS_KEY_ID: ${STAGING_MINIO_USER:-shotbro_staging_minio}
+      S3_SECRET_ACCESS_KEY: ${STAGING_MINIO_PASSWORD}
+      SECRETS_ROTATED: "true"
+      ALLOW_PUBLIC_REGISTER: ${ALLOW_PUBLIC_REGISTER:-false}
+    ports:
+      - "127.0.0.1:3021:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/v1/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [staging_internal]
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.worker
+    restart: unless-stopped
+    env_file:
+      - path: ./staging.env
+        required: true
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://shotbro_staging:${STAGING_POSTGRES_PASSWORD}@postgres:5432/shotbro_staging
+      REDIS_URL: redis://redis:6379
+      OPENROUTER_ENABLED: "false"
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: shotbro-staging
+      S3_FORCE_PATH_STYLE: "true"
+      S3_ACCESS_KEY_ID: ${STAGING_MINIO_USER:-shotbro_staging_minio}
+      S3_SECRET_ACCESS_KEY: ${STAGING_MINIO_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks: [staging_internal]
+
+networks:
+  staging_internal:
+    driver: bridge
+
+volumes:
+  staging_pgdata:
+  staging_redis:
+  staging_minio:

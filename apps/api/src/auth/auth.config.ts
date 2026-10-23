@@ -10,7 +10,8 @@ export function createAuth(db: Db, env: { secret: string; baseURL: string; trust
     trustedOrigins: env.trustedOrigins,
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: env.trustedOrigins.length > 0 && process.env.EMAIL_ENABLED === "true",
+      disableSignUp: process.env.ALLOW_PUBLIC_REGISTER !== "true",
+      requireEmailVerification: process.env.EMAIL_ENABLED === "true",
     },
     database: drizzleAdapter(db, {
       provider: "pg",

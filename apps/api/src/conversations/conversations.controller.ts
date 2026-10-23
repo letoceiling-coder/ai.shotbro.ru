@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import type { AuthedRequest } from "../auth/session.guard";
 import { SessionGuard } from "../auth/session.guard";
 import { ConversationsService } from "./conversations.service";
@@ -6,7 +6,7 @@ import { ConversationsService } from "./conversations.service";
 @Controller("api/v1")
 @UseGuards(SessionGuard)
 export class ConversationsController {
-  constructor(private readonly conversations: ConversationsService) {}
+  constructor(@Inject(ConversationsService) private readonly conversations: ConversationsService) {}
 
   @Get("projects/:projectId/conversations")
   list(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {

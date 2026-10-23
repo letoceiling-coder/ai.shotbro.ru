@@ -9,6 +9,7 @@ dist
 .env.production
 .env.local
 secrets/
+infra/staging.env
 *.pem
 coverage
 playwright-report

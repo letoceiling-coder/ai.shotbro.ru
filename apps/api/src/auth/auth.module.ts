@@ -6,7 +6,9 @@ import { loadApiEnv } from "../env";
 import { createAuth, type Auth } from "./auth.config";
 import { SessionGuard } from "./session.guard";
 
-export const AUTH = Symbol("AUTH");
+import { AUTH } from "./auth.constants";
+
+export { AUTH } from "./auth.constants";
 
 @Global()
 @Module({
@@ -23,11 +25,7 @@ export const AUTH = Symbol("AUTH");
         });
       },
     },
-    {
-      provide: SessionGuard,
-      inject: [AUTH],
-      useFactory: (auth: Auth) => new SessionGuard(auth),
-    },
+    SessionGuard,
   ],
   exports: [AUTH, SessionGuard],
 })

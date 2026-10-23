@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { z } from "zod";
 import type { AuthedRequest } from "../auth/session.guard";
 import { SessionGuard } from "../auth/session.guard";
@@ -13,7 +13,7 @@ const DecideSchema = z.object({
 @Controller("api/v1")
 @UseGuards(SessionGuard)
 export class ApprovalsController {
-  constructor(private readonly approvals: ApprovalsService) {}
+  constructor(@Inject(ApprovalsService) private readonly approvals: ApprovalsService) {}
 
   @Get("projects/:projectId/approvals")
   list(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {

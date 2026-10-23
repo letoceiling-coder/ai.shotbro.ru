@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Inject, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { z } from "zod";
 import type { AuthedRequest } from "../auth/session.guard";
@@ -16,7 +16,7 @@ const InitSchema = z.object({
 @Controller("api/v1/uploads")
 @UseGuards(SessionGuard)
 export class UploadsController {
-  constructor(private readonly uploads: UploadsService) {}
+  constructor(@Inject(UploadsService) private readonly uploads: UploadsService) {}
 
   @Post("init")
   init(@Req() req: AuthedRequest, @Body() body: unknown) {

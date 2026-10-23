@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { CreateMessageBodySchema } from "@shotbro/contracts";
 import type { AuthedRequest } from "../auth/session.guard";
@@ -9,7 +9,7 @@ import { MessagesService } from "./messages.service";
 @Controller("api/v1/conversations/:conversationId/messages")
 @UseGuards(SessionGuard)
 export class MessagesController {
-  constructor(private readonly messages: MessagesService) {}
+  constructor(@Inject(MessagesService) private readonly messages: MessagesService) {}
 
   @Get()
   list(@Req() req: AuthedRequest, @Param("conversationId") conversationId: string, @Query("cursor") cursor?: string) {

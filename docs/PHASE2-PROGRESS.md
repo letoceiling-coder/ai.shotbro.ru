@@ -2,92 +2,129 @@
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**
 
-## Этап 0 — безопасность и зависимости
+Last updated: 2026-10-23 (staging integration session)
+
+Base commit (branch `phase2/backend`): `9dcf0d1` — **additional uncommitted fixes** on disk (SessionGuard/DI, staging compose, nginx scripts). Deployed staging images built from `/var/www/ai.shotbro.ru-src` tarball sync.
+
+## Этап 0 — окружение и lint
 
 | Item | Status |
 |------|--------|
-| `docs/SECRET-ROTATION-CHECKLIST.md` | IMPLEMENTED |
-| S3 live tests gated (`SECRETS_ROTATED=true`) | IMPLEMENTED |
 | `pnpm-workspace.yaml` allowBuilds | IMPLEMENTED |
-| `pnpm install` | TESTED (OK) |
-| `pnpm --filter web lint` | **BLOCKED** (corrupted ESLint transitive packages on Windows disk) |
+| `pnpm install` (clean store + reinstall) | TESTED (OK) |
+| `pnpm --filter web lint` | TESTED (OK, 2 warnings) |
+| `pnpm --filter web typecheck` | TESTED (OK, prior session) |
 | `pnpm --filter web build` | TESTED (OK) |
-| `pnpm --filter api typecheck` | TESTED (OK) |
+| `pnpm --filter api typecheck` | TESTED (OK in Docker build) |
 
-## Этап 1 — тестовая инфраструктура
+**Lint root cause (Windows):** corrupted `node_modules` files (e.g. `functions-have-names`, `string.prototype.matchall`) were **774-byte NUL-filled blobs**, not valid JS. Fix: stop locking processes, delete `pnpm` store `v11`, remove `node_modules`, `pnpm install`. This is **not** explained by ignored native build scripts — postinstall for esbuild/sharp/nest ran successfully in Docker and locally after reinstall.
 
-| Item | Status |
-|------|--------|
-| `infra/docker-compose.dev.yml` | IMPLEMENTED |
-| `scripts/migrate-test-db.sh` | IMPLEMENTED |
-| Docker up locally | **BLOCKED** (Docker Desktop not running on dev machine) |
-| Migration apply + backup/restore | NOT IMPLEMENTED (needs Docker/DB) |
+**Production API note:** NestJS under `tsx` does not emit `design:paramtypes`; all injectable constructor deps need explicit `@Inject(...)` (fixed in `apps/api/src/**`).
 
-## Этап 2 — Better Auth + Auth UI
+## Этап 1 — staging infra (VPS)
 
 | Item | Status |
 |------|--------|
-| Better Auth on `/api/auth/*` | IMPLEMENTED |
-| Login `/login`, Register `/register` | IMPLEMENTED |
-| Settings: DEMO/REAL + account | IMPLEMENTED |
-| Email verification in prod | **BLOCKED** (no SMTP) |
-| Auth E2E | IMPLEMENTED (skipped unless `E2E_REAL_BACKEND=1`) |
+| `infra/docker-compose.staging.yml` (project `ai-shotbro-staging`) | IMPLEMENTED, DEPLOYED |
+| Isolated volumes/network (not studio-shotbro-*) | DEPLOYED |
+| Postgres 16 + Redis 7 + MinIO (cached image on host) | DEPLOYED |
+| `infra/staging.env` (generated, chmod 600, gitignored) | DEPLOYED |
+| `scripts/init-staging-env.sh`, `vps-staging-up.sh` | IMPLEMENTED |
+| Local Docker Desktop | BLOCKED (unchanged) |
 
-## Этап 3 — проекты и сообщения
+**VPS checks:** ~29G free on `/`, port `127.0.0.1:3021` → staging API; `infra-web-1` :3020 unchanged (DEMO web).
+
+## Этап 2 — база данных
 
 | Item | Status |
 |------|--------|
-| Projects CRUD + duplicate/archive/restore/delete/search | IMPLEMENTED (API) |
-| Conversations API | IMPLEMENTED |
-| Messages + idempotency + events | IMPLEMENTED |
-| REAL sidebar + RealThread + TanStack Query | IMPLEMENTED |
-| DEMO unchanged | TESTED (build) |
-| Cross-device persistence | NOT IMPLEMENTED (needs deployed API + auth E2E) |
+| Drizzle migrate on staging Postgres | TESTED (OK) |
+| 23 public tables | TESTED (count + `\dt` list via smoke script) |
+| FK / indexes / Better Auth tables | IMPLEMENTED (schema); spot-check via migrate OK |
+| Backup → delete test row → restore | TESTED (`scripts/staging-backup-restore-test.sh` → `BACKUP_RESTORE_OK`; full SQL replay logs schema “already exists” noise — data row count restored) |
+| `docs/DATABASE-BACKUP.md` | IMPLEMENTED; staging procedure validated |
+
+## Этап 3 — Auth + projects + messages (API)
+
+| Item | Status |
+|------|--------|
+| Better Auth `/api/auth/*` | IMPLEMENTED, TESTED (sign-up on staging) |
+| `ALLOW_PUBLIC_REGISTER` gate | IMPLEMENTED (staging `true`; prod must stay `false` without SMTP) |
+| Session + `/api/v1/users/me` | TESTED (staging smoke) |
+| Projects create (workspace bootstrap) | TESTED (staging smoke) |
+| Conversations / messages / uploads / approvals routes | IMPLEMENTED; messages E2E | NOT TESTED this session |
+| REAL frontend → public API | IMPLEMENTED (nginx); full browser E2E | NOT TESTED |
+| DEMO UI + 4 projects | DEPLOYED (3020 unchanged); regression | NOT re-run |
+
+**Working API URLs**
+
+- Staging (loopback): `http://127.0.0.1:3021/api/v1/health/live`
+- Public (nginx → staging API): `https://ai.shotbro.ru/api/v1/health/live` → `{"status":"ok"}`
 
 ## Этап 4 — Selectel S3
 
 | Item | Status |
 |------|--------|
-| Presigned init/complete | IMPLEMENTED |
-| Multipart, MIME quarantine, thumbnails | NOT IMPLEMENTED |
-| Production S3 tests | **BLOCKED** until key rotation |
+| Presigned init/complete (API code) | IMPLEMENTED |
+| Staging MinIO + `ensureS3Bucket` on API boot | IMPLEMENTED, DEPLOYED |
+| Multipart, MIME quarantine, thumbnails, worker media | NOT IMPLEMENTED |
+| Production Selectel | BLOCKED (compromised keys; owner rotation required) |
 
 ## Этап 5 — Approvals
 
 | Item | Status |
 |------|--------|
-| ApprovalService + version/hash/idempotency | IMPLEMENTED (API) |
-| ApprovalCard → API | NOT IMPLEMENTED |
+| ApprovalService + API | IMPLEMENTED |
+| ApprovalCard → API (web) | NOT IMPLEMENTED |
 
 ## Этап 6 — Redis, BullMQ, SSE
 
 | Item | Status |
 |------|--------|
-| Event log + outbox write | IMPLEMENTED |
-| SSE stream endpoint | IMPLEMENTED (initial replay batch) |
-| Worker media jobs | NOT IMPLEMENTED (stub only) |
+| Redis in staging | DEPLOYED |
+| Worker container | DEPLOYED (stub) |
 | BullMQ enqueue from API | NOT IMPLEMENTED |
+| SSE replay / durable log (full spec) | PARTIAL (event log write; limited replay) |
 
 ## Этап 7–8 — Security & E2E
 
 | Item | Status |
 |------|--------|
-| IDOR integration tests | NOT IMPLEMENTED (placeholder spec) |
-| Full security matrix | NOT IMPLEMENTED |
-| `e2e/real-auth.spec.ts` | IMPLEMENTED (conditional skip) |
-| DEMO regression e2e | NOT re-run this session |
+| IDOR / security matrix tests | NOT IMPLEMENTED (placeholders remain) |
+| `e2e/real-auth.spec.ts` | IMPLEMENTED; NOT TESTED (`E2E_REAL_BACKEND=1` not run) |
+| Cross-account isolation | NOT TESTED |
 
 ## Этап 9 — Production deployment
 
 | Item | Status |
 |------|--------|
-| Compose stack (postgres/redis/api/worker/web) | IMPLEMENTED (files) |
-| nginx `/api/` example | IMPLEMENTED |
-| VPS deploy | **NOT DEPLOYED** |
-| Secret rotation on server | **BLOCKED** (owner action) |
+| Full production compose (api+worker+pg on prod volumes) | NOT DEPLOYED |
+| nginx `/api/` → 3021 | DEPLOYED (staging API only; DEMO web on `/` → 3020 preserved) |
+| Secret rotation on server | BLOCKED (owner) |
+| OpenRouter | DISABLED (boot guard + env) |
+| SMTP / email verification | BLOCKED (no SMTP; no unsafe public prod register) |
 
-## Constraints
+## Constraints confirmation
 
-- OpenRouter: disabled (boot guard)
-- No AI generations
-- Pre-rotation S3 keys must not be used in production
+- OpenRouter: **off** (`OPENROUTER_ENABLED=false`, runtime guard).
+- No paid AI calls.
+- `studio.shotbro.ru` stack **not modified**.
+- Compromised Selectel/OpenRouter keys **not used** in staging (MinIO + new staging secrets).
+
+## Remaining blockers (P0 for “Phase 2 complete”)
+
+1. REAL browser E2E (login → project → message → reload → re-login) against `https://ai.shotbro.ru`.
+2. Security integration tests (no skip-as-pass).
+3. ApprovalCard wiring, full S3 pipeline, BullMQ media jobs, SSE replay spec.
+4. Production cutover (separate DB/volumes, `ALLOW_PUBLIC_REGISTER=false`, rotated secrets, rollback plan).
+5. Optional: compile API with `tsc` in Docker instead of `tsx` to avoid manual `@Inject` drift.
+
+## Changed / added files (this session — summary)
+
+- `infra/docker-compose.staging.yml`, `infra/staging.env.example`, `Dockerfile.api`, `Dockerfile.worker`
+- `scripts/init-staging-env.sh`, `vps-staging-up.sh`, `staging-smoke.sh`, `staging-backup-restore-test.sh`, `nginx-add-api-proxy.sh`
+- `apps/api/src/auth/*` (SessionGuard `@Inject(AUTH)`, register gate)
+- `apps/api/src/**` explicit `@Inject` for tsx/Nest DI
+- `apps/api/src/main.ts` + `packages/config/src/s3.ts` (`ensureS3Bucket`)
+- `apps/api/src/projects/projects.controller.ts` (service rename)
+- `.gitignore` → `infra/staging.env`

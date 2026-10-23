@@ -10,7 +10,7 @@ import { AccessPolicyService } from "../access/access-policy.service";
 export class ConversationsService {
   constructor(
     @Inject(DB) private readonly db: Db,
-    private readonly access: AccessPolicyService,
+    @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
   ) {}
 
   async listForProject(userId: string, projectId: string) {

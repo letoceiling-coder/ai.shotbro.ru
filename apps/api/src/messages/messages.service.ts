@@ -12,9 +12,9 @@ import { IdempotencyService } from "../common/idempotency.service";
 export class MessagesService {
   constructor(
     @Inject(DB) private readonly db: Db,
-    private readonly access: AccessPolicyService,
-    private readonly events: EventLogService,
-    private readonly idempotency: IdempotencyService,
+    @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
+    @Inject(EventLogService) private readonly events: EventLogService,
+    @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
   ) {}
 
   async list(userId: string, conversationId: string, cursor?: string, limit = 50) {
