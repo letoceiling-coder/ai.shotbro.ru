@@ -21,7 +21,10 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
-  STAGING_GATE_SECRET: z.string().min(16).optional(),
+  STAGING_GATE_SECRET: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.length >= 16 ? v : undefined)),
   S3_FORCE_PATH_STYLE: z
     .string()
     .optional()
