@@ -323,6 +323,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.896.0
+        version: 3.1155.0
       '@shotbro/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -335,12 +338,18 @@ importers:
       dotenv:
         specifier: ^17.2.2
         version: 17.4.2
+      drizzle-orm:
+        specifier: ^0.44.5
+        version: 0.44.7(kysely@0.29.7)(postgres@3.4.9)
       ioredis:
         specifier: ^5.7.0
         version: 5.11.1
       pino:
         specifier: ^9.9.5
         version: 9.14.0
+      sharp:
+        specifier: ^0.33.5
+        version: 0.33.5
     devDependencies:
       '@types/node':
         specifier: ^22.18.6
@@ -4654,6 +4663,7 @@ packages:
   cron-parser@4.9.0:
     resolution: {integrity: sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==}
     engines: {node: '>=12.0.0'}
+    deprecated: v4 is no longer maintained, upgrade to v5
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -12237,13 +12247,11 @@ snapshots:
     dependencies:
       color-name: 1.1.4
       simple-swizzle: 0.2.4
-    optional: true
 
   color@4.2.3:
     dependencies:
       color-convert: 2.0.1
       color-string: 1.9.1
-    optional: true
 
   colorette@2.0.20: {}
 
@@ -13563,8 +13571,7 @@ snapshots:
 
   is-arrayish@0.2.1: {}
 
-  is-arrayish@0.3.4:
-    optional: true
+  is-arrayish@0.3.4: {}
 
   is-async-function@2.1.1:
     dependencies:
@@ -15426,7 +15433,6 @@ snapshots:
       '@img/sharp-wasm32': 0.33.5
       '@img/sharp-win32-ia32': 0.33.5
       '@img/sharp-win32-x64': 0.33.5
-    optional: true
 
   sharp@0.35.5(@types/node@20.19.43):
     dependencies:
@@ -15535,7 +15541,6 @@ snapshots:
   simple-swizzle@0.2.4:
     dependencies:
       is-arrayish: 0.3.4
-    optional: true
 
   sonic-boom@4.2.1:
     dependencies:

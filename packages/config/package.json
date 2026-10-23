@@ -9,7 +9,8 @@
     "./openrouter": "./src/openrouter.ts",
     "./s3": "./src/s3.ts",
     "./smtp": "./src/smtp.ts",
-    "./redact": "./src/redact.ts"
+    "./redact": "./src/redact.ts",
+    "./mime-policy": "./src/mime-policy.ts"
   },
   "scripts": {
     "build": "tsc",

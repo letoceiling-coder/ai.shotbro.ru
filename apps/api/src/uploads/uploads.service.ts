@@ -1,4 +1,5 @@
-import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { isAllowedMime, mimeMatchesDeclared, sniffMime } from "@shotbro/config/mime-policy";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { eq } from "drizzle-orm";
@@ -9,6 +10,7 @@ import { asset, uploadSession } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { loadApiEnv } from "../env";
+import { MediaQueueService } from "../queue/media-queue.service";
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
@@ -28,6 +30,7 @@ export class UploadsService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
+    @Inject(MediaQueueService) private readonly mediaQueue: MediaQueueService,
   ) {}
 
   buildStorageKey(workspaceId: string, projectId: string, assetId: string, filename: string) {
@@ -42,6 +45,9 @@ export class UploadsService {
     const max = this.env.S3_MAX_UPLOAD_SIZE_MB * 1024 * 1024;
     if (input.sizeBytes <= 0 || input.sizeBytes > max) {
       throw new BadRequestException("File size not allowed");
+    }
+    if (!isAllowedMime(input.mimeType)) {
+      throw new BadRequestException("MIME type not allowed");
     }
 
     const assetId = uuid();
@@ -104,6 +110,27 @@ export class UploadsService {
     const size = head.ContentLength ?? 0;
     if (size > session.maxSizeBytes) throw new BadRequestException("Uploaded object too large");
 
+    const probe = await this.s3.send(
+      new GetObjectCommand({
+        Bucket: this.env.S3_BUCKET,
+        Key: session.storageKey,
+        Range: "bytes=0-511",
+      }),
+    );
+    const chunk = Buffer.from(await probe.Body!.transformToByteArray());
+    const sniffed = sniffMime(chunk);
+    if (!mimeMatchesDeclared(session.expectedMime, sniffed)) {
+      await this.db
+        .update(asset)
+        .set({ status: "QUARANTINED" })
+        .where(eq(asset.id, session.assetId!));
+      await this.db
+        .update(uploadSession)
+        .set({ status: "FAILED", updatedAt: new Date() })
+        .where(eq(uploadSession.id, sessionId));
+      throw new BadRequestException("MIME verification failed");
+    }
+
     await this.db
       .update(uploadSession)
       .set({ status: "COMPLETED", updatedAt: new Date() })
@@ -112,6 +139,10 @@ export class UploadsService {
       .update(asset)
       .set({ status: "PROCESSING", sizeBytes: size })
       .where(eq(asset.id, session.assetId!));
+
+    if (session.assetId) {
+      await this.mediaQueue.enqueueMediaProcessing(session.assetId);
+    }
 
     return { assetId: session.assetId, status: "PROCESSING" as const };
   }

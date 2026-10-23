@@ -9,6 +9,7 @@ import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { AUTH } from "./auth/auth.module";
 import { createS3Client, ensureS3Bucket } from "@shotbro/config/s3";
+import { stagingGateMiddleware } from "./common/staging-gate.middleware";
 import { loadApiEnv } from "./env";
 
 loadEnv({ path: resolve(process.cwd(), "../../.env.production") });
@@ -39,6 +40,9 @@ async function bootstrap() {
 
   const auth = app.get(AUTH);
   const expressApp = app.getHttpAdapter().getInstance();
+  if (env.STAGING_GATE_SECRET) {
+    expressApp.use(stagingGateMiddleware(env.STAGING_GATE_SECRET));
+  }
   expressApp.all("/api/auth/*", toNodeHandler(auth));
 
   if (env.NODE_ENV !== "production") {

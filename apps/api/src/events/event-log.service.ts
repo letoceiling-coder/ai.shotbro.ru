@@ -38,12 +38,17 @@ export class EventLogService {
   }
 
   async listSince(projectId: string, afterId?: string, limit = 100) {
+    let afterAt: Date | undefined;
+    if (afterId) {
+      const [cursor] = await this.db.select().from(eventLog).where(eq(eventLog.id, afterId)).limit(1);
+      if (cursor) afterAt = cursor.createdAt;
+    }
     const rows = await this.db
       .select()
       .from(eventLog)
       .where(
-        afterId
-          ? and(eq(eventLog.projectId, projectId), gt(eventLog.createdAt, new Date(0)))
+        afterAt
+          ? and(eq(eventLog.projectId, projectId), gt(eventLog.createdAt, afterAt))
           : eq(eventLog.projectId, projectId),
       )
       .orderBy(eventLog.createdAt)

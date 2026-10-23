@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
-import { ThrottlerModule } from "@nestjs/throttler";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import { AuthModule } from "./auth/auth.module";
 import { DatabaseModule } from "./database/database.module";
@@ -11,6 +12,7 @@ import { UsersController } from "./users/users.controller";
 import { ApprovalsModule } from "./approvals/approvals.module";
 import { EventsModule } from "./events/events.module";
 import { ConversationsModule } from "./conversations/conversations.module";
+import { QueueModule } from "./queue/queue.module";
 
 @Module({
   imports: [
@@ -29,7 +31,9 @@ import { ConversationsModule } from "./conversations/conversations.module";
     ApprovalsModule,
     EventsModule,
     ConversationsModule,
+    QueueModule,
   ],
   controllers: [HealthController, UsersController],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

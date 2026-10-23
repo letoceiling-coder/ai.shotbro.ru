@@ -26,10 +26,13 @@ export class EventsController {
   async stream(
     @Req() req: Request & AuthedRequest,
     @Param("projectId") projectId: string,
-    @Query("after") after: string | undefined,
+    @Query("after") afterQuery: string | undefined,
     @Res() res: Response,
   ) {
     await this.access.assertProjectAccess(this.db, req.user.id, projectId);
+    const after =
+      (typeof req.headers["last-event-id"] === "string" ? req.headers["last-event-id"] : undefined) ??
+      afterQuery;
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");

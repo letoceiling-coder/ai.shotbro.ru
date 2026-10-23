@@ -21,5 +21,20 @@ export const api = {
     list: (cursor?: string) => apiFetch(`/api/v1/projects${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
     create: (body: { title: string; description?: string }) =>
       apiFetch("/api/v1/projects", { method: "POST", body: JSON.stringify(body) }),
+    patch: (id: string, body: { title?: string; description?: string }) =>
+      apiFetch(`/api/v1/projects/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  },
+  approvals: {
+    decide: (
+      approvalId: string,
+      action: "approve" | "reject" | "request-revision",
+      body: { expectedVersion: string; payloadHash: string; idempotencyKey?: string },
+    ) =>
+      apiFetch(
+        `/api/v1/approvals/${approvalId}/${action === "request-revision" ? "request-revision" : action}`,
+        {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   },
 };
