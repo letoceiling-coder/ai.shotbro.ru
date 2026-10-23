@@ -15,6 +15,13 @@
       "when": 1792792599677,
       "tag": "0001_third_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792793167320,
+      "tag": "0002_square_makkari",
+      "breakpoints": true
     }
   ]
 }

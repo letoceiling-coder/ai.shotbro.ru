@@ -6,6 +6,7 @@ import pino from "pino";
 import { runMediaCleanup } from "./cleanup.js";
 import { processAssetMetadata } from "./process-asset.js";
 import { runStorageReconcile } from "./reconcile.js";
+import { runProductionNode } from "./production-node.js";
 
 loadEnv({ path: resolve(process.cwd(), "../../.env.production") });
 
@@ -55,6 +56,12 @@ new Worker(
     return runMediaCleanup(log);
   },
   { ...workerOpts, concurrency: 1 },
+);
+
+new Worker(
+  "production.node",
+  async (job) => runProductionNode(job.data as never, log),
+  { ...workerOpts, concurrency: 2 },
 );
 
 new Worker(

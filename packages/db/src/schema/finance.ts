@@ -1,4 +1,4 @@
-import { jsonb, pgEnum, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgEnum, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./auth.js";
 import { agentRun } from "./jobs.js";
 import { project } from "./project.js";

@@ -8,6 +8,7 @@ export const MEDIA_THUMBNAIL_QUEUE = "media.thumbnail";
 export const MEDIA_POSTER_QUEUE = "media.poster";
 export const MEDIA_CLEANUP_QUEUE = "media.cleanup";
 export const STORAGE_RECONCILE_QUEUE = "storage.reconcile";
+export const PRODUCTION_NODE_QUEUE = "production.node";
 
 @Injectable()
 export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
@@ -17,6 +18,7 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
   readonly poster: Queue;
   readonly cleanup: Queue;
   readonly reconcile: Queue;
+  readonly productionNode: Queue;
 
   constructor() {
     const env = loadApiEnv();
@@ -27,6 +29,15 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
     this.poster = new Queue(MEDIA_POSTER_QUEUE, { connection: this.connection, defaultJobOptions: defaultJob });
     this.cleanup = new Queue(MEDIA_CLEANUP_QUEUE, { connection: this.connection, defaultJobOptions: defaultJob });
     this.reconcile = new Queue(STORAGE_RECONCILE_QUEUE, { connection: this.connection, defaultJobOptions: defaultJob });
+    this.productionNode = new Queue(PRODUCTION_NODE_QUEUE, { connection: this.connection, defaultJobOptions: defaultJob });
+  }
+
+  async enqueueProductionNode(nodeId: string, projectId: string, runId: string, nodeType: string) {
+    await this.productionNode.add(
+      "execute",
+      { nodeId, projectId, runId, nodeType, mock: true },
+      { jobId: `prod-${nodeId}` },
+    );
   }
 
   async onModuleInit() {
@@ -49,6 +60,7 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
       this.poster.close(),
       this.cleanup.close(),
       this.reconcile.close(),
+      this.productionNode.close(),
       this.connection.quit(),
     ]);
   }

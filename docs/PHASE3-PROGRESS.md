@@ -2,7 +2,8 @@
 
 **Started:** 2026-10-24  
 **Baseline commit:** `e5c4045967e8a3b0b6f6d69ef0a452bb1b144d54`  
-**Branch:** `phase3/agent` (after checkpoint)
+**Branch:** `phase3/agent`  
+**Checkpoint:** `0288d45` — `phase3: foundation and mock agent pipeline`
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**
 

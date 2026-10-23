@@ -52,7 +52,8 @@ export class ToolExecutor {
 
     const schema = this.schemas.get(toolId) ?? emptyInput;
     const parsed = schema.parse(input ?? {}) as Record<string, unknown>;
-    const execId = existing?.id ?? crypto.randomUUID();
+    const { randomUUID } = await import("node:crypto");
+    const execId = existing?.id ?? randomUUID();
 
     await ctx.storage.saveToolExecution({
       id: execId,

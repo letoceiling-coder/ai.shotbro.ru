@@ -16,6 +16,7 @@ import { QueueModule } from "./queue/queue.module";
 import { AssetsModule } from "./assets/assets.module";
 import { AiModule } from "./ai/ai.module";
 import { AgentModule } from "./agent/agent.module";
+import { ProductionModule } from "./production/production.module";
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AgentModule } from "./agent/agent.module";
     AssetsModule,
     AiModule,
     AgentModule,
+    ProductionModule,
   ],
   controllers: [HealthController, UsersController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -24,4 +24,19 @@ export class AgentController {
   create(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: unknown) {
     return this.agent.createRun(req.user.id, projectId, body);
   }
+
+  @Post("runs/:runId/resume")
+  resume(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("runId") runId: string) {
+    return this.agent.resumeRun(req.user.id, projectId, runId);
+  }
+
+  @Post("runs/:runId/pause")
+  pause(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("runId") runId: string) {
+    return this.agent.pauseRun(req.user.id, projectId, runId);
+  }
+
+  @Post("runs/:runId/cancel")
+  cancel(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("runId") runId: string) {
+    return this.agent.cancelRun(req.user.id, projectId, runId);
+  }
 }
