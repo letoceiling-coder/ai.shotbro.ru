@@ -2,9 +2,9 @@
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**
 
-Last updated: 2026-10-23 (staging integration session)
+Last updated: 2026-10-23 (Phase 2 acceptance pass)
 
-Base commit (branch `phase2/backend`): `9dcf0d1` — **additional uncommitted fixes** on disk (SessionGuard/DI, staging compose, nginx scripts). Deployed staging images built from `/var/www/ai.shotbro.ru-src` tarball sync.
+Base commit: `2dd93b6` → **HEAD `dfc5b68`** on `phase2/backend`. Authoritative acceptance: **`docs/PHASE2-FINAL-ACCEPTANCE.md`**. VPS src: `/var/www/ai.shotbro.ru-src` (API/worker rebuilt; web REAL UI deployed on :3020).
 
 ## Этап 0 — окружение и lint
 
@@ -111,13 +111,14 @@ Base commit (branch `phase2/backend`): `9dcf0d1` — **additional uncommitted fi
 - `studio.shotbro.ru` stack **not modified**.
 - Compromised Selectel/OpenRouter keys **not used** in staging (MinIO + new staging secrets).
 
-## Remaining blockers (P0 for “Phase 2 complete”)
+## Remaining blockers (post-P0)
 
-1. REAL browser E2E (login → project → message → reload → re-login) against `https://ai.shotbro.ru`.
-2. Security integration tests (no skip-as-pass).
-3. ApprovalCard wiring, full S3 pipeline, BullMQ media jobs, SSE replay spec.
-4. Production cutover (separate DB/volumes, `ALLOW_PUBLIC_REGISTER=false`, rotated secrets, rollback plan).
-5. Optional: compile API with `tsc` in Docker instead of `tsx` to avoid manual `@Inject` drift.
+1. ~~REAL browser E2E P0 chain~~ — **TESTED** (Playwright desktop, `dfc5b68`).
+2. ~~Security integration 10 cases~~ — **TESTED** (upload/approval IDOR cases still missing).
+3. ApprovalCard Playwright; REAL messages with approval blocks from API; SSE reconnect E2E.
+4. `storage.reconcile`; full `media.cleanup` (stub today).
+5. Production cutover (Selectel keys, prod volumes, `EMAIL_VERIFICATION_REQUIRED=true`, SMTP rotation verified).
+6. Playwright tablet/mobile + multipart browser upload E2E.
 
 ## Changed / added files (this session — summary)
 

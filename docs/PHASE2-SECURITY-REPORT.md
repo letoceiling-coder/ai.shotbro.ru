@@ -28,6 +28,8 @@ Run against live API (see `scripts/run-integration-tests.sh`):
 
 Not yet automated in CI: upload session IDOR, approval IDOR, CSRF token double-submit (cookie SameSite), SQLi fuzzing.
 
+**Update 2026-10-23:** Integration suite `security-isolation.integration.spec.ts` — **10/10 passed** on staging API (projects/messages/SSE isolation, 401 unauthenticated, logout). Upload flow integration passed separately. Staging `ALLOW_PUBLIC_REGISTER=false`; `/api/auth/*` exempt from staging gate.
+
 ## Staging exposure
 
 - Public URL `https://ai.shotbro.ru/api/` proxies to staging port **3021**.
@@ -42,5 +44,5 @@ Not yet automated in CI: upload session IDOR, approval IDOR, CSRF token double-s
 ## Blocked
 
 - Production Selectel keys (compromised; MinIO staging only).
-- SMTP / email verification.
+- SMTP on staging (Beget); **email verification not mandatory on staging** (`EMAIL_VERIFICATION_REQUIRED=false` until prod).
 - Full OWASP matrix automation.
