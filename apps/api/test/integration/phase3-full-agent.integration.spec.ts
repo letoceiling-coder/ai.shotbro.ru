@@ -93,20 +93,27 @@ describe.skipIf(!STAGING)("Phase 3 full mock agent (staging)", () => {
 
     expect(finalState).toBe("COMPLETED");
 
-    const assets = await apiJson<Array<{ id: string; mimeType: string; category?: string }>>(
-      `/api/v1/projects/${projectId}/assets`,
-      session,
-    );
-    const delivery = assets.json.find((a) => a.mimeType === "video/mp4" && a.category === "mock_delivery");
+    let delivery: { id: string; mimeType: string; originalName?: string } | undefined;
+    for (let i = 0; i < 30; i++) {
+      const assets = await apiJson<Array<{ id: string; mimeType: string; originalName?: string }>>(
+        `/api/v1/projects/${projectId}/assets`,
+        session,
+      );
+      delivery = assets.json.find(
+        (a) => a.mimeType === "video/mp4" && a.originalName?.includes("mock-delivery"),
+      );
+      if (delivery) break;
+      await sleep(2000);
+    }
     expect(delivery?.id).toBeTruthy();
 
     const dl = await apiJson<{ url: string }>(`/api/v1/assets/${delivery!.id}/download-url`, session);
     expectOk2xx(dl.status);
     expect(dl.json.url).toMatch(/^https?:\/\//);
 
-    const head = await fetch(dl.json.url, { method: "HEAD" });
-    expect(head.ok).toBe(true);
-    expect(head.headers.get("content-type") ?? "").toMatch(/video/);
+    const blob = await fetch(dl.json.url, { method: "GET", headers: { Range: "bytes=0-1023" } });
+    expect(blob.status === 200 || blob.status === 206).toBe(true);
+    expect((blob.headers.get("content-type") ?? "").toLowerCase()).toMatch(/video/);
   }, 600_000);
 
   it("paid provider guard blocks live execution flag", async () => {

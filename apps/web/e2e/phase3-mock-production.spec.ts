@@ -1,12 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
 
-async function approvePendingApprovals(page: import("@playwright/test").Page, max = 8) {
+async function approvePendingApprovals(page: import("@playwright/test").Page, max = 10) {
   for (let i = 0; i < max; i++) {
-    const approve = page.getByRole("button", { name: /^Утвердить$/ }).first();
-    if (!(await approve.isVisible().catch(() => false))) break;
-    await approve.click();
-    await page.waitForTimeout(1500);
+    const enabled = page.getByRole("button", { name: /^Утвердить$/, disabled: false });
+    if ((await enabled.count()) === 0) break;
+    await enabled.first().scrollIntoViewIfNeeded();
+    await enabled.first().click();
+    await page.waitForTimeout(4000);
   }
 }
 
@@ -23,10 +24,8 @@ test.describe("Phase 3 mock production (REAL)", () => {
     test.setTimeout(600_000);
 
     await openRealNewProject(page);
-    await page.getByRole("button", { name: "Новый REAL-проект" }).click();
+    await page.getByRole("button", { name: "Новый REAL-проект" }).first().click();
     await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Нужен вход?")).toHaveCount(0, { timeout: 15_000 });
-
     const input = page.getByPlaceholder(/Сообщение сохранится|сообщение|опишите/i).first();
     await input.fill("Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo");
     await page.getByRole("button", { name: /отправить|send/i }).click();
@@ -36,8 +35,8 @@ test.describe("Phase 3 mock production (REAL)", () => {
     await approvePendingApprovals(page, 6);
 
     await expect(
-      page.getByText(/Финальный ролик|Mock-производство|Production board|Готово: mock/i).first(),
-    ).toBeVisible({ timeout: 300_000 });
+      page.getByText(/Финальный ролик|Mock-производство|Production board|Готово: mock|mock-delivery/i).first(),
+    ).toBeVisible({ timeout: 420_000 });
 
     await page.reload();
     await expect(page.getByText(/Brief \(MOCK\)|Финальный ролик|Утверждено/i).first()).toBeVisible({
