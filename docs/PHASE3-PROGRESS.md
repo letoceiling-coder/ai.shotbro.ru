@@ -1,8 +1,9 @@
 # Phase 3 — Progress
 
 **Branch:** `phase3/agent`  
-**Commits:** `0288d45` (foundation), `bfb271d` (orchestrator/graph)  
-**Baseline RC:** `e5c4045` / tag `phase2-rc1` (aligned — see `PHASE3-GIT-NOTES.md`)
+**Staging deploy SHA:** `6dcc810` on VPS (`DEPLOYED.txt`); repo HEAD `a8c7a6b` (tests + docs)  
+**Staging acceptance:** **TESTED** — see `PHASE3-FINAL-ACCEPTANCE.md`  
+**Baseline RC:** `e5c4045` / tag `phase2-rc1` (unchanged)
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**
 
