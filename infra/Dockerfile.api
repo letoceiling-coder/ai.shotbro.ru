@@ -1,0 +1,5 @@
+# Phase 2+ API placeholder — build when apps/api is implemented
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+RUN echo "api image not built yet — Phase 2 backend" && exit 0

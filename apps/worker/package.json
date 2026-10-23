@@ -1,0 +1,10 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "echo \"Phase 4\"",
+    "lint": "echo ok",
+    "typecheck": "echo ok"
+  }
+}

@@ -1,0 +1,4 @@
+ai.shotbro.ru {
+	encode gzip
+	reverse_proxy web:3000
+}

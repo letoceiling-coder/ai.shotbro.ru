@@ -1,0 +1,16 @@
+# Example nginx site for ai.shotbro.ru (Phase 1 static/demo UI)
+# Place in /etc/nginx/sites-available/ai.shotbro.ru.conf and symlink to sites-enabled.
+
+server {
+    listen 80;
+    server_name ai.shotbro.ru;
+
+    location / {
+        proxy_pass http://127.0.0.1:3020;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

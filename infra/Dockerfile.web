@@ -1,0 +1,20 @@
+FROM node:22-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
+WORKDIR /app
+COPY . .
+RUN pnpm config set verify-deps-before-run false \
+  && pnpm config set strict-dep-builds false \
+  && pnpm install \
+  && pnpm rebuild sharp esbuild 2>/dev/null || true \
+  && pnpm --filter web build
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/public ./apps/web/public
+EXPOSE 3000
+CMD ["node", "apps/web/server.js"]

@@ -1,0 +1,44 @@
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Public only — never mount OPENROUTER/S3/SMTP into the Next.js container
+      APP_URL: ${APP_URL:-https://ai.shotbro.ru}
+    ports:
+      - "127.0.0.1:3020:3000"
+
+  # Phase 2+ API — secrets via env_file on the server (not baked into images)
+  api:
+    profiles: ["backend"]
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    restart: unless-stopped
+    env_file:
+      - path: ../.env.production
+        required: false
+    environment:
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:3021:3001"
+
+  caddy:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:

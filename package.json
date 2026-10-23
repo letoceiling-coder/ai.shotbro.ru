@@ -1,0 +1,32 @@
+{
+  "name": "shotbro-ai-studio",
+  "private": true,
+  "packageManager": "pnpm@11.5.1",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "esbuild",
+      "unrs-resolver",
+      "core-js-pure"
+    ]
+  },
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm --filter web test",
+    "test:e2e": "pnpm --filter web test:e2e",
+    "storybook": "pnpm --filter web storybook",
+    "integrations:check": "tsx scripts/check-integrations.ts"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@shotbro/config": "workspace:*",
+    "@shotbro/email": "workspace:*"
+  }
+}
