@@ -49,7 +49,7 @@ export class ToolRegistry {
   assertRunnable(id: string): ToolDefinition {
     const t = this.get(id);
     if (!t) throw new Error(`Unknown tool: ${id}`);
-    if (!t.enabled) throw new Error(`Tool disabled in Phase 2: ${id}`);
+    if (!t.enabled) throw new Error(`Tool disabled: ${id}`);
     return t;
   }
 }

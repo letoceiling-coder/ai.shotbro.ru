@@ -44,6 +44,11 @@ export const envSchema = z
     OPENROUTER_DEFAULT_MODEL: emptyToUndefined,
     OPENROUTER_MAX_COST_USD: z.coerce.number().min(0).default(0),
 
+    /** Phase 3: force mock adapters and block external inference */
+    AI_MOCK_MODE: boolFromEnv.default(true),
+    /** Phase 3: when false, EXTERNAL_PAID tools still require explicit owner enable + approvals */
+    PROVIDER_LIVE_EXECUTION_ENABLED: boolFromEnv.default(false),
+
     SMTP_HOST: emptyToUndefined,
     SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(465),
     SMTP_SECURE: boolFromEnv.default(true),
@@ -66,11 +71,18 @@ export const envSchema = z
         path: ["OPENROUTER_API_KEY"],
       });
     }
-    if (data.OPENROUTER_ENABLED && data.OPENROUTER_ALLOW_PAID_REQUESTS) {
+    if (data.OPENROUTER_ALLOW_PAID_REQUESTS) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "OPENROUTER_ALLOW_PAID_REQUESTS must stay false until Phase 3 approval",
+        message: "OPENROUTER_ALLOW_PAID_REQUESTS must stay false until owner enables live AI",
         path: ["OPENROUTER_ALLOW_PAID_REQUESTS"],
+      });
+    }
+    if (data.PROVIDER_LIVE_EXECUTION_ENABLED && data.AI_MOCK_MODE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "PROVIDER_LIVE_EXECUTION_ENABLED requires AI_MOCK_MODE=false",
+        path: ["PROVIDER_LIVE_EXECUTION_ENABLED"],
       });
     }
     if (data.EMAIL_ENABLED) {

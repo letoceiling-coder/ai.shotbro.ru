@@ -15,6 +15,7 @@ import { ConversationsModule } from "./conversations/conversations.module";
 import { QueueModule } from "./queue/queue.module";
 import { AssetsModule } from "./assets/assets.module";
 import { AiModule } from "./ai/ai.module";
+import { AgentModule } from "./agent/agent.module";
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AiModule } from "./ai/ai.module";
     QueueModule,
     AssetsModule,
     AiModule,
+    AgentModule,
   ],
   controllers: [HealthController, UsersController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

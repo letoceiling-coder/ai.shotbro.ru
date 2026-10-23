@@ -10,7 +10,8 @@
     "./s3": "./src/s3.ts",
     "./smtp": "./src/smtp.ts",
     "./redact": "./src/redact.ts",
-    "./mime-policy": "./src/mime-policy.ts"
+    "./mime-policy": "./src/mime-policy.ts",
+    "./ai-execution": "./src/ai-execution.ts"
   },
   "scripts": {
     "build": "tsc",

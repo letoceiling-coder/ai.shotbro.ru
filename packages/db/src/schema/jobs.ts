@@ -2,6 +2,7 @@ import { jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./auth.js";
 import { conversation } from "./conversation.js";
 import { project } from "./project.js";
+import { agentProductionStateEnum } from "./production-enums.js";
 
 export const jobStatusEnum = pgEnum("job_status", [
   "QUEUED",
@@ -40,6 +41,8 @@ export const agentRun = pgTable("agent_run", {
     .references(() => project.id, { onDelete: "cascade" }),
   conversationId: text("conversation_id").references(() => conversation.id, { onDelete: "set null" }),
   status: jobStatusEnum("status").notNull().default("QUEUED"),
+  productionState: agentProductionStateEnum("production_state").notNull().default("DRAFT"),
+  triggerMessage: text("trigger_message"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -52,8 +55,12 @@ export const toolExecution = pgTable("tool_execution", {
     .references(() => agentRun.id, { onDelete: "cascade" }),
   toolName: text("tool_name").notNull(),
   status: jobStatusEnum("status").notNull().default("QUEUED"),
+  sideEffect: text("side_effect").notNull().default("READ_ONLY"),
+  idempotencyKey: text("idempotency_key"),
   input: jsonb("input").$type<Record<string, unknown>>().default({}),
   output: jsonb("output").$type<Record<string, unknown>>(),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
 });

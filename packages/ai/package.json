@@ -12,7 +12,8 @@
     "lint": "echo ok"
   },
   "dependencies": {
-    "@shotbro/config": "workspace:*"
+    "@shotbro/config": "workspace:*",
+    "@shotbro/contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.18.6",
