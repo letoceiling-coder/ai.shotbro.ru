@@ -54,6 +54,22 @@ export async function apiRaw(path: string, session: AuthSession, init: RequestIn
   });
 }
 
+/** Apply Better Auth Set-Cookie from sign-out (cleared tokens) so follow-up requests do not reuse old session. */
+export async function signOut(session: AuthSession): Promise<void> {
+  const res = await fetch(`${base}/api/auth/sign-out`, {
+    method: "POST",
+    headers: headers({
+      Cookie: session.cookie,
+      Origin: process.env.INTEGRATION_ORIGIN ?? "https://ai.shotbro.ru",
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`signOut ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
+  }
+  session.cookie = "";
+}
+
 export function requireIntegrationEnv() {
   if (process.env.RUN_INTEGRATION_TESTS !== "1") {
     throw new Error("Set RUN_INTEGRATION_TESTS=1 to run integration tests");

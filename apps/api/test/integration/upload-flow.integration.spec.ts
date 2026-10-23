@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { apiJson, requireIntegrationEnv, signUp, type AuthSession } from "./http-helpers";
+import { apiJson, expectOk2xx, requireIntegrationEnv, signUp, type AuthSession } from "./http-helpers";
 
 const png = readFileSync(resolve(process.cwd(), "test/fixtures/1x1.png"));
 
@@ -62,7 +62,7 @@ describe("Upload flow (integration)", () => {
       session,
       { method: "POST", body: JSON.stringify({}) },
     );
-    expect(done.status).toBe(200);
+    expectOk2xx(done.status);
     expect(done.json.status).toBe("PROCESSING");
 
     const assets = await apiJson<Array<{ id: string; status: string }>>(

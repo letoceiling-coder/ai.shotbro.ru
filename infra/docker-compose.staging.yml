@@ -69,7 +69,7 @@ services:
       TRUSTED_ORIGINS: https://ai.shotbro.ru,http://127.0.0.1:3000
       OPENROUTER_ENABLED: "false"
       S3_ENDPOINT: http://minio:9000
-      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-https://ai.shotbro.ru/minio-storage}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-https://ai.shotbro.ru}
       S3_REGION: us-east-1
       S3_BUCKET: shotbro-staging
       S3_FORCE_PATH_STYLE: "true"
@@ -106,7 +106,7 @@ services:
       REDIS_URL: redis://redis:6379
       OPENROUTER_ENABLED: "false"
       S3_ENDPOINT: http://minio:9000
-      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-https://ai.shotbro.ru/minio-storage}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-https://ai.shotbro.ru}
       S3_REGION: us-east-1
       S3_BUCKET: shotbro-staging
       S3_FORCE_PATH_STYLE: "true"

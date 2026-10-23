@@ -68,6 +68,11 @@ export function RealThread({ projectId }: { projectId: string }) {
             Файлов в проекте: {assets.length}
           </p>
         ) : null}
+        {upload.isError ? (
+          <p className={`${CHAT_COLUMN} mb-2 text-xs text-destructive`}>
+            Загрузка не удалась: {upload.error instanceof Error ? upload.error.message : "ошибка"}
+          </p>
+        ) : null}
         <div className={`${CHAT_COLUMN} flex gap-2`}>
           <input
             ref={fileRef}

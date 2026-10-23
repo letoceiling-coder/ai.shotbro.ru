@@ -43,9 +43,16 @@ export function createS3Client(env: S3ClientEnv): S3Client {
   });
 }
 
+/** Origin only — path prefixes (e.g. /minio-storage) break SigV4 when nginx strips them before MinIO. */
+export function resolveS3SigningEndpoint(publicEndpoint: string | undefined, fallback: string): string {
+  const raw = publicEndpoint?.trim() || fallback;
+  const u = new URL(raw);
+  return `${u.protocol}//${u.host}`;
+}
+
 /** Presigned URLs must use a browser-reachable host (nginx proxy in staging). */
 export function createS3SigningClient(env: S3ClientEnv & { S3_PUBLIC_ENDPOINT?: string }): S3Client {
-  const endpoint = env.S3_PUBLIC_ENDPOINT?.trim() || env.S3_ENDPOINT;
+  const endpoint = resolveS3SigningEndpoint(env.S3_PUBLIC_ENDPOINT, env.S3_ENDPOINT);
   return new S3Client({
     region: env.S3_REGION,
     endpoint,

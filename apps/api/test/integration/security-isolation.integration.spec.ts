@@ -1,5 +1,13 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { apiJson, apiRaw, expectOk2xx, requireIntegrationEnv, signUp, type AuthSession } from "./http-helpers";
+import {
+  apiJson,
+  apiRaw,
+  expectOk2xx,
+  requireIntegrationEnv,
+  signOut,
+  signUp,
+  type AuthSession,
+} from "./http-helpers";
 
 describe("Security isolation (integration)", () => {
   let userA: AuthSession;
@@ -84,7 +92,7 @@ describe("Security isolation (integration)", () => {
     const u = await signUp(`logout-${ts}@test.local`, "TestPass123!", "Logout User");
     const me1 = await apiJson("/api/v1/users/me", u);
     expect(me1.status).toBe(200);
-    await apiRaw("/api/auth/sign-out", u, { method: "POST" });
+    await signOut(u);
     const me2 = await apiJson("/api/v1/users/me", u);
     expect(me2.status).toBe(401);
   });

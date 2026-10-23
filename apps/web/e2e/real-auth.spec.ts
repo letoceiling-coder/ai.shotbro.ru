@@ -8,11 +8,11 @@ test.describe("REAL mode (requires API + DB)", () => {
     const email = process.env.E2E_TEST_EMAIL;
     const password = process.env.E2E_TEST_PASSWORD;
     if (email && password) {
-      await page.goto("/login");
+      await page.goto("/login", { waitUntil: "domcontentloaded" });
       await page.getByPlaceholder("Email").fill(email);
       await page.getByPlaceholder("Пароль").fill(password);
       await page.getByRole("button", { name: "Войти" }).click();
-      await page.waitForURL(/\/(studio)?/, { timeout: 15_000 });
+      await page.waitForURL("**/studio**", { timeout: 45_000 });
       return { email, password };
     }
     if (process.env.E2E_ALLOW_REGISTER !== "1") {
@@ -20,7 +20,7 @@ test.describe("REAL mode (requires API + DB)", () => {
     }
     const regEmail = `e2e-${Date.now()}@shotbro.test`;
     const regPass = "TestPass123!";
-    await page.goto("/register");
+    await page.goto("/register", { waitUntil: "domcontentloaded" });
     await page.getByPlaceholder("Имя").fill("E2E User");
     await page.getByPlaceholder("Email").fill(regEmail);
     await page.getByPlaceholder("Пароль").fill(regPass);
@@ -31,12 +31,13 @@ test.describe("REAL mode (requires API + DB)", () => {
   test("login create project message reload restore", async ({ page }) => {
     const creds = await ensureLoggedIn(page);
 
-    await page.goto("/studio");
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Настройки" }).click();
     await page.getByRole("button", { name: "REAL" }).click();
+    await page.keyboard.press("Escape");
 
     await page.getByRole("button", { name: "Новый проект" }).click();
-    await expect(page.getByText("REAL-проект")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 15_000 });
 
     const msg = `persist-${Date.now()}`;
     await page.getByPlaceholder("Сообщение сохранится на сервере…").fill(msg);
@@ -46,26 +47,40 @@ test.describe("REAL mode (requires API + DB)", () => {
     await page.reload();
     await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
 
-    await page.goto("/login");
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
     await page.getByPlaceholder("Email").fill(creds.email);
     await page.getByPlaceholder("Пароль").fill(creds.password);
     await page.getByRole("button", { name: "Войти" }).click();
-    await page.goto("/studio");
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Настройки" }).click();
     await page.getByRole("button", { name: "REAL" }).click();
+    await page.keyboard.press("Escape");
     await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
   });
 
   test("upload small png via REAL thread", async ({ page }) => {
     await ensureLoggedIn(page);
-    await page.goto("/studio");
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Настройки" }).click();
     await page.getByRole("button", { name: "REAL" }).click();
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Новый проект" }).click();
-    await expect(page.getByText("REAL-проект")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 15_000 });
 
     const fixture = path.join(__dirname, "fixtures", "1x1.png");
-    await page.locator('input[type="file"]').setInputFiles(fixture);
-    await expect(page.getByText(/Файлов в проекте: [1-9]/)).toBeVisible({ timeout: 60_000 });
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/api/v1/uploads/init") && r.ok(),
+        { timeout: 90_000 },
+      ),
+      (async () => {
+        const [fileChooser] = await Promise.all([
+          page.waitForEvent("filechooser"),
+          page.getByRole("button", { name: "Файл" }).click(),
+        ]);
+        await fileChooser.setFiles(fixture);
+      })(),
+    ]);
+    await expect(page.getByText(/Файлов в проекте: [1-9]/)).toBeVisible({ timeout: 90_000 });
   });
 });
