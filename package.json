@@ -18,7 +18,11 @@
     "test": "pnpm --filter web test",
     "test:e2e": "pnpm --filter web test:e2e",
     "storybook": "pnpm --filter web storybook",
-    "integrations:check": "tsx scripts/check-integrations.ts"
+    "integrations:check": "tsx scripts/check-integrations.ts",
+    "db:generate": "pnpm --filter @shotbro/db db:generate",
+    "db:migrate": "pnpm --filter @shotbro/db db:migrate",
+    "api:dev": "pnpm --filter api dev",
+    "worker:dev": "pnpm --filter worker dev"
   },
   "devDependencies": {
     "dotenv": "^17.2.2",

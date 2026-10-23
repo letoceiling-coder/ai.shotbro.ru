@@ -6,14 +6,12 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      # Public only — never mount OPENROUTER/S3/SMTP into the Next.js container
       APP_URL: ${APP_URL:-https://ai.shotbro.ru}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://ai.shotbro.ru}
     ports:
       - "127.0.0.1:3020:3000"
 
-  # Phase 2+ API — secrets via env_file on the server (not baked into images)
   api:
-    profiles: ["backend"]
     build:
       context: ..
       dockerfile: infra/Dockerfile.api
@@ -23,22 +21,67 @@ services:
         required: false
     environment:
       NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: postgresql://shotbro:${POSTGRES_PASSWORD:-shotbro}@postgres:5432/shotbro
+      REDIS_URL: redis://redis:6379
+      APP_URL: ${APP_URL:-https://ai.shotbro.ru}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production-32chars-min}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-https://ai.shotbro.ru}
+      OPENROUTER_ENABLED: "false"
     ports:
       - "127.0.0.1:3021:3001"
-
-  caddy:
-    image: caddy:2.9-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
     depends_on:
-      - web
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/v1/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.worker
+    restart: unless-stopped
+    env_file:
+      - path: ../.env.production
+        required: false
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://shotbro:${POSTGRES_PASSWORD:-shotbro}@postgres:5432/shotbro
+      REDIS_URL: redis://redis:6379
+      OPENROUTER_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shotbro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shotbro}
+      POSTGRES_DB: shotbro
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shotbro -d shotbro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
 
 volumes:
-  caddy_data:
-  caddy_config:
+  pgdata:
+  redisdata:

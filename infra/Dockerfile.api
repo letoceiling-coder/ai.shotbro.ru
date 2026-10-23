@@ -1,5 +1,18 @@
-# Phase 2+ API placeholder — build when apps/api is implemented
-FROM node:22-alpine
+FROM node:22-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
+WORKDIR /app
+COPY . .
+RUN pnpm config set verify-deps-before-run false \
+  && pnpm config set strict-dep-builds false \
+  && pnpm install \
+  && pnpm --filter api build
+
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN echo "api image not built yet — Phase 2 backend" && exit 0
+RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+EXPOSE 3001
+CMD ["node", "dist/main.js"]

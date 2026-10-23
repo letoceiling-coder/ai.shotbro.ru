@@ -1,0 +1,16 @@
+FROM node:22-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
+WORKDIR /app
+COPY . .
+RUN pnpm config set verify-deps-before-run false \
+  && pnpm config set strict-dep-builds false \
+  && pnpm install \
+  && pnpm --filter worker build
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/apps/worker/dist ./dist
+COPY --from=builder /app/apps/worker/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+CMD ["node", "dist/main.js"]
