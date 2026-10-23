@@ -1,9 +1,9 @@
 # Phase 3 — Acceptance report (in progress)
 
 **Branch:** `phase3/agent`  
-**Git HEAD:** _(see `git rev-parse HEAD` at release time)_  
-**Staging DB migrations:** `0001_third_tigra`, `0002_square_makkari` — **TESTED** manual apply — see [PHASE3-MIGRATION-STAGING.md](./PHASE3-MIGRATION-STAGING.md)  
-**Staging code deploy:** **BLOCKED / PENDING** — rebuild API/worker/web from `phase3/agent` required after this commit
+**Git HEAD:** `3ab3c22` (`phase3: complete mock pipeline backend and REAL UI hook`)  
+**Staging DB migrations:** `0001_third_tigra`, `0002_square_makkari` — **TESTED** — [PHASE3-MIGRATION-STAGING.md](./PHASE3-MIGRATION-STAGING.md)  
+**Staging code deploy:** **DEPLOYED** 2026-10-24 — api/worker/web rebuilt from tarball `3ab3c22`
 
 ## Executive summary
 
