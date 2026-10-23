@@ -1,70 +1,75 @@
 # Phase 2 final acceptance
 
 **Branch:** `phase2/backend`  
-**Baseline commit:** `2dd93b6` → **session delta:** AI package, assets/multipart API, REAL UI upload, SMTP, staging MinIO proxy (uncommitted on disk).  
-**Criterion:** LOGIN → PROJECT → CHAT → UPLOAD → DB → APPROVAL → EVENTS → RELOAD → RESTORE — **met on staging API**; browser REAL E2E and public upload CORS still need web redeploy + verification.
+**Baseline:** `2dd93b6` → **checkpoints:** `3df617e` (REAL backend bundle) → **`abfa67d`** (S3 presign + E2E fixes)  
+**Staging:** https://ai.shotbro.ru (API :3021, web :3020, MinIO :9003, `ALLOW_PUBLIC_REGISTER=false`)
 
 ## Summary matrix
 
 | Area | IMPLEMENTED | TESTED | DEPLOYED (staging) | BLOCKED |
 |------|-------------|--------|--------------------|---------|
-| Auth (Better Auth) | yes | smoke + integration (isolation) | yes | prod cutover |
-| Projects / chat | yes | smoke + integration | yes | Playwright REAL on prod URL |
-| Upload (presigned + multipart ≥8MB) | yes | integration PUT (nginx host signature) partial | yes | Selectel prod |
-| Assets (list/download/delete/restore/versions) | yes | via upload test | yes | — |
-| Approvals API + ApprovalCard UUID | yes | manual | API yes / web partial | REAL approval blocks in chat |
-| BullMQ `media.metadata` + sharp thumb | yes | worker on staging | yes | ffprobe/poster |
-| SSE + Last-Event-ID | yes | integration (403 stream for B) | yes | long reconnect + media job |
-| `@shotbro/ai` registry/orchestrator | yes | unit (3 tests) | API `/api/v1/ai/registry` | OpenRouter off |
-| Security isolation | yes | integration (10 cases) | — | — |
-| SMTP Beget | yes | `pnpm verify:smtp` OK | staging.env | rotate leaked password |
-| Production Selectel | prepared | MinIO staging only | — | **new keys required** |
-| OpenRouter / paid AI | disabled | guards + unit | yes | Phase 3 |
+| Auth (Better Auth) | yes | integration + Playwright login | yes | prod cutover |
+| Projects / chat / persist | yes | integration + Playwright REAL chain | yes | — |
+| Browser S3 upload (presigned) | yes | `staging-upload-smoke.sh` PUT 200; Playwright upload (desktop) | yes (`/shotbro-staging/` nginx) | Selectel prod |
+| Assets API | yes | upload integration + smoke | yes | — |
+| Approvals API + ApprovalCard UUID | yes | partial manual | API yes | full chat blocks E2E |
+| Worker media.metadata/thumbnail/poster | yes | smoke → PROCESSING | yes | long video soak |
+| SSE + Last-Event-ID | yes | integration (403 isolation) | yes | media job reconnect E2E |
+| `@shotbro/ai` (OpenRouter off) | yes | unit | yes | paid AI Phase 3 |
+| Security isolation | yes | integration 10/10 | yes | — |
+| SMTP Beget | yes | `pnpm verify:smtp` | staging.env | rotate leaked password |
+| Production Selectel / volumes | prepared | MinIO staging only | — | **new keys required** |
+| OpenRouter / paid AI | disabled | guards | yes | Phase 3 |
+
+## P0 chain (no paid AI)
+
+| Step | Status |
+|------|--------|
+| LOGIN | OK — E2E account `e2e-phase2@shotbro.test` (pre-seeded, register locked) |
+| PROJECT | OK |
+| CHAT → DB | OK — Playwright persist + reload + re-login |
+| UPLOAD | OK — presigned `https://ai.shotbro.ru/shotbro-staging/...` (SigV4 origin-only signer) |
+| RELOAD / RESTORE | OK — REAL mode + `activeRealProjectId` in localStorage |
+| APPROVAL / SSE | API OK; browser E2E not fully automated |
 
 ## Verified commands
 
 ```bash
+# Local / CI
 pnpm --filter web build
 pnpm --filter api typecheck
 pnpm --filter @shotbro/ai test
-pnpm verify:smtp
-# On VPS (API container):
+
+# VPS
+bash scripts/staging-upload-smoke.sh          # PUT 200 + complete
+bash scripts/nginx-s3-bucket-proxy.sh         # /shotbro-staging/ → :9003
+S3_PUBLIC_ENDPOINT=https://ai.shotbro.ru      # no /minio-storage path in signer
+
+# Integration (enable ALLOW_PUBLIC_REGISTER=true on API briefly)
 RUN_INTEGRATION_TESTS=1 INTEGRATION_API_URL=http://127.0.0.1:3001 \
-  ./node_modules/.bin/vitest run --config vitest.integration.config.ts
-bash scripts/staging-smoke.sh   # host → 127.0.0.1:3021
+  vitest run --config vitest.integration.config.ts
+
+# Playwright REAL (desktop; use Chrome channel — headless_shell hangs on Windows)
+E2E_REAL_BACKEND=1 E2E_STAGING_URL=https://ai.shotbro.ru \
+  E2E_TEST_EMAIL=e2e-phase2@shotbro.test E2E_TEST_PASSWORD=*** \
+  pnpm exec playwright test e2e/real-auth.spec.ts --project=desktop
 ```
 
-## Chain status (no paid AI)
+## Fixes in `abfa67d`
 
-| Step | Staging |
-|------|---------|
-| LOGIN / register | OK (`ALLOW_PUBLIC_REGISTER=true` for tests; set `false` for public lockdown) |
-| PROJECT | OK |
-| CHAT (persist messages) | OK |
-| UPLOAD | API + worker OK; browser needs `/minio-storage/` + presigned host alignment |
-| DATABASE | 23 tables, migrate OK |
-| APPROVAL | API OK; UI wired for UUID blocks |
-| EVENTS / SSE | API OK |
-| RELOAD / RESTORE | REAL mode + `activeRealProjectId` persisted in localStorage |
+- **S3 403:** `resolveS3SigningEndpoint()` strips path from `S3_PUBLIC_ENDPOINT`; nginx proxies `/{bucket}/` without URI strip.
+- **Playwright hang:** `launchOptions.channel: "chrome"`, `waitUntil: "domcontentloaded"`, close settings sheet after REAL, `workers: 1` for staging.
+- **Integration:** `signOut()` clears session cookie; upload complete accepts 2xx.
+
+## Production blockers
+
+1. Selectel keys rotated + separate prod DB/volumes/nginx.
+2. `EMAIL_VERIFICATION_REQUIRED=true` only after full verify flow; rotate SMTP password if ever exposed.
+3. Do **not** enable OpenRouter/paid generations until Phase 3 sign-off.
+4. Optional: `STAGING_GATE_SECRET` + `nginx-staging-lockdown.sh` on public `/api/`.
 
 ## Rollback
 
 1. nginx: restore `*.bak-*` under `/etc/nginx/sites-enabled/`.
-2. `docker compose -f infra/docker-compose.staging.yml down` (does **not** touch `infra-web-1` DEMO :3020).
-3. Remove `/api/` and `/minio-storage/` locations to return DEMO-only site.
-
-## Before first real AI generation (Phase 3)
-
-1. Rotate Selectel + OpenRouter keys; set `S3_ENDPOINT` / production compose (separate DB/volumes).
-2. Enable OpenRouter only with `OPENROUTER_ALLOW_PAID_REQUESTS=false` until owner approves each paid tool.
-3. Redeploy **web** with `NEXT_PUBLIC_API_URL=https://ai.shotbro.ru` (empty = same-origin).
-4. Set `ALLOW_PUBLIC_REGISTER=false`, enable `EMAIL_VERIFICATION_REQUIRED=true` when ready.
-5. Run Playwright `E2E_REAL_BACKEND=1` against production URL.
-6. Optional: nginx basic auth on `/api/` (`scripts/nginx-staging-lockdown.sh`).
-
-## Remaining P0 (non-AI)
-
-- Redeploy **web** image on :3020 with REAL upload + mode persistence.
-- Confirm presigned upload from browser (MinIO proxy + CORS).
-- Turn `ALLOW_PUBLIC_REGISTER=false` on public staging after E2E.
-- Production cutover checklist — **do not switch prod** until above pass.
+2. `docker compose -f infra/docker-compose.staging.yml down` (does not stop DEMO `infra-web-1` :3020).
+3. Remove `/api/` and `/shotbro-staging/` locations for DEMO-only site.

@@ -4,6 +4,11 @@ import path from "node:path";
 test.describe("REAL mode (requires API + DB)", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
 
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => localStorage.clear());
+  });
+
   async function ensureLoggedIn(page: import("@playwright/test").Page) {
     const email = process.env.E2E_TEST_EMAIL;
     const password = process.env.E2E_TEST_PASSWORD;
@@ -28,13 +33,17 @@ test.describe("REAL mode (requires API + DB)", () => {
     return { email: regEmail, password: regPass };
   }
 
-  test("login create project message reload restore", async ({ page }) => {
-    const creds = await ensureLoggedIn(page);
-
-    await page.goto("/studio", { waitUntil: "domcontentloaded" });
+  async function switchToReal(page: import("@playwright/test").Page) {
     await page.getByRole("button", { name: "Настройки" }).click();
     await page.getByRole("button", { name: "REAL" }).click();
     await page.keyboard.press("Escape");
+  }
+
+  test("LOGIN → PROJECT → CHAT → UPLOAD → reload → restore", async ({ page }) => {
+    const creds = await ensureLoggedIn(page);
+
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
+    await switchToReal(page);
 
     await page.getByRole("button", { name: "Новый проект" }).click();
     await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 15_000 });
@@ -44,35 +53,9 @@ test.describe("REAL mode (requires API + DB)", () => {
     await page.getByRole("button", { name: "Отправить" }).click();
     await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
 
-    await page.reload();
-    await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
-
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
-    await page.getByPlaceholder("Email").fill(creds.email);
-    await page.getByPlaceholder("Пароль").fill(creds.password);
-    await page.getByRole("button", { name: "Войти" }).click();
-    await page.goto("/studio", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Настройки" }).click();
-    await page.getByRole("button", { name: "REAL" }).click();
-    await page.keyboard.press("Escape");
-    await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
-  });
-
-  test("upload small png via REAL thread", async ({ page }) => {
-    await ensureLoggedIn(page);
-    await page.goto("/studio", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Настройки" }).click();
-    await page.getByRole("button", { name: "REAL" }).click();
-    await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Новый проект" }).click();
-    await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 15_000 });
-
     const fixture = path.join(__dirname, "fixtures", "1x1.png");
     await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().includes("/api/v1/uploads/init") && r.ok(),
-        { timeout: 90_000 },
-      ),
+      page.waitForResponse((r) => r.url().includes("/api/v1/uploads/init") && r.ok(), { timeout: 90_000 }),
       (async () => {
         const [fileChooser] = await Promise.all([
           page.waitForEvent("filechooser"),
@@ -82,5 +65,18 @@ test.describe("REAL mode (requires API + DB)", () => {
       })(),
     ]);
     await expect(page.getByText(/Файлов в проекте: [1-9]/)).toBeVisible({ timeout: 90_000 });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Файлов в проекте: [1-9]/)).toBeVisible({ timeout: 15_000 });
+
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    await page.getByPlaceholder("Email").fill(creds.email);
+    await page.getByPlaceholder("Пароль").fill(creds.password);
+    await page.getByRole("button", { name: "Войти" }).click();
+    await page.waitForURL("**/studio**", { timeout: 45_000 });
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
+    await switchToReal(page);
+    await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
   });
 });
