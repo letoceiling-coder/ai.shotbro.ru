@@ -1,22 +1,21 @@
 # Phase 3 — Progress
 
-**Started:** 2026-10-24  
-**Baseline commit:** `e5c4045967e8a3b0b6f6d69ef0a452bb1b144d54`  
 **Branch:** `phase3/agent`  
-**Checkpoint:** `0288d45` — `phase3: foundation and mock agent pipeline`
+**Commits:** `0288d45` (foundation), `bfb271d` (orchestrator/graph)  
+**Baseline RC:** `e5c4045` / tag `phase2-rc1` (aligned — see `PHASE3-GIT-NOTES.md`)
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**
 
 ---
 
-## Stage A — Audit
+## Stage 0 — Git
 
 | Item | Status |
 |------|--------|
-| Repository audit | **IMPLEMENTED** — `PHASE3-AUDIT.md` |
-| Architecture doc | **IMPLEMENTED** — `PHASE3-ARCHITECTURE.md` |
-| Progress tracker | **IMPLEMENTED** — this file |
-| Git checkpoint branch | **IMPLEMENTED** — `phase3/agent` |
+| Checkpoint commit | **IMPLEMENTED** `0288d45` |
+| Orchestration commit | **IMPLEMENTED** `bfb271d` |
+| Tag vs HEAD audit | **IMPLEMENTED** — `PHASE3-GIT-NOTES.md` |
+| Secrets in diff | **TESTED** — none |
 
 ---
 
@@ -24,47 +23,50 @@ Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEM
 
 | Item | Status |
 |------|--------|
-| Env: AI_MOCK_MODE, PROVIDER_LIVE_EXECUTION_ENABLED | **IMPLEMENTED** |
-| Execution policy guards | **IMPLEMENTED** — `@shotbro/config/ai-execution` |
-| Production Zod contracts | **IMPLEMENTED** — `@shotbro/contracts/production` |
-| Drizzle: production_document, graph, memory, agent state | **IMPLEMENTED** — migration `0001_third_tigra.sql` |
-| State machine | **IMPLEMENTED** — `@shotbro/ai/state-machine` |
-| Phase 3 unit tests (guards + SM) | **IMPLEMENTED** |
+| Migration `0001_third_tigra` | **IMPLEMENTED** |
+| Migration `0002_square_makkari` (finance, prompts, tool_execution cols) | **IMPLEMENTED** |
+| Apply on dev PostgreSQL | **BLOCKED** locally — `DATABASE_URL` not set in agent env |
+| ProductionDocument versioning (supersede) | **IMPLEMENTED** — `DrizzleProductionStorage` |
+| ProjectMemory | **IMPLEMENTED** — API GET/PATCH |
+| ProductionGraphNode | **IMPLEMENTED** — schema + service |
+| AgentRun production states | **IMPLEMENTED** |
+| ToolExecution persistence | **IMPLEMENTED** |
+| PromptVersion | **IMPLEMENTED** — schema only |
+| BudgetReservation + CostLedger | **IMPLEMENTED** — schema + `CostReservationService` |
 
 ---
 
-## Stage C — Core agent
+## Stage C — Agent orchestrator
 
 | Item | Status |
 |------|--------|
-| Tool registry (TZ tools, side effects) | **PARTIAL** — `PHASE3_TOOLS` catalog; executor not wired |
-| Agent run API | **IMPLEMENTED** — `POST/GET .../agent/runs` (mock pipeline) |
-| Mock deterministic pipeline | **IMPLEMENTED** — brief → plan → script → storyboard docs + chat blocks |
-| Context builder / project memory service | **NOT IMPLEMENTED** |
-| Agent persistence loop | **NOT IMPLEMENTED** |
+| `ProductionOrchestrator` state machine | **IMPLEMENTED** — stops at approval gates |
+| `ToolExecutor` + idempotency | **IMPLEMENTED** — handlers partial |
+| Pause / resume / cancel API | **IMPLEMENTED** |
+| Continue after approval | **IMPLEMENTED** — `POST .../runs/:id/resume` |
+| Restore after API restart | **IMPLEMENTED** — state in PostgreSQL |
+| EXTERNAL_PAID block | **TESTED** — unit 9/9 `@shotbro/ai` |
 
 ---
 
-## Stage D — Creative pipeline
+## Stage D — Creative production
 
 | Item | Status |
 |------|--------|
-| Brief builder | **NOT IMPLEMENTED** |
-| Creative director | **NOT IMPLEMENTED** |
-| Screenwriter + scenes | **NOT IMPLEMENTED** |
-| Storyboard director | **NOT IMPLEMENTED** |
-| Character continuity | **NOT IMPLEMENTED** |
+| BriefBuilder / CreativeDirector / Screenwriter / StoryboardDirector | **IMPLEMENTED** — deterministic mock |
+| CharacterContinuityService | **NOT IMPLEMENTED** |
+| Editable API for script/scenes | **NOT IMPLEMENTED** |
 
 ---
 
-## Stage E — Model & cost layer
+## Stage E — Model router & cost
 
 | Item | Status |
 |------|--------|
-| Mock image/video/audio providers | **NOT IMPLEMENTED** |
-| Model router strategies | **NOT IMPLEMENTED** |
-| Cost reservation / budget ledger | **NOT IMPLEMENTED** |
-| EXTERNAL_PAID hard block test (integration) | **NOT IMPLEMENTED** |
+| Model strategies (mock router) | **IMPLEMENTED** |
+| Mock cost estimate | **IMPLEMENTED** |
+| Budget reservation (atomic tx) | **IMPLEMENTED** — unit/integration pending |
+| Integration race test | **NOT IMPLEMENTED** |
 
 ---
 
@@ -72,66 +74,58 @@ Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEM
 
 | Item | Status |
 |------|--------|
-| BullMQ graph orchestration | **NOT IMPLEMENTED** |
-| Resume / cancel / selective regen | **NOT IMPLEMENTED** |
+| Graph planner + cycle detection | **IMPLEMENTED** **TESTED** |
+| Selective scene invalidation | **IMPLEMENTED** **TESTED** |
+| Persist graph + BullMQ `production.node` | **PARTIAL** — enqueue API wired; orchestrator does not auto-enqueue yet |
+| Worker execution | **IMPLEMENTED** — mock completion + ffmpeg probe |
 
 ---
 
-## Stage G — Media production
+## Stage G — Mock media & FFmpeg
 
 | Item | Status |
 |------|--------|
-| Prompt engine | **NOT IMPLEMENTED** |
-| FFmpeg assembly | **NOT IMPLEMENTED** |
-| Mock delivery MP4 | **NOT IMPLEMENTED** |
+| Mock image/video/audio providers | **IMPLEMENTED** — lifecycle types |
+| Fixture assets on S3 | **NOT IMPLEMENTED** |
+| Full FFmpeg concat → MP4 asset | **NOT IMPLEMENTED** — worker probe only |
+| Delivery document | **NOT IMPLEMENTED** |
 
 ---
 
-## Stage H — Frontend integration
+## Stage H–J
 
-| Item | Status |
-|------|--------|
-| REAL agent trigger from chat | **NOT IMPLEMENTED** |
-| Production board | **NOT IMPLEMENTED** |
-| REAL blocks without breaking DEMO | **NOT IMPLEMENTED** |
-
----
-
-## Stage I — Testing
-
-| Item | Status |
-|------|--------|
-| Unit | **PARTIAL** — Phase 2 + Phase 3 guards |
-| Integration agent runs | **NOT IMPLEMENTED** |
-| Playwright mock E2E | **NOT IMPLEMENTED** |
-| Security cross-tenant agent | **NOT IMPLEMENTED** |
+| Stage | Status |
+|-------|--------|
+| H Frontend | **NOT IMPLEMENTED** |
+| I Integration / Playwright | **NOT IMPLEMENTED** |
+| J Staging deploy + migrate | **NOT IMPLEMENTED** |
 
 ---
 
-## Stage J — Staging deployment
+## Tests (current)
 
-| Item | Status |
-|------|--------|
-| Migrations on staging | **NOT IMPLEMENTED** |
-| Mock E2E on VPS | **NOT IMPLEMENTED** |
-
----
-
-## Flags confirmation (required at Phase 3 end)
-
-| Flag | Current |
-|------|---------|
-| OPENROUTER_ENABLED | false (staging) |
-| OPENROUTER_ALLOW_PAID_REQUESTS | false |
-| PROVIDER_LIVE_EXECUTION_ENABLED | false (default in code) |
-| AI_MOCK_MODE | true (default in code) |
-| Real AI inference calls | 0 |
+| Suite | Result |
+|-------|--------|
+| `@shotbro/ai` unit | **9 passed** |
+| API typecheck | **pass** |
 
 ---
 
-## Next actions
+## Flags
 
-1. Run `pnpm db:generate` / migrate on dev DB  
-2. Expand tool registry + mock pipeline through storyboard + approvals  
-3. Agent module: wire EventLog + message blocks  
-4. Integration + Playwright mock path  
+| Flag | Expected |
+|------|----------|
+| OPENROUTER_ENABLED | false |
+| AI_MOCK_MODE | true (default) |
+| PROVIDER_LIVE_EXECUTION_ENABLED | false (default) |
+| Paid inference | **0** |
+
+---
+
+## Next (Stage H prep)
+
+1. Apply `0001` + `0002` on dev/staging DB (`pnpm db:migrate`).  
+2. Wire orchestrator `PRODUCING` → `ProductionGraphService.enqueueRunnable`.  
+3. Hook approval UI → auto `resume` or document manual resume.  
+4. Integration: agent run stops at plan approval; resume after approve.  
+5. Local fixtures + S3 mock asset registration + FFmpeg concat.
