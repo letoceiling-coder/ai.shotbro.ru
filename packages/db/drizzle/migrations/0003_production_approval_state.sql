@@ -1,0 +1,1 @@
+ALTER TYPE "public"."agent_production_state" ADD VALUE IF NOT EXISTS 'WAITING_PRODUCTION_APPROVAL';

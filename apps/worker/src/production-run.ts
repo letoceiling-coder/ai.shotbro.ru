@@ -7,9 +7,10 @@ import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Logger } from "pino";
-import { agentRun, asset, productionGraphNode, productionDocument } from "@shotbro/db/schema";
+import { agentRun, asset, message, messageBlock, productionGraphNode, productionDocument } from "@shotbro/db/schema";
 import { getWorkerDb } from "./db.js";
 import { ensureMockFixtures, readFixture } from "./mock-fixtures.js";
+import { orderGraphNodes } from "./graph-order.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -28,6 +29,12 @@ export async function executeProductionRun(
   });
   const bucket = process.env.S3_BUCKET!;
 
+  const [runRow] = await db.select().from(agentRun).where(eq(agentRun.id, data.runId)).limit(1);
+  if (runRow?.status === "COMPLETED" && runRow.productionState === "COMPLETED") {
+    log.info({ runId: data.runId }, "production.run already completed");
+    return { runId: data.runId, status: "COMPLETED" };
+  }
+
   const nodes = await db
     .select()
     .from(productionGraphNode)
@@ -35,9 +42,22 @@ export async function executeProductionRun(
 
   const sceneVideoAssets: string[] = [];
   let voiceAssetId: string | undefined;
+  let deliveryAssetId: string | undefined;
 
-  for (const node of nodes.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
-    if (node.status === "COMPLETED" || node.status === "CANCELLED") continue;
+  for (const node of orderGraphNodes(nodes)) {
+    if (node.status === "COMPLETED" || node.status === "CANCELLED") {
+      if (node.nodeType === "VIDEO_GENERATION" && node.outputAssetIds?.[0]) {
+        sceneVideoAssets.push(node.outputAssetIds[0]);
+      }
+      if (node.nodeType === "VOICEOVER" && node.outputAssetIds?.[0]) voiceAssetId = node.outputAssetIds[0];
+      continue;
+    }
+    const existingOut = node.outputAssetIds?.[0];
+    if (existingOut) {
+      if (node.nodeType === "VIDEO_GENERATION") sceneVideoAssets.push(existingOut);
+      if (node.nodeType === "VOICEOVER") voiceAssetId = existingOut;
+      continue;
+    }
     await db.update(productionGraphNode).set({ status: "RUNNING", updatedAt: new Date() }).where(eq(productionGraphNode.id, node.id));
 
     try {
@@ -105,6 +125,7 @@ export async function executeProductionRun(
           schemaVersion: 1,
           payload: {
             mock: true,
+            runId: data.runId,
             assetId,
             voiceAssetId,
             sceneVideoAssets,
@@ -112,6 +133,7 @@ export async function executeProductionRun(
           },
           createdBy: data.ownerId,
         });
+        deliveryAssetId = assetId;
         await db
           .update(productionGraphNode)
           .set({ status: "COMPLETED", outputAssetIds: [assetId], updatedAt: new Date() })
@@ -132,15 +154,46 @@ export async function executeProductionRun(
     }
   }
 
+  const finalAssetId = deliveryAssetId;
+  const [runAfter] = await db.select().from(agentRun).where(eq(agentRun.id, data.runId)).limit(1);
+
   await db
     .update(agentRun)
     .set({
       status: "COMPLETED",
       productionState: "COMPLETED",
-      metadata: { mock: true, deliveryReady: true },
+      metadata: { mock: true, deliveryReady: true, deliveryAssetId: finalAssetId },
       updatedAt: new Date(),
     })
     .where(eq(agentRun.id, data.runId));
+
+  if (runAfter?.conversationId && finalAssetId) {
+    const messageId = randomUUID();
+    await db.insert(message).values({
+      id: messageId,
+      conversationId: runAfter.conversationId,
+      projectId: data.projectId,
+      role: "assistant",
+      content: "Готово: mock-ролик",
+      status: "sent",
+    });
+    await db.insert(messageBlock).values({
+      id: randomUUID(),
+      messageId,
+      type: "video_result",
+      payload: {
+        type: "video_result",
+        demo: true,
+        title: "Финальный ролик (MOCK)",
+        assetId: finalAssetId,
+        url: "",
+        durationLabel: "15s",
+        aspectRatio: "9:16",
+        resolution: "720×1280",
+        version: 1,
+      },
+    });
+  }
 
   log.info({ runId: data.runId, sceneVideos: sceneVideoAssets.length }, "production.run completed");
   return { runId: data.runId, status: "COMPLETED" };

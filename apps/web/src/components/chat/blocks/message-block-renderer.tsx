@@ -14,6 +14,7 @@ import { TextBlockView } from "./text-block";
 import { ToolExecutionCard } from "./tool-execution-card";
 import { VersionHistoryCard } from "./version-history-card";
 import { VideoResultCard } from "./video-result-card";
+import { ProductionBoardCard } from "./production-board-card";
 import { AudioResultCard } from "./audio-result-card";
 
 export function MessageBlockRenderer({
@@ -50,6 +51,8 @@ export function MessageBlockRenderer({
       return <ErrorCard block={block} projectId={projectId} />;
     case "agent_activity":
       return <AgentActivity block={block} />;
+    case "production_board":
+      return <ProductionBoardCard block={block} projectId={projectId} />;
     case "version_history":
       return <VersionHistoryCard block={block} />;
     default:

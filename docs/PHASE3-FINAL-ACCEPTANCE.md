@@ -1,20 +1,20 @@
 # Phase 3 — Acceptance report (in progress)
 
 **Branch:** `phase3/agent`  
-**Git HEAD:** `3ab3c22` (`phase3: complete mock pipeline backend and REAL UI hook`)  
-**Staging DB migrations:** `0001_third_tigra`, `0002_square_makkari` — **TESTED** — [PHASE3-MIGRATION-STAGING.md](./PHASE3-MIGRATION-STAGING.md)  
-**Staging code deploy:** **DEPLOYED** 2026-10-24 — api/worker/web rebuilt from tarball `3ab3c22`
+**Git HEAD (local WIP):** uncommitted on `phase3/agent` atop `81d369b` — adds `WAITING_PRODUCTION_APPROVAL`, cost reserve timing, worker idempotency, Production Board UI  
+**Staging DB migrations:** `0001`, `0002` applied manually; **`0003_production_approval_state`** — **PENDING on staging** (enum value only)  
+**Staging code deploy:** prior deploy `3ab3c22` — **redeploy required** for this integration batch
 
 ## Executive summary
 
 | Area | IMPLEMENTED | TESTED | DEPLOYED |
 |------|-------------|--------|----------|
-| ProductionOrchestrator + approvals auto-resume | ✓ | partial | pending |
+| ProductionOrchestrator + approvals auto-resume | ✓ (+ PRODUCTION gate) | partial | pending |
 | Production graph + `production.run` worker | ✓ | unit | pending |
 | Mock assets → MinIO | ✓ | local typecheck | pending |
 | FFmpeg local MP4 assembly | ✓ | worker logic | pending |
 | REAL UI agent trigger | ✓ | e2e skeleton | pending |
-| Cost reservation | ✓ | — | pending |
+| Cost reservation (post-COST, pre-PRODUCTION) + release on cancel/reject | ✓ | 1 integration (skip without env) | pending |
 | Script scene PATCH | ✓ | — | pending |
 
 **Verdict:** Backend mock pipeline **not yet end-to-end verified on staging**. Phase 3 **not complete** until Playwright full path + deployed images.
@@ -38,8 +38,8 @@ AI_MOCK_MODE=true
 | `@shotbro/ai` unit | 9/9 pass |
 | API `tsc` | pass |
 | Worker `tsc` | pass |
-| Playwright `phase3-mock-production.spec.ts` | **NOT RUN** in this session |
-| Integration agent/approval | **NOT IMPLEMENTED** |
+| Playwright `phase3-mock-production.spec.ts` | extended (full approve chain) — **NOT RUN** on staging in this session |
+| Integration agent/budget idempotency | `agent-production.integration.spec.ts` (skipped unless `INTEGRATION_API_URL`) |
 
 ## API (Phase 3 additions)
 
@@ -57,4 +57,6 @@ AI_MOCK_MODE=true
 2. Full Playwright path through all approvals → delivery MP4.
 3. Integration tests (isolation, budget race, DAG idempotency).
 4. Tool executor: full handler matrix (partial catalog only).
-5. CharacterContinuityService, PromptVersion API, Production Board UI cards.
+5. Tool executor: full handler matrix (partial catalog only).
+6. CharacterContinuityService + PromptVersion API — **minimal REST added**; not wired into graph planner yet.
+7. Staging: apply migration `0003`, redeploy, run full Playwright + verify MP4.

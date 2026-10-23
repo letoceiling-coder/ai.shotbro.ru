@@ -34,6 +34,7 @@ export class AgentService {
       SCRIPT: "WAITING_SCRIPT_APPROVAL",
       STORYBOARD: "WAITING_STORYBOARD_APPROVAL",
       COST: "WAITING_COST_APPROVAL",
+      PRODUCTION: "WAITING_PRODUCTION_APPROVAL",
     };
     const waiting = stateByType[targetType];
     if (!waiting) return;
@@ -46,12 +47,38 @@ export class AgentService {
     }
   }
 
-  async handleApprovalRejected(projectId: string, targetType: string) {
+  async handleApprovalRejected(projectId: string, targetType: string, userId?: string) {
     const stateByType: Record<string, AgentProductionState> = {
       PLAN: "WAITING_PLAN_APPROVAL",
       SCRIPT: "WAITING_SCRIPT_APPROVAL",
       STORYBOARD: "WAITING_STORYBOARD_APPROVAL",
       COST: "WAITING_COST_APPROVAL",
+      PRODUCTION: "WAITING_PRODUCTION_APPROVAL",
+    };
+    const waiting = stateByType[targetType];
+    if (!waiting) return;
+    const runs = await this.db
+      .select()
+      .from(agentRun)
+      .where(and(eq(agentRun.projectId, projectId), eq(agentRun.productionState, waiting)));
+    for (const run of runs) {
+      if (userId && (targetType === "COST" || targetType === "PRODUCTION")) {
+        await this.cost.releaseHeldForRun(userId, run.id);
+      }
+    }
+    await this.db
+      .update(agentRun)
+      .set({ status: "CANCELLED", productionState: "CANCELLED", updatedAt: new Date() })
+      .where(and(eq(agentRun.projectId, projectId), eq(agentRun.productionState, waiting)));
+  }
+
+  async handleApprovalRequiresRevision(projectId: string, targetType: string) {
+    const stateByType: Record<string, AgentProductionState> = {
+      PLAN: "WAITING_PLAN_APPROVAL",
+      SCRIPT: "WAITING_SCRIPT_APPROVAL",
+      STORYBOARD: "WAITING_STORYBOARD_APPROVAL",
+      COST: "WAITING_COST_APPROVAL",
+      PRODUCTION: "WAITING_PRODUCTION_APPROVAL",
     };
     const waiting = stateByType[targetType];
     if (!waiting) return;
@@ -130,6 +157,7 @@ export class AgentService {
 
   async cancelRun(userId: string, projectId: string, runId: string) {
     await this.access.assertProjectAccess(this.db, userId, projectId);
+    await this.cost.releaseHeldForRun(userId, runId);
     await this.db
       .update(agentRun)
       .set({ status: "CANCELLED", productionState: "CANCELLED", updatedAt: new Date() })
@@ -188,16 +216,32 @@ export class AgentService {
       onChatBlocks: async (blocks: Record<string, unknown>[]) => {
         await this.postAssistantBlocks(conversationId, projectId, blocks);
       },
-      onReserveCost: async (input: { runId: string; projectId: string; userId: string; amountUsd: number }) => {
+      onReserveCost: async (input: {
+        runId: string;
+        projectId: string;
+        userId: string;
+        amountUsd: number;
+        estimateVersion: string;
+      }) => {
         await this.cost.reserve(input.userId, input.projectId, {
           amountUsd: input.amountUsd,
-          idempotencyKey: `cost:${input.runId}:v1`,
+          idempotencyKey: `cost:${input.runId}:v${input.estimateVersion}`,
           agentRunId: input.runId,
           reason: "mock_production_estimate",
         });
       },
       onStartProduction: async (input: { runId: string; projectId: string; userId: string }) => {
+        const [runRow] = await this.db.select().from(agentRun).where(eq(agentRun.id, input.runId)).limit(1);
+        const meta = (runRow?.metadata ?? {}) as { productionEnqueued?: boolean };
+        if (meta.productionEnqueued) return;
         await this.graph.startProductionRun(input.userId, input.projectId, input.runId);
+        await this.db
+          .update(agentRun)
+          .set({
+            metadata: { ...meta, productionEnqueued: true, mock: true },
+            updatedAt: new Date(),
+          })
+          .where(eq(agentRun.id, input.runId));
         await this.postAssistantBlocks(conversationId, projectId, [
           {
             type: "agent_activity",

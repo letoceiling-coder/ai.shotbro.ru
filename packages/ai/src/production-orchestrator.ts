@@ -26,7 +26,13 @@ export type OrchestratorPorts = {
   approvals: ApprovalPort;
   onChatBlocks?: (blocks: Record<string, unknown>[]) => Promise<void>;
   onStartProduction?: (input: { runId: string; projectId: string; userId: string }) => Promise<void>;
-  onReserveCost?: (input: { runId: string; projectId: string; userId: string; amountUsd: number }) => Promise<void>;
+  onReserveCost?: (input: {
+    runId: string;
+    projectId: string;
+    userId: string;
+    amountUsd: number;
+    estimateVersion: string;
+  }) => Promise<void>;
 };
 
 const WAITING: AgentProductionState[] = [
@@ -34,6 +40,7 @@ const WAITING: AgentProductionState[] = [
   "WAITING_SCRIPT_APPROVAL",
   "WAITING_STORYBOARD_APPROVAL",
   "WAITING_COST_APPROVAL",
+  "WAITING_PRODUCTION_APPROVAL",
 ];
 
 export class ProductionOrchestrator {
@@ -88,6 +95,7 @@ export class ProductionOrchestrator {
       "WAITING_STORYBOARD_APPROVAL",
       "READY_FOR_PRODUCTION",
       "WAITING_COST_APPROVAL",
+      "WAITING_PRODUCTION_APPROVAL",
       "QUEUED",
       "PRODUCING",
       "QUALITY_CHECK",
@@ -108,6 +116,7 @@ export class ProductionOrchestrator {
       WAITING_SCRIPT_APPROVAL: "SCRIPT",
       WAITING_STORYBOARD_APPROVAL: "STORYBOARD",
       WAITING_COST_APPROVAL: "COST",
+      WAITING_PRODUCTION_APPROVAL: "PRODUCTION",
     };
     const targetType = map[run.productionState];
     if (!targetType) return false;
@@ -118,7 +127,9 @@ export class ProductionOrchestrator {
           ? "SCRIPT"
           : targetType === "STORYBOARD"
             ? "STORYBOARD"
-            : "COST_ESTIMATE";
+            : targetType === "PRODUCTION"
+              ? "TIMELINE"
+              : "COST_ESTIMATE";
     const doc = await ports.storage.getActiveDocument(run.projectId, docType);
     if (!doc) return false;
     return ports.approvals.isApproved(run.projectId, targetType, doc.id, String(doc.version));
@@ -266,7 +277,6 @@ export class ProductionOrchestrator {
           payload: estimate as unknown as Record<string, unknown>,
           userId,
         });
-        await ports.onReserveCost?.({ runId: run.id, projectId: run.projectId, userId, amountUsd: estimate.totalUsd });
         await this.requestApproval(run, ports, userId, "COST", "COST_ESTIMATE", "Утвердите бюджет (mock)");
         await ports.onChatBlocks?.([
           {
@@ -276,6 +286,54 @@ export class ProductionOrchestrator {
             disclaimer: "Синтетические тарифы, без реальных списаний",
             totalLabel: `$${estimate.totalUsd.toFixed(2)}`,
             lines: estimate.lines.map((l) => ({ label: l.label, amountLabel: `$${l.amountUsd.toFixed(2)}` })),
+          },
+        ]);
+        break;
+      }
+      case "WAITING_PRODUCTION_APPROVAL": {
+        const costDoc = await ports.storage.getActiveDocument(run.projectId, "COST_ESTIMATE");
+        const estimate = (costDoc?.payload ?? {}) as { totalUsd?: number };
+        const amountUsd = Number(estimate.totalUsd ?? 0);
+        await ports.onReserveCost?.({
+          runId: run.id,
+          projectId: run.projectId,
+          userId,
+          amountUsd,
+          estimateVersion: String(costDoc?.version ?? 1),
+        });
+        const scriptDoc = await ports.storage.getActiveDocument(run.projectId, "SCRIPT");
+        const scenes = (scriptDoc?.payload as { scenes?: { id: string; title?: string }[] })?.scenes ?? [];
+        await ports.storage.saveDocument({
+          projectId: run.projectId,
+          docType: "TIMELINE",
+          payload: {
+            mock: true,
+            runId: run.id,
+            sceneCount: scenes.length,
+            scenes: scenes.map((s) => ({ id: s.id, title: s.title ?? s.id })),
+            note: "Граф производства будет выполнен локально (mock fixtures + FFmpeg)",
+          },
+          userId,
+        });
+        await this.requestApproval(
+          run,
+          ports,
+          userId,
+          "PRODUCTION",
+          "TIMELINE",
+          "Утвердите запуск производства (mock)",
+        );
+        await ports.onChatBlocks?.([
+          {
+            type: "production_board",
+            demo: true,
+            title: "Production board (MOCK)",
+            runId: run.id,
+            stages: [
+              { id: "media", label: "Mock media", status: "QUEUED" },
+              { id: "assembly", label: "FFmpeg assembly", status: "QUEUED" },
+              { id: "delivery", label: "Delivery", status: "QUEUED" },
+            ],
           },
         ]);
         break;

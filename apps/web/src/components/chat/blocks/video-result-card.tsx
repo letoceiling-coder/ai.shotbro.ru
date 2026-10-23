@@ -1,25 +1,40 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import type { VideoResultBlockSchema } from "@shotbro/contracts";
 import type { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, History, Sparkles } from "lucide-react";
 import { ShotbroVideoPlayer } from "@/components/media/shotbro-video-player";
+import { apiFetch } from "@/lib/api-client";
 import { StudioBlockCard, StudioBlockCardBody, StudioBlockCardHeader } from "../studio-block-card";
 
 type Block = z.infer<typeof VideoResultBlockSchema>;
 
 export function VideoResultCard({ block }: { block: Block }) {
+  const { data: signed } = useQuery({
+    queryKey: ["asset-download", block.assetId],
+    enabled: Boolean(block.assetId && !block.url),
+    queryFn: () =>
+      apiFetch(`/api/v1/assets/${block.assetId}/download-url`) as Promise<{ url: string }>,
+  });
+
+  const src = block.url || signed?.url || "";
+
   return (
     <StudioBlockCard>
       <StudioBlockCardBody className="pb-2 pt-3">
-        <ShotbroVideoPlayer
-          src={block.url}
-          poster={block.posterUrl}
-          aspectRatio={block.aspectRatio}
-          className="max-w-[min(100%,320px)]"
-        />
+        {src ? (
+          <ShotbroVideoPlayer
+            src={src}
+            poster={block.posterUrl}
+            aspectRatio={block.aspectRatio}
+            className="max-w-[min(100%,320px)]"
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Загрузка видео…</p>
+        )}
       </StudioBlockCardBody>
       <StudioBlockCardHeader
         title={block.title}
@@ -45,12 +60,14 @@ export function VideoResultCard({ block }: { block: Block }) {
           </div>
         </dl>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" asChild>
-            <a href={block.url} download>
-              <Download className="size-4" />
-              Скачать MP4
-            </a>
-          </Button>
+          {src ? (
+            <Button size="sm" variant="secondary" asChild>
+              <a href={src} download>
+                <Download className="size-4" />
+                Скачать MP4
+              </a>
+            </Button>
+          ) : null}
           <Button size="sm" variant="ghost">
             <Sparkles className="size-4" />
             Новая версия

@@ -152,7 +152,9 @@ export class ApprovalsService {
       if (status === "APPROVED") {
         await this.agent.resumeAfterApproval(row.projectId, userId, row.targetType);
       } else if (status === "REJECTED") {
-        await this.agent.handleApprovalRejected(row.projectId, row.targetType);
+        await this.agent.handleApprovalRejected(row.projectId, row.targetType, userId);
+      } else if (status === "REQUIRES_REVISION") {
+        await this.agent.handleApprovalRequiresRevision(row.projectId, row.targetType);
       }
 
       return { id: approvalId, status };

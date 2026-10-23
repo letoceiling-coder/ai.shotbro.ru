@@ -66,14 +66,14 @@ export class ProductionGraphService {
       }
     }
 
-    await this.queue.enqueueProductionRun({
+    const enqueued = await this.queue.enqueueProductionRun({
       runId,
       projectId,
       ownerId: userId,
       workspaceId,
     });
 
-    return { runId, nodeCount: graph.length, enqueued: true };
+    return { runId, nodeCount: graph.length, enqueued };
   }
 
   async listGraph(userId: string, projectId: string, runId?: string) {

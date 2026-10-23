@@ -68,6 +68,16 @@ export class CostReservationService {
     });
   }
 
+  async releaseHeldForRun(userId: string, agentRunId: string) {
+    const rows = await this.db
+      .select()
+      .from(budgetReservation)
+      .where(and(eq(budgetReservation.agentRunId, agentRunId), eq(budgetReservation.status, "HELD")));
+    for (const row of rows) {
+      await this.release(row.id, userId);
+    }
+  }
+
   async release(reservationId: string, userId: string) {
     const [row] = await this.db.select().from(budgetReservation).where(eq(budgetReservation.id, reservationId)).limit(1);
     if (!row) return;

@@ -114,6 +114,7 @@ export const VideoResultBlockSchema = z.object({
   type: z.literal("video_result"),
   demo: z.literal(true),
   title: z.string(),
+  assetId: z.string().uuid().optional(),
   url: z.string(),
   posterUrl: z.string().optional(),
   durationLabel: z.string(),
@@ -190,6 +191,20 @@ export const VersionHistoryBlockSchema = z.object({
   activeVersionId: z.string(),
 });
 
+export const ProductionBoardStageSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  status: GenerationStatusSchema,
+});
+
+export const ProductionBoardBlockSchema = z.object({
+  type: z.literal("production_board"),
+  demo: z.literal(true),
+  title: z.string(),
+  runId: z.string().uuid(),
+  stages: z.array(ProductionBoardStageSchema),
+});
+
 export const MessageBlockSchema = z.discriminatedUnion("type", [
   TextBlockSchema,
   GenerationPlanBlockSchema,
@@ -205,6 +220,7 @@ export const MessageBlockSchema = z.discriminatedUnion("type", [
   ErrorBlockSchema,
   AgentActivityBlockSchema,
   VersionHistoryBlockSchema,
+  ProductionBoardBlockSchema,
 ]);
 
 export type MessageBlock = z.infer<typeof MessageBlockSchema>;

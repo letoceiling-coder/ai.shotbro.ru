@@ -40,8 +40,21 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
     projectId: string;
     ownerId: string;
     workspaceId: string;
-  }) {
-    await this.productionRun.add("execute", input, { jobId: `production-run-${input.runId}` });
+  }): Promise<boolean> {
+    const jobId = `production-run-${input.runId}`;
+    const existing = await this.productionRun.getJob(jobId);
+    if (existing) {
+      const state = await existing.getState();
+      if (state === "completed" || state === "active" || state === "waiting" || state === "delayed") {
+        return false;
+      }
+    }
+    try {
+      await this.productionRun.add("execute", input, { jobId });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async enqueueProductionNode(nodeId: string, projectId: string, runId: string, nodeType: string) {

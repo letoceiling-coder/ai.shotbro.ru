@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { AuthedRequest } from "../auth/session.guard";
 import { SessionGuard } from "../auth/session.guard";
@@ -6,6 +6,8 @@ import { CostReservationService } from "./cost-reservation.service";
 import { ProductionDocumentService } from "./production-document.service";
 import { ProductionGraphService } from "./production-graph.service";
 import { ProjectMemoryService } from "./project-memory.service";
+import { CharacterContinuityService } from "./character-continuity.service";
+import { PromptVersionService } from "./prompt-version.service";
 
 @ApiTags("production")
 @Controller("api/v1/projects/:projectId")
@@ -16,6 +18,8 @@ export class ProductionController {
     @Inject(ProductionGraphService) private readonly graph: ProductionGraphService,
     @Inject(CostReservationService) private readonly cost: CostReservationService,
     @Inject(ProductionDocumentService) private readonly documents: ProductionDocumentService,
+    @Inject(CharacterContinuityService) private readonly characters: CharacterContinuityService,
+    @Inject(PromptVersionService) private readonly prompts: PromptVersionService,
   ) {}
 
   @Get("brief")
@@ -44,8 +48,41 @@ export class ProductionController {
   }
 
   @Get("production-graph")
-  getGraph(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
-    return this.graph.listGraph(req.user.id, projectId);
+  getGraph(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Query("runId") runId?: string,
+  ) {
+    return this.graph.listGraph(req.user.id, projectId, runId);
+  }
+
+  @Get("characters")
+  listCharacters(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    return this.characters.list(req.user.id, projectId);
+  }
+
+  @Post("characters")
+  upsertCharacter(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.characters.upsert(req.user.id, projectId, body as Parameters<CharacterContinuityService["upsert"]>[2]);
+  }
+
+  @Get("scenes/:sceneId/prompts")
+  listPrompts(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("sceneId") sceneId: string) {
+    return this.prompts.listForScene(req.user.id, projectId, sceneId);
+  }
+
+  @Post("scenes/:sceneId/prompts")
+  createPrompt(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Body() body: { modelId?: string; renderedPrompt: string; parameters?: Record<string, unknown> },
+  ) {
+    return this.prompts.create(req.user.id, projectId, { sceneId, ...body });
   }
 
   @Post("cost/reserve")

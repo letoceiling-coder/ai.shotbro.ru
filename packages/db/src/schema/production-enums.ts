@@ -11,6 +11,7 @@ export const agentProductionStateEnum = pgEnum("agent_production_state", [
   "WAITING_STORYBOARD_APPROVAL",
   "READY_FOR_PRODUCTION",
   "WAITING_COST_APPROVAL",
+  "WAITING_PRODUCTION_APPROVAL",
   "QUEUED",
   "PRODUCING",
   "QUALITY_CHECK",

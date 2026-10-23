@@ -6,11 +6,28 @@ import { ProductionGraphService } from "./production-graph.service";
 import { ProjectMemoryService } from "./project-memory.service";
 import { ProductionController } from "./production.controller";
 import { ProductionDocumentService } from "./production-document.service";
+import { CharacterContinuityService } from "./character-continuity.service";
+import { PromptVersionService } from "./prompt-version.service";
 
 @Module({
   imports: [QueueModule],
   controllers: [ProductionController],
-  providers: [ProductionGraphService, ProjectMemoryService, CostReservationService, ProductionDocumentService, AccessPolicyService],
-  exports: [ProductionGraphService, ProjectMemoryService, CostReservationService, ProductionDocumentService],
+  providers: [
+    ProductionGraphService,
+    ProjectMemoryService,
+    CostReservationService,
+    ProductionDocumentService,
+    CharacterContinuityService,
+    PromptVersionService,
+    AccessPolicyService,
+  ],
+  exports: [
+    ProductionGraphService,
+    ProjectMemoryService,
+    CostReservationService,
+    ProductionDocumentService,
+    CharacterContinuityService,
+    PromptVersionService,
+  ],
 })
 export class ProductionModule {}
