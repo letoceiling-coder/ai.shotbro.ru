@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginRealUser } from "./helpers/real-login";
+import { loginRealUser, openRealNewProject } from "./helpers/real-login";
 
 async function approvePendingApprovals(page: import("@playwright/test").Page, max = 8) {
   for (let i = 0; i < max; i++) {
@@ -11,21 +11,23 @@ async function approvePendingApprovals(page: import("@playwright/test").Page, ma
 }
 
 test.describe("Phase 3 mock production (REAL)", () => {
+  test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
+
   test.beforeEach(async ({ page }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => localStorage.clear());
     await loginRealUser(page);
   });
 
   test("full chain through delivery MP4", async ({ page }) => {
     test.setTimeout(600_000);
 
-    await page.goto("/studio/real");
-    await page.getByRole("button", { name: /новый проект|create/i }).click().catch(() => undefined);
-    const title = `Phase3 E2E ${Date.now()}`;
-    await page.getByPlaceholder(/название/i).fill(title);
-    await page.getByRole("button", { name: /создать/i }).click();
-    await page.waitForURL(/\/studio\/real\/[a-f0-9-]+/i);
+    await openRealNewProject(page);
+    await page.getByRole("button", { name: "Новый REAL-проект" }).click();
+    await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Нужен вход?")).toHaveCount(0, { timeout: 15_000 });
 
-    const input = page.getByPlaceholder(/сообщение|опишите/i).first();
+    const input = page.getByPlaceholder(/Сообщение сохранится|сообщение|опишите/i).first();
     await input.fill("Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo");
     await page.getByRole("button", { name: /отправить|send/i }).click();
 

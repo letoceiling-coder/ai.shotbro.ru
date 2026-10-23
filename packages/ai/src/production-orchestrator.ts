@@ -70,7 +70,7 @@ export class ProductionOrchestrator {
 
       if (WAITING.includes(state)) break;
       if (state === "PRODUCING") break;
-      if (state === "READY_FOR_PRODUCTION" || state === "COMPLETED") break;
+      if (state === "COMPLETED") break;
     }
 
     if (state === "COMPLETED") {
