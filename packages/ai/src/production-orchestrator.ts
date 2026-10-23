@@ -4,7 +4,6 @@ import { assertProductionTransition } from "./state-machine.js";
 import type { ProductionStoragePort } from "./ports/production-storage.js";
 import { BriefBuilder, CreativeDirector, ProductionPlanner, Screenwriter, StoryboardDirector } from "./creative/pipeline.js";
 import { estimateMockProductionCost } from "./cost/cost-engine.js";
-import { planProductionGraph } from "./graph/graph-planner.js";
 
 export type ApprovalPort = {
   request(input: {
@@ -26,6 +25,8 @@ export type OrchestratorPorts = {
   storage: ProductionStoragePort;
   approvals: ApprovalPort;
   onChatBlocks?: (blocks: Record<string, unknown>[]) => Promise<void>;
+  onStartProduction?: (input: { runId: string; projectId: string; userId: string }) => Promise<void>;
+  onReserveCost?: (input: { runId: string; projectId: string; userId: string; amountUsd: number }) => Promise<void>;
 };
 
 const WAITING: AgentProductionState[] = [
@@ -61,6 +62,7 @@ export class ProductionOrchestrator {
       await this.executeState(state, run, userId, ports, trigger);
 
       if (WAITING.includes(state)) break;
+      if (state === "PRODUCING") break;
       if (state === "READY_FOR_PRODUCTION" || state === "COMPLETED") break;
     }
 
@@ -138,6 +140,12 @@ export class ProductionOrchestrator {
           payload: brief as unknown as Record<string, unknown>,
           userId,
         });
+        await ports.onChatBlocks?.([
+          {
+            type: "text",
+            markdown: `**Brief (MOCK)**\n\n${brief.goal}\n\n— ${brief.durationSeconds}s · ${brief.aspectRatio}${brief.missingInfo.length ? `\n\n_Нужно уточнить:_ ${brief.missingInfo.join(", ")}` : ""}`,
+          },
+        ]);
         const concept = CreativeDirector.concept(brief);
         await ports.storage.saveDocument({
           projectId: run.projectId,
@@ -188,9 +196,28 @@ export class ProductionOrchestrator {
         });
         break;
       }
-      case "WAITING_SCRIPT_APPROVAL":
+      case "WAITING_SCRIPT_APPROVAL": {
         await this.requestApproval(run, ports, userId, "SCRIPT", "SCRIPT", "Утвердите сценарий");
+        const scriptDoc = await ports.storage.getActiveDocument(run.projectId, "SCRIPT");
+        const script = scriptDoc?.payload as { title?: string; totalDurationSeconds?: number; scenes?: Array<{ id: string; title: string; durationSeconds: number; description: string }> };
+        if (script?.scenes) {
+          await ports.onChatBlocks?.([
+            {
+              type: "script",
+              demo: true,
+              title: script.title ?? "Сценарий",
+              durationLabel: `${script.totalDurationSeconds ?? 0}s`,
+              scenes: script.scenes.map((s) => ({
+                id: s.id,
+                title: s.title,
+                timeRange: `${s.durationSeconds}s`,
+                description: s.description,
+              })),
+            },
+          ]);
+        }
         break;
+      }
       case "STORYBOARDING": {
         const scriptDoc = await ports.storage.getActiveDocument(run.projectId, "SCRIPT");
         const script = scriptDoc?.payload as Parameters<typeof StoryboardDirector.storyboard>[0];
@@ -203,9 +230,28 @@ export class ProductionOrchestrator {
         });
         break;
       }
-      case "WAITING_STORYBOARD_APPROVAL":
+      case "WAITING_STORYBOARD_APPROVAL": {
         await this.requestApproval(run, ports, userId, "STORYBOARD", "STORYBOARD", "Утвердите раскадровку");
+        const sb = await ports.storage.getActiveDocument(run.projectId, "STORYBOARD");
+        const storyboard = sb?.payload as { title?: string; frames?: Array<{ sceneId: string; sequence: number; durationSeconds: number }> };
+        if (storyboard?.frames) {
+          await ports.onChatBlocks?.([
+            {
+              type: "storyboard",
+              demo: true,
+              title: storyboard.title ?? "Storyboard",
+              scenes: storyboard.frames.map((f) => ({
+                id: f.sceneId,
+                title: `Scene ${f.sequence}`,
+                thumbnailUrl: "/demo/storyboard-placeholder.jpg",
+                status: "completed" as const,
+                durationLabel: `${f.durationSeconds}s`,
+              })),
+            },
+          ]);
+        }
         break;
+      }
       case "WAITING_COST_APPROVAL": {
         const scriptDoc = await ports.storage.getActiveDocument(run.projectId, "SCRIPT");
         const scenes = (scriptDoc?.payload as { scenes?: { id: string }[] })?.scenes ?? [];
@@ -220,6 +266,7 @@ export class ProductionOrchestrator {
           payload: estimate as unknown as Record<string, unknown>,
           userId,
         });
+        await ports.onReserveCost?.({ runId: run.id, projectId: run.projectId, userId, amountUsd: estimate.totalUsd });
         await this.requestApproval(run, ports, userId, "COST", "COST_ESTIMATE", "Утвердите бюджет (mock)");
         await ports.onChatBlocks?.([
           {
@@ -233,23 +280,13 @@ export class ProductionOrchestrator {
         ]);
         break;
       }
-      case "QUEUED":
       case "PRODUCING": {
-        const scriptDoc = await ports.storage.getActiveDocument(run.projectId, "SCRIPT");
-        const storyDoc = await ports.storage.getActiveDocument(run.projectId, "STORYBOARD");
-        const scenes = (scriptDoc?.payload as { scenes?: { id: string }[] })?.scenes?.map((s) => s.id) ?? ["scene-1"];
-        const graph = planProductionGraph({
-          runId: run.id,
-          sceneIds: scenes,
-          scriptVersion: scriptDoc?.version ?? 1,
-          storyboardVersion: storyDoc?.version ?? 1,
-        });
-        await ports.storage.updateRunState(run.id, {
-          metadata: { ...run.metadata, productionGraphPlanned: true, graphNodeCount: graph.length },
-        });
-        await ports.storage.emitEvent("production.step.queued", { runId: run.id, nodeCount: graph.length });
+        await ports.onStartProduction?.({ runId: run.id, projectId: run.projectId, userId });
+        await ports.storage.emitEvent("production.step.queued", { runId: run.id });
         break;
       }
+      case "QUEUED":
+        break;
       case "QUALITY_CHECK":
       case "READY_FOR_DELIVERY":
       case "COMPLETED":

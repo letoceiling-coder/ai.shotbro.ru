@@ -353,6 +353,9 @@ importers:
       pino:
         specifier: ^9.9.5
         version: 9.14.0
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.9
       sharp:
         specifier: ^0.33.5
         version: 0.33.5

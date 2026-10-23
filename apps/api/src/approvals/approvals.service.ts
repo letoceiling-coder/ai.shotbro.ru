@@ -1,4 +1,5 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException, forwardRef } from "@nestjs/common";
+import { AgentService } from "../agent/agent.service";
 import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { v4 as uuid } from "uuid";
@@ -16,6 +17,7 @@ export class ApprovalsService {
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
     @Inject(EventLogService) private readonly events: EventLogService,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(forwardRef(() => AgentService)) private readonly agent: AgentService,
   ) {}
 
   hashPayload(payload: Record<string, unknown>) {
@@ -142,10 +144,16 @@ export class ApprovalsService {
       await this.events.append({
         workspaceId,
         projectId: row.projectId,
-        type: `approval.${status.toLowerCase()}`,
+        type: status === "APPROVED" ? "approval.completed" : `approval.${status.toLowerCase()}`,
         resourceId: approvalId,
-        payload: { approvalId, status },
+        payload: { approvalId, status, targetType: row.targetType },
       });
+
+      if (status === "APPROVED") {
+        await this.agent.resumeAfterApproval(row.projectId, userId, row.targetType);
+      } else if (status === "REJECTED") {
+        await this.agent.handleApprovalRejected(row.projectId, row.targetType);
+      }
 
       return { id: approvalId, status };
     });

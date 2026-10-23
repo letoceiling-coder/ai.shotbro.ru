@@ -46,6 +46,8 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
         setStatus(next as Block["status"]);
         await qc.invalidateQueries({ queryKey: ["messages"] });
         await qc.invalidateQueries({ queryKey: ["approvals", projectId] });
+        await qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
+        setTimeout(() => qc.invalidateQueries({ queryKey: ["messages"] }), 800);
       } finally {
         setPending(false);
       }

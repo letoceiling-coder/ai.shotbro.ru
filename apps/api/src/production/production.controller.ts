@@ -3,6 +3,7 @@ import { ApiTags } from "@nestjs/swagger";
 import type { AuthedRequest } from "../auth/session.guard";
 import { SessionGuard } from "../auth/session.guard";
 import { CostReservationService } from "./cost-reservation.service";
+import { ProductionDocumentService } from "./production-document.service";
 import { ProductionGraphService } from "./production-graph.service";
 import { ProjectMemoryService } from "./project-memory.service";
 
@@ -14,7 +15,23 @@ export class ProductionController {
     @Inject(ProjectMemoryService) private readonly memory: ProjectMemoryService,
     @Inject(ProductionGraphService) private readonly graph: ProductionGraphService,
     @Inject(CostReservationService) private readonly cost: CostReservationService,
+    @Inject(ProductionDocumentService) private readonly documents: ProductionDocumentService,
   ) {}
+
+  @Get("brief")
+  getBrief(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    return this.documents.getActive(req.user.id, projectId, "BRIEF");
+  }
+
+  @Patch("scripts/scenes/:sceneId")
+  patchScene(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Body() body: { description?: string; durationSeconds?: number },
+  ) {
+    return this.documents.patchScriptScene(req.user.id, projectId, sceneId, body);
+  }
 
   @Get("memory")
   getMemory(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {

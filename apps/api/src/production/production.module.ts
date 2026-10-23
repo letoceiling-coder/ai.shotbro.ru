@@ -5,11 +5,12 @@ import { CostReservationService } from "./cost-reservation.service";
 import { ProductionGraphService } from "./production-graph.service";
 import { ProjectMemoryService } from "./project-memory.service";
 import { ProductionController } from "./production.controller";
+import { ProductionDocumentService } from "./production-document.service";
 
 @Module({
   imports: [QueueModule],
   controllers: [ProductionController],
-  providers: [ProductionGraphService, ProjectMemoryService, CostReservationService, AccessPolicyService],
-  exports: [ProductionGraphService, ProjectMemoryService, CostReservationService],
+  providers: [ProductionGraphService, ProjectMemoryService, CostReservationService, ProductionDocumentService, AccessPolicyService],
+  exports: [ProductionGraphService, ProjectMemoryService, CostReservationService, ProductionDocumentService],
 })
 export class ProductionModule {}

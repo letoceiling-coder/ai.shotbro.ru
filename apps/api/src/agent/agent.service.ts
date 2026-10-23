@@ -10,7 +10,10 @@ import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { EventLogService } from "../events/event-log.service";
 import { ApprovalsService } from "../approvals/approvals.service";
+import { CostReservationService } from "../production/cost-reservation.service";
+import { ProductionGraphService } from "../production/production-graph.service";
 import { DrizzleProductionStorage } from "./drizzle-production-storage";
+import type { AgentProductionState } from "@shotbro/contracts";
 
 @Injectable()
 export class AgentService {
@@ -21,7 +24,42 @@ export class AgentService {
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
     @Inject(EventLogService) private readonly events: EventLogService,
     @Inject(ApprovalsService) private readonly approvals: ApprovalsService,
+    @Inject(ProductionGraphService) private readonly graph: ProductionGraphService,
+    @Inject(CostReservationService) private readonly cost: CostReservationService,
   ) {}
+
+  async resumeAfterApproval(projectId: string, userId: string, targetType: string) {
+    const stateByType: Record<string, AgentProductionState> = {
+      PLAN: "WAITING_PLAN_APPROVAL",
+      SCRIPT: "WAITING_SCRIPT_APPROVAL",
+      STORYBOARD: "WAITING_STORYBOARD_APPROVAL",
+      COST: "WAITING_COST_APPROVAL",
+    };
+    const waiting = stateByType[targetType];
+    if (!waiting) return;
+    const runs = await this.db
+      .select()
+      .from(agentRun)
+      .where(and(eq(agentRun.projectId, projectId), eq(agentRun.productionState, waiting)));
+    for (const run of runs) {
+      await this.resumeRun(userId, projectId, run.id);
+    }
+  }
+
+  async handleApprovalRejected(projectId: string, targetType: string) {
+    const stateByType: Record<string, AgentProductionState> = {
+      PLAN: "WAITING_PLAN_APPROVAL",
+      SCRIPT: "WAITING_SCRIPT_APPROVAL",
+      STORYBOARD: "WAITING_STORYBOARD_APPROVAL",
+      COST: "WAITING_COST_APPROVAL",
+    };
+    const waiting = stateByType[targetType];
+    if (!waiting) return;
+    await this.db
+      .update(agentRun)
+      .set({ productionState: "NEEDS_REVISION", updatedAt: new Date() })
+      .where(and(eq(agentRun.projectId, projectId), eq(agentRun.productionState, waiting)));
+  }
 
   async listRuns(userId: string, projectId: string) {
     await this.access.assertProjectAccess(this.db, userId, projectId);
@@ -149,6 +187,26 @@ export class AgentService {
       },
       onChatBlocks: async (blocks: Record<string, unknown>[]) => {
         await this.postAssistantBlocks(conversationId, projectId, blocks);
+      },
+      onReserveCost: async (input: { runId: string; projectId: string; userId: string; amountUsd: number }) => {
+        await this.cost.reserve(input.userId, input.projectId, {
+          amountUsd: input.amountUsd,
+          idempotencyKey: `cost:${input.runId}:v1`,
+          agentRunId: input.runId,
+          reason: "mock_production_estimate",
+        });
+      },
+      onStartProduction: async (input: { runId: string; projectId: string; userId: string }) => {
+        await this.graph.startProductionRun(input.userId, input.projectId, input.runId);
+        await this.postAssistantBlocks(conversationId, projectId, [
+          {
+            type: "agent_activity",
+            demo: true,
+            label: "Mock-производство запущено",
+            status: "running",
+            simulationLabel: "MOCK · локальные fixtures",
+          },
+        ]);
       },
     };
   }

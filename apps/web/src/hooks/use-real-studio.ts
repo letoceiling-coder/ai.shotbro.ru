@@ -40,15 +40,27 @@ export function useCreateRealProject() {
   });
 }
 
-export function useSendRealMessage(conversationId: string | undefined) {
+export function useSendRealMessage(conversationId: string | undefined, projectId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (content: string) =>
-      apiFetch(`/api/v1/conversations/${conversationId}/messages`, {
+    mutationFn: async (content: string) => {
+      const msg = await apiFetch(`/api/v1/conversations/${conversationId}/messages`, {
         method: "POST",
         body: JSON.stringify({ content, role: "user", idempotencyKey: crypto.randomUUID() }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["messages", conversationId] }),
+      });
+      if (projectId) {
+        try {
+          await api.agent.createRun(projectId, { userRequest: content, conversationId });
+        } catch {
+          /* agent may stop at approval — still ok */
+        }
+      }
+      return msg;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["messages", conversationId] });
+      qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
+    },
   });
 }
 

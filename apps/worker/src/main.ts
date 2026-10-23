@@ -7,6 +7,7 @@ import { runMediaCleanup } from "./cleanup.js";
 import { processAssetMetadata } from "./process-asset.js";
 import { runStorageReconcile } from "./reconcile.js";
 import { runProductionNode } from "./production-node.js";
+import { executeProductionRun } from "./production-run.js";
 
 loadEnv({ path: resolve(process.cwd(), "../../.env.production") });
 
@@ -62,6 +63,12 @@ new Worker(
   "production.node",
   async (job) => runProductionNode(job.data as never, log),
   { ...workerOpts, concurrency: 2 },
+);
+
+new Worker(
+  "production.run",
+  async (job) => executeProductionRun(job.data as never, log),
+  { ...workerOpts, concurrency: 1 },
 );
 
 new Worker(

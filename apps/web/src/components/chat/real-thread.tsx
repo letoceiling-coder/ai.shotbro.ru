@@ -22,7 +22,7 @@ export function RealThread({ projectId }: { projectId: string }) {
   const { data: convs } = useRealProjectConversations(projectId);
   const conversationId = convs?.[0]?.id as string | undefined;
   const { data: msgPage, isLoading } = useRealMessages(conversationId);
-  const send = useSendRealMessage(conversationId);
+  const send = useSendRealMessage(conversationId, projectId);
   const upload = useRealUpload(projectId);
   const { connected: sseConnected } = useProjectEvents(projectId);
   const { data: assets } = useQuery({
@@ -53,7 +53,7 @@ export function RealThread({ projectId }: { projectId: string }) {
             <Sparkles className="mb-3 size-8 text-primary" />
             <h1 className={`${CHAT_COLUMN} text-xl font-semibold`}>REAL-проект</h1>
             <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              Сообщения сохраняются на сервере. AI-ответы отключены до Фазы 3.
+              Опишите ролик — агент (mock) подготовит brief, план и материалы без платных AI-вызовов.
             </p>
           </div>
         ) : (
