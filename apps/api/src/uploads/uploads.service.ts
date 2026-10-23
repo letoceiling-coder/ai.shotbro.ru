@@ -1,12 +1,19 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  UploadPartCommand,
+} from "@aws-sdk/client-s3";
 import { isAllowedMime, mimeMatchesDeclared, sniffMime } from "@shotbro/config/mime-policy";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
-import { createS3Client } from "@shotbro/config/s3";
+import { createS3Client, createS3SigningClient } from "@shotbro/config/s3";
 import type { Db } from "@shotbro/db/client";
-import { asset, uploadSession } from "@shotbro/db/schema";
+import { asset, assetVersion, uploadSession } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { loadApiEnv } from "../env";
@@ -16,11 +23,23 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
 }
 
+const MULTIPART_THRESHOLD_BYTES = 8 * 1024 * 1024;
+const MULTIPART_PART_SIZE = 5 * 1024 * 1024;
+const MAX_MULTIPART_PARTS = 100;
+
 @Injectable()
 export class UploadsService {
   private readonly env = loadApiEnv();
   private readonly s3 = createS3Client({
     S3_ENDPOINT: this.env.S3_ENDPOINT,
+    S3_REGION: this.env.S3_REGION,
+    S3_ACCESS_KEY_ID: this.env.S3_ACCESS_KEY_ID,
+    S3_SECRET_ACCESS_KEY: this.env.S3_SECRET_ACCESS_KEY,
+    S3_FORCE_PATH_STYLE: this.env.S3_FORCE_PATH_STYLE ?? false,
+  });
+  private readonly s3Sign = createS3SigningClient({
+    S3_ENDPOINT: this.env.S3_ENDPOINT,
+    S3_PUBLIC_ENDPOINT: this.env.S3_PUBLIC_ENDPOINT,
     S3_REGION: this.env.S3_REGION,
     S3_ACCESS_KEY_ID: this.env.S3_ACCESS_KEY_ID,
     S3_SECRET_ACCESS_KEY: this.env.S3_SECRET_ACCESS_KEY,
@@ -81,8 +100,55 @@ export class UploadsService {
       });
     });
 
+    if (input.sizeBytes >= MULTIPART_THRESHOLD_BYTES) {
+      const mp = await this.s3.send(
+        new CreateMultipartUploadCommand({
+          Bucket: this.env.S3_BUCKET,
+          Key: storageKey,
+          ContentType: input.mimeType,
+        }),
+      );
+      if (!mp.UploadId) throw new BadRequestException("Multipart init failed");
+      await this.db
+        .update(uploadSession)
+        .set({ multipartUploadId: mp.UploadId, status: "UPLOADING" })
+        .where(eq(uploadSession.id, sessionId));
+
+      const partCount = Math.min(
+        MAX_MULTIPART_PARTS,
+        Math.ceil(input.sizeBytes / MULTIPART_PART_SIZE),
+      );
+      const parts = await Promise.all(
+        Array.from({ length: partCount }, async (_, i) => {
+          const partNumber = i + 1;
+          const uploadUrl = await getSignedUrl(
+            this.s3Sign,
+            new UploadPartCommand({
+              Bucket: this.env.S3_BUCKET,
+              Key: storageKey,
+              UploadId: mp.UploadId,
+              PartNumber: partNumber,
+            }),
+            { expiresIn: this.env.S3_PRESIGNED_URL_TTL_SECONDS },
+          );
+          return { partNumber, uploadUrl };
+        }),
+      );
+
+      return {
+        mode: "multipart" as const,
+        sessionId,
+        assetId,
+        storageKey,
+        uploadId: mp.UploadId,
+        partSize: MULTIPART_PART_SIZE,
+        parts,
+        expiresAt: expiresAt.toISOString(),
+      };
+    }
+
     const uploadUrl = await getSignedUrl(
-      this.s3,
+      this.s3Sign,
       new PutObjectCommand({
         Bucket: this.env.S3_BUCKET,
         Key: storageKey,
@@ -91,10 +157,31 @@ export class UploadsService {
       { expiresIn: this.env.S3_PRESIGNED_URL_TTL_SECONDS },
     );
 
-    return { sessionId, assetId, uploadUrl, storageKey, expiresAt: expiresAt.toISOString() };
+    return {
+      mode: "single" as const,
+      sessionId,
+      assetId,
+      uploadUrl,
+      storageKey,
+      expiresAt: expiresAt.toISOString(),
+    };
   }
 
-  async complete(userId: string, sessionId: string) {
+  private async recordInitialVersion(assetId: string, storageKey: string) {
+    await this.db.insert(assetVersion).values({
+      id: uuid(),
+      assetId,
+      version: 1,
+      storageKey,
+      metadata: { source: "upload" },
+    });
+  }
+
+  async complete(
+    userId: string,
+    sessionId: string,
+    multipart?: { parts: Array<{ partNumber: number; etag: string }> },
+  ) {
     const [session] = await this.db.select().from(uploadSession).where(eq(uploadSession.id, sessionId)).limit(1);
     if (!session || session.ownerId !== userId) throw new BadRequestException("Invalid session");
     if (session.status !== "INIT" && session.status !== "UPLOADING") {
@@ -103,6 +190,22 @@ export class UploadsService {
     if (session.expiresAt < new Date()) throw new BadRequestException("Session expired");
 
     await this.access.assertProjectAccess(this.db, userId, session.projectId);
+
+    if (session.multipartUploadId) {
+      if (!multipart?.parts?.length) throw new BadRequestException("Multipart parts required");
+      await this.s3.send(
+        new CompleteMultipartUploadCommand({
+          Bucket: this.env.S3_BUCKET,
+          Key: session.storageKey,
+          UploadId: session.multipartUploadId,
+          MultipartUpload: {
+            Parts: multipart.parts
+              .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag }))
+              .sort((a, b) => a.PartNumber - b.PartNumber),
+          },
+        }),
+      );
+    }
 
     const head = await this.s3.send(
       new HeadObjectCommand({ Bucket: this.env.S3_BUCKET, Key: session.storageKey }),
@@ -141,6 +244,7 @@ export class UploadsService {
       .where(eq(asset.id, session.assetId!));
 
     if (session.assetId) {
+      await this.recordInitialVersion(session.assetId, session.storageKey);
       await this.mediaQueue.enqueueMediaProcessing(session.assetId);
     }
 

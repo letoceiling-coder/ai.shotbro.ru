@@ -15,5 +15,6 @@ coverage
 playwright-report
 test-results
 storybook-static
+phase2-deploy.tgz
 *.log
 .DS_Store

@@ -7,6 +7,7 @@ export function stagingGateMiddleware(secret: string) {
   return (req: Request, res: Response, next: NextFunction) => {
     const path = req.path;
     if (!path.startsWith("/api")) return next();
+    if (path.startsWith("/api/auth")) return next();
     if (PUBLIC_PATHS.has(path)) return next();
     const header = req.headers["x-shotbro-staging-gate"];
     if (typeof header === "string" && header === secret) return next();

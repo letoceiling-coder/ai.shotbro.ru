@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { CHAT_COLUMN, CHAT_GUTTER } from "@/lib/layout";
 import {
@@ -9,6 +9,9 @@ import {
   useRealProjectConversations,
   useSendRealMessage,
 } from "@/hooks/use-real-studio";
+import { useRealUpload } from "@/hooks/use-real-upload";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
 import { ChatMessage } from "./chat-message";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +22,13 @@ export function RealThread({ projectId }: { projectId: string }) {
   const conversationId = convs?.[0]?.id as string | undefined;
   const { data: msgPage, isLoading } = useRealMessages(conversationId);
   const send = useSendRealMessage(conversationId);
+  const upload = useRealUpload(projectId);
+  const { data: assets } = useQuery({
+    queryKey: ["assets", projectId],
+    queryFn: () => api.assets.list(projectId),
+  });
   const [text, setText] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const messages = useMemo(
     () => mapRealMessagesToChat(msgPage?.items ?? []),
@@ -54,7 +63,32 @@ export function RealThread({ projectId }: { projectId: string }) {
         )}
       </div>
       <div className={`sticky bottom-0 border-t border-border bg-background/95 backdrop-blur ${CHAT_GUTTER} py-3`}>
+        {assets && assets.length > 0 ? (
+          <p className={`${CHAT_COLUMN} mb-2 text-xs text-muted-foreground`}>
+            Файлов в проекте: {assets.length}
+          </p>
+        ) : null}
         <div className={`${CHAT_COLUMN} flex gap-2`}>
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            disabled={upload.isPending}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) upload.mutate(f);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={upload.isPending}
+            onClick={() => fileRef.current?.click()}
+          >
+            {upload.isPending ? "…" : "Файл"}
+          </Button>
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}

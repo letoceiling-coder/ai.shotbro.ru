@@ -1,3 +1,5 @@
+import { expect } from "vitest";
+
 const base = process.env.INTEGRATION_API_URL ?? "http://127.0.0.1:3021";
 const gate = process.env.STAGING_GATE_SECRET;
 
@@ -12,10 +14,16 @@ function headers(extra: Record<string, string> = {}) {
 export async function signUp(email: string, password: string, name: string): Promise<AuthSession> {
   const res = await fetch(`${base}/api/auth/sign-up/email`, {
     method: "POST",
-    headers: headers({ "Content-Type": "application/json" }),
+    headers: headers({
+      "Content-Type": "application/json",
+      Origin: process.env.INTEGRATION_ORIGIN ?? "https://ai.shotbro.ru",
+    }),
     body: JSON.stringify({ email, password, name }),
   });
-  if (!res.ok) throw new Error(`signUp ${res.status}`);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`signUp ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
+  }
   const setCookie = res.headers.getSetCookie?.() ?? [];
   const cookie = setCookie.map((c) => c.split(";")[0]).join("; ");
   const body = (await res.json()) as { user: { id: string; email: string } };
@@ -50,4 +58,9 @@ export function requireIntegrationEnv() {
   if (process.env.RUN_INTEGRATION_TESTS !== "1") {
     throw new Error("Set RUN_INTEGRATION_TESTS=1 to run integration tests");
   }
+}
+
+export function expectOk2xx(status: number) {
+  expect(status).toBeGreaterThanOrEqual(200);
+  expect(status).toBeLessThan(300);
 }

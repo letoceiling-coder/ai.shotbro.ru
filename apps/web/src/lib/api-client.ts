@@ -24,6 +24,21 @@ export const api = {
     patch: (id: string, body: { title?: string; description?: string }) =>
       apiFetch(`/api/v1/projects/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   },
+  uploads: {
+    init: (body: { projectId: string; filename: string; mimeType: string; sizeBytes: number }) =>
+      apiFetch("/api/v1/uploads/init", { method: "POST", body: JSON.stringify(body) }),
+    complete: (sessionId: string, body?: { parts?: Array<{ partNumber: number; etag: string }> }) =>
+      apiFetch(`/api/v1/uploads/${sessionId}/complete`, {
+        method: "POST",
+        body: JSON.stringify(body ?? {}),
+      }),
+  },
+  assets: {
+    list: (projectId: string) => apiFetch(`/api/v1/projects/${projectId}/assets`),
+  },
+  ai: {
+    registry: () => apiFetch("/api/v1/ai/registry"),
+  },
   approvals: {
     decide: (
       approvalId: string,

@@ -9,6 +9,20 @@ const emptyToUndefined = z
   .optional()
   .transform((v) => (v === "" || v === undefined ? undefined : v));
 
+/** Map common Beget/docs names to canonical env keys (does not mutate input). */
+export function applySmtpEnvAliases(
+  partial: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const out = { ...partial };
+  if (!out.SMTP_PASSWORD?.trim() && out.SMTP_PASS?.trim()) {
+    out.SMTP_PASSWORD = out.SMTP_PASS;
+  }
+  if (!out.SMTP_FROM_EMAIL?.trim() && out.SMTP_FROM?.trim()) {
+    out.SMTP_FROM_EMAIL = out.SMTP_FROM;
+  }
+  return out;
+}
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -41,6 +55,8 @@ export const envSchema = z
     EMAIL_VERIFICATION_REQUIRED: boolFromEnv.default(true),
     EMAIL_TOKEN_TTL_MINUTES: z.coerce.number().int().min(5).max(10080).default(60),
     EMAIL_RATE_LIMIT_PER_HOUR: z.coerce.number().int().min(1).max(100).default(5),
+    /** Inbound address for site lead / contact forms (Phase 2+). */
+    LEAD_NOTIFY_EMAIL: emptyToUndefined,
   })
   .superRefine((data, ctx) => {
     if (data.OPENROUTER_ENABLED && !data.OPENROUTER_API_KEY) {
@@ -97,7 +113,7 @@ export const envSchema = z
 export type AppEnv = z.infer<typeof envSchema>;
 
 export function loadEnvFromProcess(env: NodeJS.ProcessEnv = process.env): AppEnv {
-  return envSchema.parse(env);
+  return envSchema.parse(applySmtpEnvAliases({ ...env }));
 }
 
 export function loadEnvForOfflineCheck(partial: Record<string, string | undefined>): {
@@ -133,7 +149,7 @@ export function loadEnvForOfflineCheck(partial: Record<string, string | undefine
   }
 
   try {
-    const env = envSchema.parse(partial);
+    const env = envSchema.parse(applySmtpEnvAliases(partial));
     return { ok: errors.length === 0, errors, warnings, env };
   } catch (e) {
     if (e instanceof z.ZodError) {

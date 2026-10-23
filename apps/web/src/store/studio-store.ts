@@ -265,6 +265,7 @@ export const useStudioStore = create<StudioState>()(
       partialize: (s) => ({
         projects: s.projects,
         activeProjectId: s.activeProjectId,
+        activeRealProjectId: s.activeRealProjectId,
         sidebarCollapsed: s.sidebarCollapsed,
         qualityStrategy: s.qualityStrategy,
         adStages: s.adStages,

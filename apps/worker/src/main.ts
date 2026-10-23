@@ -28,9 +28,27 @@ new Worker(
 );
 
 new Worker(
+  "media.thumbnail",
+  async (job) => {
+    const assetId = job.data.assetId as string;
+    return processAssetMetadata(assetId, log);
+  },
+  workerOpts,
+);
+
+new Worker(
+  "media.poster",
+  async (job) => {
+    const assetId = job.data.assetId as string;
+    return processAssetMetadata(assetId, log);
+  },
+  workerOpts,
+);
+
+new Worker(
   "media.cleanup",
   async (job) => {
-    log.info({ jobId: job.id, data: job.data }, "media.cleanup");
+    log.info({ jobId: job.id, data: job.data }, "media.cleanup stub");
     return { ok: true };
   },
   { ...workerOpts, concurrency: 1 },

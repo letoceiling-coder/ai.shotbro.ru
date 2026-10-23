@@ -21,6 +21,7 @@
     "test:e2e": "pnpm --filter web test:e2e",
     "storybook": "pnpm --filter web storybook",
     "integrations:check": "tsx scripts/check-integrations.ts",
+    "verify:smtp": "tsx scripts/verify-smtp.ts",
     "db:generate": "pnpm --filter @shotbro/db db:generate",
     "db:migrate": "pnpm --filter @shotbro/db db:migrate",
     "api:dev": "pnpm --filter api dev",

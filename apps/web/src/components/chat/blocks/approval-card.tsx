@@ -1,6 +1,8 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import type { ApprovalBlockSchema } from "@shotbro/contracts";
+import { useState } from "react";
 import type { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 export function ApprovalCard({ block, projectId }: { block: Block; projectId: string }) {
   const handleApproval = useStudioStore((s) => s.handleApproval);
   const { mode } = useStudioRuntimeMode();
+  const qc = useQueryClient();
+  const [status, setStatus] = useState(block.status);
+  const [pending, setPending] = useState(false);
 
   async function onAction(actionId: string) {
     const apiAction =
@@ -23,15 +28,33 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
     const isRealApproval = mode === "REAL" && UUID_RE.test(block.approvalId);
     const meta = block as Block & { expectedVersion?: string; payloadHash?: string };
     if (isRealApproval && meta.expectedVersion && meta.payloadHash) {
-      await api.approvals.decide(block.approvalId, apiAction, {
-        expectedVersion: meta.expectedVersion,
-        payloadHash: meta.payloadHash,
-        idempotencyKey: crypto.randomUUID(),
-      });
+      setPending(true);
+      try {
+        const res = (await api.approvals.decide(block.approvalId, apiAction, {
+          expectedVersion: meta.expectedVersion,
+          payloadHash: meta.payloadHash,
+          idempotencyKey: crypto.randomUUID(),
+        })) as { status?: string };
+        const next =
+          res.status === "APPROVED"
+            ? "approved"
+            : res.status === "REJECTED"
+              ? "rejected"
+              : res.status === "REQUIRES_REVISION"
+                ? "revision"
+                : status;
+        setStatus(next as Block["status"]);
+        await qc.invalidateQueries({ queryKey: ["messages"] });
+        await qc.invalidateQueries({ queryKey: ["approvals", projectId] });
+      } finally {
+        setPending(false);
+      }
       return;
     }
     handleApproval(projectId, block.approvalId, actionId);
   }
+
+  const displayStatus = status;
 
   return (
     <StudioBlockCard accent>
@@ -61,7 +84,7 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
                     ? "ghost"
                     : "secondary"
               }
-              disabled={block.status === "approved" && action.id === "approve"}
+              disabled={pending || (displayStatus === "approved" && action.id === "approve")}
               onClick={() => void onAction(action.id)}
             >
               {action.label}

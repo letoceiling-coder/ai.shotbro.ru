@@ -43,6 +43,21 @@ export function createS3Client(env: S3ClientEnv): S3Client {
   });
 }
 
+/** Presigned URLs must use a browser-reachable host (nginx proxy in staging). */
+export function createS3SigningClient(env: S3ClientEnv & { S3_PUBLIC_ENDPOINT?: string }): S3Client {
+  const endpoint = env.S3_PUBLIC_ENDPOINT?.trim() || env.S3_ENDPOINT;
+  return new S3Client({
+    region: env.S3_REGION,
+    endpoint,
+    forcePathStyle: env.S3_FORCE_PATH_STYLE,
+    credentials: {
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    },
+  });
+}
+
+
 const TEST_PREFIX = "__system/integration-check/";
 
 export type S3LiveCheckResult = {

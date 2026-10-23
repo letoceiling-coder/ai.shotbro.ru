@@ -20,7 +20,9 @@
       "@shotbro/db": ["../../packages/db/src/index.ts"],
       "@shotbro/db/*": ["../../packages/db/src/*"],
       "@shotbro/config": ["../../packages/config/src/index.ts"],
-      "@shotbro/config/*": ["../../packages/config/src/*"]
+      "@shotbro/config/*": ["../../packages/config/src/*"],
+      "@shotbro/email": ["../../packages/email/src/index.ts"],
+      "@shotbro/ai": ["../../packages/ai/src/index.ts"]
     }
   },
   "include": ["src/**/*", "test/**/*"]

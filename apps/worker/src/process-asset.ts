@@ -5,6 +5,7 @@ import { asset, eventLog } from "@shotbro/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
+import { extractVideoPoster, probeMediaBuffer } from "./ffprobe.js";
 
 function s3Env() {
   return {
@@ -73,7 +74,27 @@ export async function processAssetMetadata(assetId: string, log: { info: (o: unk
       }),
     );
   } else if (row.mimeType.startsWith("video/") || row.mimeType.startsWith("audio/")) {
-    log.info({ assetId, mime: row.mimeType }, "media metadata: non-image (poster/ffprobe in follow-up job)");
+    const ext = row.originalName.split(".").pop()?.toLowerCase() ?? "bin";
+    const probe = await probeMediaBuffer(body, ext);
+    width = probe.width;
+    height = probe.height;
+    durationMs = probe.durationMs;
+    if (row.mimeType.startsWith("video/")) {
+      try {
+        const poster = await extractVideoPoster(body, ext);
+        const posterKey = row.storageKey.replace("/original/", "/poster/").replace(/\.[^.]+$/, ".jpg");
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: env.S3_BUCKET,
+            Key: posterKey,
+            Body: poster,
+            ContentType: "image/jpeg",
+          }),
+        );
+      } catch (e) {
+        log.info({ assetId, err: String(e) }, "poster extraction skipped");
+      }
+    }
   }
 
   await db

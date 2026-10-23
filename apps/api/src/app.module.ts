@@ -13,6 +13,8 @@ import { ApprovalsModule } from "./approvals/approvals.module";
 import { EventsModule } from "./events/events.module";
 import { ConversationsModule } from "./conversations/conversations.module";
 import { QueueModule } from "./queue/queue.module";
+import { AssetsModule } from "./assets/assets.module";
+import { AiModule } from "./ai/ai.module";
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { QueueModule } from "./queue/queue.module";
     EventsModule,
     ConversationsModule,
     QueueModule,
+    AssetsModule,
+    AiModule,
   ],
   controllers: [HealthController, UsersController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

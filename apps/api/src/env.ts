@@ -13,6 +13,7 @@ const schema = z.object({
     .optional()
     .transform((v) => v === "true"),
   S3_ENDPOINT: z.string().url(),
+  S3_PUBLIC_ENDPOINT: z.string().url().optional(),
   S3_REGION: z.string(),
   S3_BUCKET: z.string(),
   S3_ACCESS_KEY_ID: z.string().min(1),

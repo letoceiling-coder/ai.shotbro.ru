@@ -12,6 +12,17 @@ const InitSchema = z.object({
   sizeBytes: z.number().int().positive(),
 });
 
+const CompleteSchema = z.object({
+  parts: z
+    .array(
+      z.object({
+        partNumber: z.number().int().min(1).max(10_000),
+        etag: z.string().min(1).max(256),
+      }),
+    )
+    .optional(),
+});
+
 @ApiTags("uploads")
 @Controller("api/v1/uploads")
 @UseGuards(SessionGuard)
@@ -25,7 +36,8 @@ export class UploadsController {
   }
 
   @Post(":id/complete")
-  complete(@Req() req: AuthedRequest, @Param("id") id: string) {
-    return this.uploads.complete(req.user.id, id);
+  complete(@Req() req: AuthedRequest, @Param("id") id: string, @Body() body: unknown) {
+    const parsed = CompleteSchema.parse(body ?? {});
+    return this.uploads.complete(req.user.id, id, parsed.parts ? { parts: parsed.parts } : undefined);
   }
 }

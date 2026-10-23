@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { apiJson, apiRaw, requireIntegrationEnv, signUp, type AuthSession } from "./http-helpers";
+import { apiJson, apiRaw, expectOk2xx, requireIntegrationEnv, signUp, type AuthSession } from "./http-helpers";
 
 describe("Security isolation (integration)", () => {
   let userA: AuthSession;
@@ -18,7 +18,7 @@ describe("Security isolation (integration)", () => {
       method: "POST",
       body: JSON.stringify({ title: "SecTest Project", description: "iso" }),
     });
-    expect(created.status).toBe(200);
+    expectOk2xx(created.status);
     projectId = created.json.id;
 
     const convs = await apiJson<Array<{ id: string }>>(`/api/v1/projects/${projectId}/conversations`, userA);
@@ -28,7 +28,7 @@ describe("Security isolation (integration)", () => {
       method: "POST",
       body: JSON.stringify({ content: "hello from A", role: "user", idempotencyKey: `k-${ts}` }),
     });
-    expect(msg.status).toBe(200);
+    expectOk2xx(msg.status);
     messageId = msg.json.id;
   });
 
