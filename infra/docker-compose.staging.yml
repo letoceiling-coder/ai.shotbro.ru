@@ -75,7 +75,6 @@ services:
       S3_SECRET_ACCESS_KEY: ${STAGING_MINIO_PASSWORD}
       SECRETS_ROTATED: "true"
       ALLOW_PUBLIC_REGISTER: ${ALLOW_PUBLIC_REGISTER:-false}
-      STAGING_GATE_SECRET: ${STAGING_GATE_SECRET:-}
     ports:
       - "127.0.0.1:3021:3001"
     depends_on:
