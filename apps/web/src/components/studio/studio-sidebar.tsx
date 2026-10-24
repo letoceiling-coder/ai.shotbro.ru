@@ -234,6 +234,7 @@ export function StudioSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Button
             variant="ghost"
             className={cn("w-full justify-start gap-2", collapsed && "px-0")}
+            aria-label="Настройки"
             onClick={() => setSettingsOpen(true)}
           >
             <Settings className="size-4" />

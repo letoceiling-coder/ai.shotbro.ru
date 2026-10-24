@@ -4,6 +4,7 @@ import type { Db } from "@shotbro/db/client";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { ProjectMemoryService } from "./project-memory.service";
+import { ProductionGraphService } from "./production-graph.service";
 
 export type CharacterRecord = {
   id: string;
@@ -22,6 +23,7 @@ export class CharacterContinuityService {
     @Inject(DB) private readonly db: Db,
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
     @Inject(ProjectMemoryService) private readonly memory: ProjectMemoryService,
+    @Inject(ProductionGraphService) private readonly graph: ProductionGraphService,
   ) {}
 
   async list(userId: string, projectId: string) {
@@ -51,6 +53,11 @@ export class CharacterContinuityService {
     if (idx >= 0) items[idx] = next;
     else items.push(next);
     await this.memory.patch(userId, projectId, { characters: items });
-    return next;
+    const invalidation: { sceneId: string; invalidatedNodeIds: string[] }[] = [];
+    for (const sceneId of next.sceneIds ?? []) {
+      const inv = await this.graph.invalidateSceneAcrossActiveRuns(userId, projectId, sceneId);
+      invalidation.push({ sceneId, invalidatedNodeIds: inv.invalidatedNodeIds });
+    }
+    return { ...next, invalidation };
   }
 }

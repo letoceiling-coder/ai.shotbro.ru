@@ -6,12 +6,14 @@ import type { Db } from "@shotbro/db/client";
 import { promptVersion } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
+import { ProductionGraphService } from "./production-graph.service";
 
 @Injectable()
 export class PromptVersionService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
+    @Inject(ProductionGraphService) private readonly graph: ProductionGraphService,
   ) {}
 
   hashPrompt(text: string, modelId?: string) {
@@ -55,7 +57,8 @@ export class PromptVersionService {
       createdBy: userId,
     });
     const [row] = await this.db.select().from(promptVersion).where(eq(promptVersion.id, id)).limit(1);
-    return row!;
+    const invalidation = await this.graph.invalidateSceneAcrossActiveRuns(userId, projectId, input.sceneId);
+    return { ...row!, invalidation };
   }
 
   async getLatest(userId: string, projectId: string, sceneId: string) {

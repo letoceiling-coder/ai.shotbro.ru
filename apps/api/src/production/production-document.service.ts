@@ -1,17 +1,18 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { v4 as uuid } from "uuid";
 import { and, eq } from "drizzle-orm";
-import { invalidateSceneDependents, planProductionGraph } from "@shotbro/ai";
 import type { Db } from "@shotbro/db/client";
-import { productionDocument, productionGraphNode } from "@shotbro/db/schema";
+import { productionDocument } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
+import { ProductionGraphService } from "./production-graph.service";
 
 @Injectable()
 export class ProductionDocumentService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
+    @Inject(ProductionGraphService) private readonly graph: ProductionGraphService,
   ) {}
 
   async getActive(userId: string, projectId: string, docType: string) {
@@ -65,20 +66,8 @@ export class ProductionDocumentService {
       createdBy: userId,
     });
 
-    const graph = planProductionGraph({
-      runId: "invalidation",
-      sceneIds: scenes.map((s) => s.id),
-      scriptVersion: newVersion,
-      storyboardVersion: 1,
-    });
-    const stale = invalidateSceneDependents(graph, sceneId, "invalidation");
-    if (stale.length) {
-      await this.db
-        .update(productionGraphNode)
-        .set({ status: "QUEUED", versionHash: `stale-${Date.now()}`, updatedAt: new Date() })
-        .where(and(eq(productionGraphNode.projectId, projectId)));
-    }
+    const invalidation = await this.graph.invalidateSceneAcrossActiveRuns(userId, projectId, sceneId);
 
-    return { id: newId, version: newVersion, sceneId };
+    return { id: newId, version: newVersion, sceneId, invalidation };
   }
 }

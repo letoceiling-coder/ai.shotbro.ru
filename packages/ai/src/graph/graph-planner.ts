@@ -8,11 +8,32 @@ export type GraphNodePlan = {
   versionHash: string;
 };
 
+export type SceneVersionRefs = {
+  promptVersion?: number;
+  characterVersion?: number;
+  sceneRevision?: number;
+};
+
+export function sceneGraphVersionHash(
+  baseHash: string,
+  sceneId: string,
+  refs: SceneVersionRefs = {},
+): string {
+  return hashParts([
+    baseHash,
+    sceneId,
+    refs.sceneRevision ?? 1,
+    refs.promptVersion ?? 0,
+    refs.characterVersion ?? 0,
+  ]);
+}
+
 export function planProductionGraph(input: {
   runId: string;
   sceneIds: string[];
   scriptVersion: number;
   storyboardVersion: number;
+  sceneVersions?: Record<string, SceneVersionRefs>;
 }): GraphNodePlan[] {
   const baseHash = hashParts([input.runId, input.scriptVersion, input.storyboardVersion]);
   const nodes: GraphNodePlan[] = [
@@ -27,7 +48,7 @@ export function planProductionGraph(input: {
   ];
 
   for (const sceneId of input.sceneIds) {
-    const sceneHash = hashParts([baseHash, sceneId]);
+    const sceneHash = sceneGraphVersionHash(baseHash, sceneId, input.sceneVersions?.[sceneId]);
     const promptId = `${input.runId}:image_prompt:${sceneId}`;
     const imageId = `${input.runId}:image:${sceneId}`;
     const videoId = `${input.runId}:video:${sceneId}`;
