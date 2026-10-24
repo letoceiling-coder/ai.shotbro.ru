@@ -9,10 +9,9 @@
 
 | Item | Value |
 |------|--------|
-| **Git HEAD (`phase3/agent`)** | `e66d480` |
-| **Tag `phase3-rc1`** | `e66d480` |
-| **Staging runtime (`DEPLOYED.txt`)** | `66c1d2f` (API/worker; docs/e2e-only commits do not change runtime until next web/API deploy) |
-| **Tag `phase3-rc1`** | created after acceptance commit (annotated) |
+| **Git HEAD (`phase3/agent`)** | `af01ce5` |
+| **Tag `phase3-rc1` → commit** | `e66d480` |
+| **Staging runtime (`DEPLOYED.txt`)** | `66c1d2f` (API/worker; e2e/docs commits do not change runtime until next deploy) |
 | **Force push** | not used |
 | **phase2-rc1** | unchanged |
 
