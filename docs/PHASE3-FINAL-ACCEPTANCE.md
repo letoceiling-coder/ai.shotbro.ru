@@ -9,7 +9,8 @@
 
 | Item | Value |
 |------|--------|
-| **Git HEAD (local/remote after RC1 commit)** | see `git rev-parse origin/phase3/agent` |
+| **Git HEAD (`phase3/agent`)** | `e66d480` |
+| **Tag `phase3-rc1`** | `e66d480` |
 | **Staging runtime (`DEPLOYED.txt`)** | `66c1d2f` (API/worker; docs/e2e-only commits do not change runtime until next web/API deploy) |
 | **Tag `phase3-rc1`** | created after acceptance commit (annotated) |
 | **Force push** | not used |
