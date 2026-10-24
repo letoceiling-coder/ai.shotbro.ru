@@ -75,6 +75,10 @@ services:
       APP_URL: https://ai.shotbro.ru
       TRUSTED_ORIGINS: https://ai.shotbro.ru,http://127.0.0.1:3000
       OPENROUTER_ENABLED: "false"
+      OPENROUTER_ALLOW_PAID_REQUESTS: "false"
+      PROVIDER_LIVE_EXECUTION_ENABLED: "false"
+      AI_MOCK_MODE: "true"
+      PHASE4_AGENT_RUNTIME_ENABLED: ${PHASE4_AGENT_RUNTIME_ENABLED:-false}
       S3_ENDPOINT: http://minio:9000
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-https://ai.shotbro.ru}
       S3_REGION: us-east-1
@@ -113,6 +117,10 @@ services:
       DATABASE_URL: postgresql://shotbro_staging:${STAGING_POSTGRES_PASSWORD}@postgres:5432/shotbro_staging
       REDIS_URL: redis://redis:6379
       OPENROUTER_ENABLED: "false"
+      OPENROUTER_ALLOW_PAID_REQUESTS: "false"
+      PROVIDER_LIVE_EXECUTION_ENABLED: "false"
+      AI_MOCK_MODE: "true"
+      PHASE4_AGENT_RUNTIME_ENABLED: ${PHASE4_AGENT_RUNTIME_ENABLED:-false}
       S3_ENDPOINT: http://minio:9000
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-https://ai.shotbro.ru}
       S3_REGION: us-east-1
