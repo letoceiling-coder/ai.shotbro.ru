@@ -51,10 +51,22 @@ Classification: **approval gate transition + E2E synchronization** (situation D 
 
 ## Fix
 
-1. **E2E** `approvePendingApprovals(page, projectId)` — repeat UI approve until **`GET /api/v1/projects/:id/approvals`** has **zero PENDING** (API as completion signal only).
-2. **`waitForProductionEnqueued`** — assert `productionEnqueued` or terminal production states before MP4 poll.
+1. **E2E** `approvePendingApprovals(page, projectId)` — repeat UI «Утвердить» until **`GET /api/v1/projects/:id/approvals`** has **zero PENDING**. After each click, wait for **APPROVED count to increase** (not raw pending count — SCRIPT appears when PLAN is decided).
+2. **`waitForProductionEnqueued`** — assert `productionEnqueued` or `QUEUED`/`PRODUCING`/`COMPLETED` before MP4 poll.
 
 No API/worker redeploy required for this root cause.
+
+## Post-fix proof (2026-10-24 22:36 UTC)
+
+| Check | Result |
+|-------|--------|
+| projectId | `4822ccf8-ccf9-4053-9cb3-1f15928eddc5` |
+| runId | `03f8a153-a7f2-451b-9e44-d3703b500620` |
+| All approvals | PLAN→PRODUCTION **APPROVED** |
+| Run terminal | **COMPLETED** (~5s) |
+| `productionEnqueued` | **true** |
+| `deliveryAssetId` | present in metadata |
+| Phase 3 desktop strict | **PASS** 10.6s (`3a7c978`) |
 
 ## Versions at investigation
 
