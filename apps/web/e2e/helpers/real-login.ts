@@ -14,8 +14,9 @@ export async function loginRealUser(page: Page) {
 }
 
 export async function fillRealComposer(page: Page, message: string) {
+  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 45_000 });
   const input = page.getByPlaceholder(/Опишите задачу|Сообщение сохранится|сообщение|опишите/i).first();
-  await input.scrollIntoViewIfNeeded();
+  await expect(input).toBeVisible({ timeout: 15_000 });
   await input.click();
   await input.fill(message);
   const sendBtn = page.getByRole("button", { name: /отправить|send/i });

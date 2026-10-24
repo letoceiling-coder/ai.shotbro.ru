@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { mkdirSync } from "node:fs";
+import { test, expect, type BrowserContext } from "@playwright/test";
 import { loginRealUser, switchToRealMode } from "./helpers/real-login";
 
 const viewports = [
@@ -8,23 +9,28 @@ const viewports = [
   { name: "mobile390", width: 390, height: 844 },
 ] as const;
 
-const AUTH_FILE = "test-results/phase4f-auth.json";
+let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
 test.describe("Phase 4F studio UI audit", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
+    mkdirSync("test-results", { recursive: true });
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.evaluate(() => localStorage.clear());
     await loginRealUser(page);
-    await context.storageState({ path: AUTH_FILE });
+    loggedInStorage = await context.storageState();
     await context.close();
   });
 
-  test.use({ storageState: AUTH_FILE });
+  test.beforeEach(async ({ context }) => {
+    if (loggedInStorage?.cookies.length) {
+      await context.addCookies(loggedInStorage.cookies);
+    }
+  });
 
   for (const vp of viewports) {
     test(`screens DEMO + REAL markers @ ${vp.name}`, async ({ page }) => {
