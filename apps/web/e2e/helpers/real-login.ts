@@ -92,6 +92,19 @@ async function createProjectViaDialog(page: Page, projectTitle: string): Promise
   return projectId;
 }
 
+async function activateRealProject(page: Page, projectId: string) {
+  await page.evaluate((id) => {
+    const storeKey = "shotbro-studio-demo-v1";
+    const raw = localStorage.getItem(storeKey);
+    const parsed = raw ? (JSON.parse(raw) as { state: Record<string, unknown>; version?: number }) : { state: {}, version: 0 };
+    parsed.state.activeRealProjectId = id;
+    localStorage.setItem(storeKey, JSON.stringify(parsed));
+    localStorage.setItem("shotbro-studio-mode-v1", "REAL");
+  }, projectId);
+  await page.goto("/studio", { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 60_000 });
+}
+
 async function createProjectViaApi(page: Page, projectTitle: string): Promise<string> {
   const res = await page.request.post("/api/v1/projects", {
     data: {
@@ -103,10 +116,7 @@ async function createProjectViaApi(page: Page, projectTitle: string): Promise<st
     throw new Error(`POST /api/v1/projects failed: ${res.status()} ${(await res.text()).slice(0, 200)}`);
   }
   const body = (await res.json()) as { id: string };
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await switchToRealMode(page);
-  await realProjectsSidebar(page).getByRole("button", { name: projectTitle, exact: true }).click();
-  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 60_000 });
+  await activateRealProject(page, body.id);
   return body.id;
 }
 
