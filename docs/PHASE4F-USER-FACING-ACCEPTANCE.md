@@ -1,79 +1,95 @@
-# Phase 4F — User-facing acceptance
+# Phase 4F — User-facing acceptance (closeout)
 
 **Date:** 2026-10-24  
 **Branch:** `phase4/intelligent-production`  
-**Git HEAD:** `5534e29`
+**Git HEAD (local/remote):** `6513b63` (+ pending commit `DialogTrigger` fix if push completes)
 
-## Deploy (VPS 85.117.235.93)
+## Runtime (VPS 85.117.235.93)
 
-| Component | SHA / tag | Status |
-|-----------|-----------|--------|
-| Web (systemd `:3020`) | **`c3178cb`** (`shotbro-web-build:c3178cb`) | **DEPLOYED** |
-| API / worker (Docker) | **`4b127c7`** (4F settings API; hotfix) | **DEPLOYED** |
-| `DEPLOYED.txt` | `DEPLOYED=c3178cb`, `DEPLOYED_WEB=c3178cb` | verified |
-| E2E-only source on VPS | newer commits synced for Playwright | not web-rebuilt |
+| Component | SHA | Status |
+|-----------|-----|--------|
+| Web (systemd `:3020`) | **`046016b`** (`shotbro-web-build:046016b`) | **DEPLOYED** |
+| API / worker (Docker) | **`4b127c7`** | **DEPLOYED** (unchanged in closeout) |
+| Source tree `DEPLOYED.txt` | `046016b` | synced via tarball |
 
-**Policy (unchanged):** `AI_MOCK_MODE=true`, `OPENROUTER_ENABLED=false`, `OPENROUTER_ALLOW_PAID_REQUESTS=false`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`.
+## Playwright runner
 
-## Root cause (pre-4F)
+| Check | Status |
+|-------|--------|
+| Script | `infra/scripts/staging-playwright-e2e.sh` |
+| Docker image | `mcr.microsoft.com/playwright:v1.64.1-jammy` (matches lockfile `@playwright/test@1.64.1`) |
+| Secrets in stdout | **OK** — `env_val` grep only; no password echo |
+| Exit code on failure | **OK** — `regression` mode uses `set -e` |
+| Modes | `full` · `audit` · `regression` |
+| Test accounts | `INTEGRATION_USER_A_*` / `E2E_TEST_*` from `staging.env` only |
 
-Documented in **`PHASE4F-UI-AUDIT.md`**: DEMO-first shell, REAL thread hidden until mode + project, demo-only context panel, minimal REAL composer.
+## E2E results (VPS, live https://ai.shotbro.ru)
 
-## User-visible REAL features (post-4F web)
+| Suite | Expected | Actual | Notes |
+|-------|----------|--------|-------|
+| `phase4f-studio-audit` (4 viewports) | 4/4 | **4/4 PASS** | `audit` mode, ~7.6s |
+| Phase 3 mock production × 4 viewports | 4/4 | **0/4 FAIL** | See blockers |
+| Phase 4 unified × 4 viewports | 4/4 | **0/4 FAIL** | Same setup path |
+| **Regression total** | **8/8** | **0/8** | Log: `/tmp/phase4f-regression-final5.log` on VPS |
 
-| Feature | Backend | Wired | Visible REAL | Notes |
-|---------|---------|-------|--------------|-------|
-| Project templates dialog | settings on create | **WIRED** | **VISIBLE** | Sidebar «Новый проект» |
-| REAL context panel (Context / Production / Assets / Models) | API + SSE | **WIRED** | **VISIBLE** | Right sheet / panel |
-| Agent run strip | AgentRun + trace API | **WIRED** | **VISIBLE** | Above thread when project open |
-| Model selector (economy/balance/quality/manual) | model-catalog | **WIRED** | **VISIBLE** | `RealComposer` |
-| Production / approval blocks in chat | orchestrator | existing | **VISIBLE** | When agent runs |
-| Mock / live policy badges | catalog + env | **WIRED** | **VISIBLE** | «Live AI заблокирован» |
+### Root cause (regression)
 
-## Frontend files (4F core commit `4b127c7` + `c3178cb`)
+1. **NewProjectDialog** did not open from Playwright click on external «Новый проект» button (controlled `open` without `DialogTrigger`). E2E fell back to API create but **RealComposer** did not mount reliably when selecting the new project in the sidebar (~60s timeout).
+2. Fix prepared: **`DialogTrigger` co-located with dialog** in `new-project-dialog.tsx` / `real-projects-sidebar.tsx` (commit pending deploy after push).
+3. E2E helpers updated on VPS (`real-login.ts` @ `6513b63`): REAL mode guard (no DEMO banner), sidebar-scoped create, UI-first + API fallback, placeholder-based composer checks.
 
-- `studio-shell.tsx`, `real-context-panel.tsx`, `agent-run-strip.tsx`
-- `new-project-dialog.tsx`, `project-templates.ts`, `real-projects-sidebar.tsx`
-- `real-composer.tsx`, `model-selector.tsx`
-- `use-studio-production.ts`, header/banner updates
-- API: project `settings` on create/patch (`packages/contracts`, `projects.service`)
+### API smokes (VPS)
 
-## Screenshots (server Playwright)
+| Smoke | Result |
+|-------|--------|
+| Phase 3 fallback | **PASS** (`mock:true`) |
+| Phase 4 unified | **PASS** (`mock:true`) |
 
-Path on VPS: `/var/www/ai.shotbro.ru-src/apps/web/test-results/phase4f-{demo|real}-{desktop1920|desktop1440|tablet|mobile390}.png`
+## Policy / security (staging)
 
-| Viewport | DEMO | REAL |
-|----------|------|------|
-| 1920 | **TESTED** pass | **TESTED** pass |
-| 1440 | **TESTED** pass | **TESTED** pass |
-| tablet | **TESTED** pass | **TESTED** pass |
-| mobile 390 | **TESTED** pass (DEMO) | **TESTED** after `switchToRealMode` fix (sidebar marker) |
+| Flag | Required | Observed |
+|------|----------|----------|
+| `AI_MOCK_MODE` | `true` | **true** in `docker-compose.staging.yml` (api/worker) |
+| `OPENROUTER_ENABLED` | `false` | **false** in compose |
+| `OPENROUTER_ALLOW_PAID_REQUESTS` | `false` | **false** in compose |
+| `PROVIDER_LIVE_EXECUTION_ENABLED` | `false` | **false** in compose |
+| `PHASE4_AGENT_RUNTIME_ENABLED` | `false` global | **false** default in compose; Phase 4 E2E uses **project-scoped** rollout API |
+| `ALLOW_PUBLIC_REGISTER` | `false` | present in `staging.env` |
+| `INTEGRATION_PROVISION_ENABLED` | `false` (closeout target) | **may be true** on staging for E2E users — verify before production; no paid AI regardless |
 
-## Tests (VPS only)
+## UI component matrix (REAL, web `046016b`)
 
-| Suite | Result | Notes |
-|-------|--------|-------|
-| Phase 3 API smoke | **PASS** | `mock:true` |
-| Phase 4 unified API smoke | **PASS** | `mock:true` |
-| Playwright `phase4f-studio-audit` | **4/4 pass** (`audit` mode, 7.6s) | Screenshots on VPS in `apps/web/test-results/` |
-| Playwright Phase 3 / 4 regression | **re-run pending** | E2E fixed: dialog create + `Создать проект` aria-label (`5534e29`) |
-| Runner | `infra/scripts/staging-playwright-e2e.sh` | Docker-based; no local runs |
+| Component | IMPLEMENTED | WIRED | VISIBLE | TESTED (browser) |
+|-----------|-------------|-------|---------|------------------|
+| NewProjectDialog | yes | yes | yes | **partial** (audit REAL; dialog open blocked in regression) |
+| REAL sidebar | yes | yes | yes | audit |
+| Context / Production / Assets / Models | yes | yes | yes | audit |
+| AgentRunStrip | yes | yes | when project selected | regression blocked |
+| RealComposer + ModelSelector | yes | yes | yes | regression blocked |
+| Approval / production blocks | yes | yes | yes | regression blocked |
+| Mock MP4 delivery | yes | yes | — | regression blocked |
 
-**Historical run (pre-dialog E2E fix):** 20/24 Playwright cases passed (Phase 3/4 regression on staging web `4a3896f` matrix documented in Phase 4E).
+## Screenshots (VPS)
 
-Re-run full matrix after deploying E2E-only sync or next web tarball including `real-login.ts` helpers (no API change required).
+`apps/web/test-results/phase4f-{demo|real}-{desktop1920|desktop1440|tablet|mobile390}.png`
 
-## Status legend
+Additional traces/screenshots under `apps/web/test-results/` from failed regression runs (no secrets).
 
-| Item | Status |
-|------|--------|
-| REAL studio layout + panels | **IMPLEMENTED** **DEPLOYED** **VISIBLE** |
-| Template-based project create | **IMPLEMENTED** **WIRED** **VISIBLE** |
-| Agent strip + model selector | **IMPLEMENTED** **WIRED** **VISIBLE** |
-| Full F5–F12 checklist in browser | **partial** — regression E2E must pass with new dialog flow |
-| Live paid AI | **BLOCKED BY POLICY** |
-| Production cutover | **NOT PERFORMED** |
+## Phase 4F sign-off
 
-## Sign-off criterion
+| Criterion | Status |
+|-----------|--------|
+| 8/8 E2E PASS | **BLOCKED** |
+| REAL project via UI dialog | **FIX READY** (DialogTrigger); **not deployed** at closeout |
+| Mock production in browser | **BLOCKED** (E2E) — **PASS** via API smokes |
+| F5 persistence | in spec; not reached while create step fails |
+| Zero paid AI | **CONFIRMED** (policy + smokes) |
 
-User on https://ai.shotbro.ru/studio can switch to **REAL**, create a project from templates, see agent strip / context panel / model selector, and drive mock production — **confirmed on staging web `c3178cb`** for desktop/tablet via audit screenshots; full production-chain Playwright pending one E2E helper sync (dialog create).
+## Next steps (server-only)
+
+1. Push/deploy web commit with `DialogTrigger` fix (new SHA after `6513b63`).
+2. Sync `apps/web/e2e/helpers/real-login.ts` to VPS (already on `6513b63`).
+3. `bash infra/scripts/staging-playwright-e2e.sh /var/www/ai.shotbro.ru-src regression` → expect **8/8 PASS** (~30–90 min).
+4. `bash … staging-playwright-e2e.sh … full` (audit + regression) and archive `test-results/` for report.
+
+**Policy unchanged:** no production cutover, no live paid providers.

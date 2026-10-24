@@ -107,6 +107,7 @@ async function createProjectViaApi(page: Page, projectTitle: string): Promise<st
   const body = (await res.json()) as { id: string };
   await page.goto("/studio", { waitUntil: "domcontentloaded" });
   await switchToRealMode(page);
+  await expect(page.getByText("Загрузка…")).toHaveCount(0, { timeout: 30_000 });
   const projectBtn = realProjectsSidebar(page).getByRole("button", { name: projectTitle, exact: true });
   await expect(projectBtn).toBeVisible({ timeout: 45_000 });
   await projectBtn.click();

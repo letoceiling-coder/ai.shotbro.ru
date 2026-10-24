@@ -1,8 +1,8 @@
 # Phase 4 — Progress
 
 **Branch:** `phase4/intelligent-production`  
-**Git HEAD:** `cc3244d` (E2E + deploy scripts; web deploy **`c3178cb`**)  
-**Staging:** API/worker **4b127c7** · web **c3178cb**
+**Git HEAD:** `6513b63` (+ DialogTrigger web fix pending push/deploy)  
+**Staging:** API/worker **4b127c7** · web **046016b**
 
 Legend: **IMPLEMENTED** | **TESTED** | **INTEGRATED** | **DEPLOYED** | **BLOCKED BY POLICY** | **NOT IMPLEMENTED**
 
@@ -43,8 +43,8 @@ Details: **`PHASE4E-PROVIDER-READINESS.md`**.
 | Project templates dialog | **IMPLEMENTED** **WIRED** **VISIBLE** |
 | Model selector wired to catalog | **WIRED** **VISIBLE** |
 | Web staging deploy | **DEPLOYED** **`c3178cb`** |
-| VPS Playwright audit (4 viewports) | **TESTED** (3 stable + mobile fix in Git) |
-| Phase 3/4 Playwright regression | **pending re-run** (E2E dialog create fix) |
+| VPS Playwright audit (4 viewports) | **TESTED** **4/4 PASS** |
+| Phase 3/4 Playwright regression | **BLOCKED** **0/8** — dialog trigger fix + redeploy web |
 | `staging-playwright-e2e.sh` (Docker) | **IMPLEMENTED** |
 
 See **`PHASE4F-UI-AUDIT.md`**, **`PHASE4F-USER-FACING-ACCEPTANCE.md`**.
