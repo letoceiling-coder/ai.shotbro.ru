@@ -54,5 +54,9 @@ pnpm config set verify-deps-before-run false
 pnpm config set strict-dep-builds false
 if [ ! -d node_modules ]; then pnpm install; fi
 cd apps/web
+set +e
 pnpm exec playwright test e2e/phase4f-studio-audit.spec.ts --project=desktop
-pnpm exec playwright test e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile"
+F4=\$?
+pnpm exec playwright test e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile
+F34=\$?
+exit \$(( F4 != 0 ? F4 : F34 ))"

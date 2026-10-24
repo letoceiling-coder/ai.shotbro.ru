@@ -16,6 +16,8 @@ test.describe("Phase 4F studio UI audit", () => {
   for (const vp of viewports) {
     test(`screens DEMO + REAL markers @ ${vp.name}`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.evaluate(() => localStorage.clear());
       await page.goto("/studio", { waitUntil: "domcontentloaded" });
       await page.screenshot({ path: `test-results/phase4f-demo-${vp.name}.png`, fullPage: true });
       await expect(page.getByText(/DEMO|Что создадим/i).first()).toBeVisible({ timeout: 15_000 });
