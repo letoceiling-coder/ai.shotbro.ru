@@ -5,6 +5,7 @@ import type { Db } from "@shotbro/db/client";
 import { providerJob } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { DrizzleProviderJobStore } from "./drizzle-provider-job.store";
+import { ProviderJobsService } from "./provider-jobs.service";
 import { ProviderJobManager } from "@shotbro/ai";
 
 const POLL_MS = 15_000;
@@ -15,7 +16,10 @@ export class ProviderJobSchedulerService implements OnModuleInit, OnModuleDestro
   private readonly log = new Logger(ProviderJobSchedulerService.name);
   private timer?: NodeJS.Timeout;
 
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(ProviderJobsService) private readonly jobs: ProviderJobsService,
+  ) {}
 
   onModuleInit() {
     if (process.env.DISABLE_PROVIDER_JOB_SCHEDULER === "1") return;
@@ -43,6 +47,7 @@ export class ProviderJobSchedulerService implements OnModuleInit, OnModuleDestro
         await manager.transition(row.id, "COMPLETED", {
           outputAssetIds: row.outputAssetIds ?? [],
         });
+        await this.jobs.ingestMockOutputsIfNeeded(await new DrizzleProviderJobStore(this.db).get(row.id));
       }
     }
   }

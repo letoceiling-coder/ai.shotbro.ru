@@ -10,9 +10,12 @@ import { loadEnvFromProcess } from "@shotbro/config/env";
 import type { Db } from "@shotbro/db/client";
 import { providerJob } from "@shotbro/db/schema";
 import { eq } from "drizzle-orm";
+import { project } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
+import { ProductionAssetIngestionService } from "../production/production-asset-ingestion.service";
 import { DrizzleProviderJobStore } from "./drizzle-provider-job.store";
+import { mockProviderOutputBytes } from "./provider-mock-output";
 
 @Injectable()
 export class ProviderJobsService {
@@ -24,6 +27,7 @@ export class ProviderJobsService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
+    @Inject(ProductionAssetIngestionService) private readonly ingestion: ProductionAssetIngestionService,
   ) {}
 
   private manager() {
@@ -65,7 +69,9 @@ export class ProviderJobsService {
       input: input.payload,
       userId: input.userId,
     });
-    return { providerJobId: job.id, status: job.status };
+    await this.ingestMockOutputsIfNeeded(await new DrizzleProviderJobStore(this.db).get(job.id));
+    const fresh = await new DrizzleProviderJobStore(this.db).get(job.id);
+    return { providerJobId: job.id, status: fresh?.status ?? job.status };
   }
 
   async applyWebhookEvent(
@@ -89,10 +95,41 @@ export class ProviderJobsService {
       if (job.status !== "COMPLETED") {
         if (job.status === "SUBMITTED" || job.status === "QUEUED") await manager.transition(job.id, "RUNNING");
         await manager.transition(job.id, "COMPLETED");
+        await this.ingestMockOutputsIfNeeded(await store.get(job.id));
       }
     }
     if (event.status === "FAILED") await manager.transition(job.id, "FAILED");
     return true;
+  }
+
+  /** Persist mock provider bytes to MinIO when job reached COMPLETED without assets. */
+  async ingestMockOutputsIfNeeded(job: Awaited<ReturnType<DrizzleProviderJobStore["get"]>>) {
+    if (!job || job.status !== "COMPLETED") return;
+    const existing = job.outputAssetIds ?? [];
+    if (existing.length > 0) return;
+    const userId = String((job.metadata as { userId?: string })?.userId ?? "");
+    if (!userId) return;
+    const [proj] = await this.db.select().from(project).where(eq(project.id, job.projectId)).limit(1);
+    if (!proj) return;
+    const out = mockProviderOutputBytes(job.providerId);
+    const ingested = await this.ingestion.ingestMockProviderOutput({
+      userId,
+      projectId: job.projectId,
+      workspaceId: proj.workspaceId,
+      sourceUrl: `https://fixtures.shotbro.test/mock/${job.id}`,
+      bytes: out.bytes,
+      mimeType: out.mimeType,
+      originalName: out.originalName,
+      providerJobId: job.id,
+      graphNodeId: job.graphNodeId ?? undefined,
+    });
+    const store = new DrizzleProviderJobStore(this.db);
+    await store.update(job.id, {
+      outputAssetIds: [ingested.assetId],
+      expectedVersion: job.version,
+      version: job.version + 1,
+      updatedAt: new Date(),
+    });
   }
 
   async getJobForProject(userId: string, projectId: string, jobId: string) {
