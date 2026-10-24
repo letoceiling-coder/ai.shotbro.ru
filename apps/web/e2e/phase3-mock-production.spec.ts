@@ -29,7 +29,7 @@ test.describe("Phase 3 mock production (REAL)", () => {
 
     await approvePendingApprovals(page, 6);
 
-    await waitForMockDeliveryVisible(page);
+    await waitForMockDeliveryVisible(page, projectId);
 
     await page.reload();
     await expect(page.getByText(/Brief \(MOCK\)|Финальный ролик|Утверждено/i).first()).toBeVisible({

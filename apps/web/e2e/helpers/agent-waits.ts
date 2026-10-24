@@ -32,11 +32,41 @@ export async function waitForPhase4AgentSignalVisible(page: Page, timeoutMs = 18
   return signal;
 }
 
-export async function waitForMockDeliveryVisible(page: Page, timeoutMs = 420_000) {
+function runItems(body: unknown): unknown[] {
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === "object" && Array.isArray((body as { items?: unknown[] }).items)) {
+    return (body as { items: unknown[] }).items;
+  }
+  return [];
+}
+
+/** Persisted mock MP4 in project assets (MinIO path), independent of SSE timing. */
+export async function waitForMockMp4Asset(page: Page, projectId: string, timeoutMs = 600_000) {
+  await expect
+    .poll(
+      async () => {
+        const res = await page.request.get(`/api/v1/projects/${projectId}/assets`);
+        if (!res.ok()) return false;
+        const assets = runItems(await res.json());
+        return assets.some(
+          (a) =>
+            typeof a === "object" &&
+            a !== null &&
+            (a as { mimeType?: string; originalName?: string }).mimeType === "video/mp4" &&
+            String((a as { originalName?: string }).originalName ?? "").includes("mock-delivery"),
+        );
+      },
+      { timeout: timeoutMs, intervals: [1000, 2000, 5000] },
+    )
+    .toBe(true);
+}
+
+export async function waitForMockDeliveryVisible(page: Page, projectId: string, timeoutMs = 600_000) {
+  await waitForMockMp4Asset(page, projectId, timeoutMs);
   const delivery = page
     .getByText(/Финальный ролик|Mock-производство|Production board|Готово: mock|mock-delivery/i)
     .first();
-  await expect(delivery).toBeVisible({ timeout: timeoutMs });
+  await expect(delivery).toBeVisible({ timeout: 90_000 });
   await delivery.scrollIntoViewIfNeeded();
   return delivery;
 }

@@ -32,7 +32,7 @@ test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
 
     await approvePendingApprovals(page, 6);
 
-    await waitForMockDeliveryVisible(page);
+    await waitForMockDeliveryVisible(page, projectId);
 
     await page.reload();
     await expect(page.getByText(/Brief \(MOCK\)|Финальный ролик|Утверждено|MOCK · Phase 4/i).first()).toBeVisible({
