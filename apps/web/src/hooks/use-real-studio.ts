@@ -21,6 +21,20 @@ export function useRealProjectConversations(projectId: string | undefined) {
     queryKey: ["conversations", projectId],
     enabled: Boolean(projectId),
     queryFn: () => apiFetch(`/api/v1/projects/${projectId}/conversations`),
+    staleTime: 5_000,
+  });
+}
+
+/** Creates default conversation when project has none (legacy or failed txn). */
+export function useEnsureDefaultConversation(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/v1/projects/${projectId}/conversations`, {
+        method: "POST",
+        body: JSON.stringify({ title: "Основной диалог" }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["conversations", projectId] }),
   });
 }
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Sparkles } from "lucide-react";
 import { CHAT_COLUMN, CHAT_GUTTER } from "@/lib/layout";
 import {
   mapRealMessagesToChat,
   useRealMessages,
+  useEnsureDefaultConversation,
   useRealProjectConversations,
   useSendRealMessage,
 } from "@/hooks/use-real-studio";
@@ -18,7 +19,15 @@ import Link from "next/link";
 import { RealComposer } from "./real-composer";
 export function RealThread({ projectId }: { projectId: string }) {
   const { data: convs, isPending: convsPending } = useRealProjectConversations(projectId);
+  const ensureConversation = useEnsureDefaultConversation(projectId);
   const conversationId = convs?.[0]?.id as string | undefined;
+
+  const ensureConv = ensureConversation.mutate;
+  const ensuringConv = ensureConversation.isPending;
+  useEffect(() => {
+    if (convsPending || ensuringConv) return;
+    if (Array.isArray(convs) && convs.length === 0) ensureConv();
+  }, [convs, convsPending, ensuringConv, ensureConv]);
   const { data: msgPage, isPending: messagesPending, isFetching: messagesFetching } =
     useRealMessages(conversationId);
   const send = useSendRealMessage(conversationId, projectId);
@@ -41,7 +50,11 @@ export function RealThread({ projectId }: { projectId: string }) {
     Array.isArray(assets) && assets.length > 0 ? `файлов: ${assets.length}` : undefined;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col" data-testid="real-thread">
+    <div
+      className="relative flex min-h-0 flex-1 flex-col"
+      data-testid="real-thread"
+      data-conversation-id={conversationId ?? ""}
+    >
       <input
         ref={fileRef}
         type="file"
