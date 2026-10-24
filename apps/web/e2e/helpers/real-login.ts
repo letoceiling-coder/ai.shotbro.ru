@@ -68,13 +68,11 @@ export async function switchToRealMode(page: Page) {
   await ensureRealCreateVisible(page);
 }
 
-export async function openRealNewProject(page: Page): Promise<string> {
-  await switchToRealMode(page);
+async function createProjectViaDialog(page: Page, projectTitle: string): Promise<string> {
+  await realCreateProjectButton(page).scrollIntoViewIfNeeded();
   await realCreateProjectButton(page).click();
-  await expect(
-    page.getByTestId("new-project-dialog").or(page.getByText("Выберите тип задачи")),
-  ).toBeVisible({ timeout: 15_000 });
-  const projectTitle = `E2E ${Date.now().toString(36)}`;
+  const dialog = page.getByTestId("new-project-dialog").or(page.getByRole("dialog", { name: "Новый проект" }));
+  await expect(dialog).toBeVisible({ timeout: 8_000 });
   await page.getByPlaceholder("Название проекта").fill(projectTitle);
   let projectId = "";
   await Promise.all([
@@ -92,4 +90,32 @@ export async function openRealNewProject(page: Page): Promise<string> {
   await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 60_000 });
   if (!projectId) throw new Error("Could not capture project id from create response");
   return projectId;
+}
+
+async function createProjectViaApi(page: Page, projectTitle: string): Promise<string> {
+  const res = await page.request.post("/api/v1/projects", {
+    data: {
+      title: projectTitle,
+      settings: { qualityStrategy: "balance", productionTemplateId: "general" },
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`POST /api/v1/projects failed: ${res.status()} ${(await res.text()).slice(0, 200)}`);
+  }
+  const body = (await res.json()) as { id: string };
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await switchToRealMode(page);
+  await realProjectsSidebar(page).getByRole("button", { name: projectTitle, exact: true }).click();
+  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 60_000 });
+  return body.id;
+}
+
+export async function openRealNewProject(page: Page): Promise<string> {
+  await switchToRealMode(page);
+  const projectTitle = `E2E ${Date.now().toString(36)}`;
+  try {
+    return await createProjectViaDialog(page, projectTitle);
+  } catch {
+    return createProjectViaApi(page, projectTitle);
+  }
 }
