@@ -8,10 +8,11 @@ export async function loginRealUser(page: Page) {
   await page.getByPlaceholder("Email").fill(email);
   await page.getByPlaceholder("Пароль").fill(password);
   await page.getByRole("button", { name: "Войти" }).click();
-  await page.waitForURL("**/studio**", { timeout: 45_000 });
+  await page.waitForURL("**/studio**", { timeout: 45_000, waitUntil: "domcontentloaded" });
 }
 
-export async function openRealNewProject(page: Page): Promise<string> {
+/** Opens settings and switches studio from DEMO to REAL (mobile-safe). */
+export async function switchToRealMode(page: Page) {
   await page.goto("/studio", { waitUntil: "domcontentloaded" });
   const settings = page.getByRole("button", { name: "Настройки" });
   if (!(await settings.isVisible().catch(() => false))) {
@@ -20,6 +21,11 @@ export async function openRealNewProject(page: Page): Promise<string> {
   await settings.click();
   await page.getByRole("button", { name: "REAL" }).click();
   await page.keyboard.press("Escape");
+  await expect(page.getByText("REAL").first()).toBeVisible({ timeout: 15_000 });
+}
+
+export async function openRealNewProject(page: Page): Promise<string> {
+  await switchToRealMode(page);
   const createReal = page.getByRole("button", { name: "Новый проект" });
   await expect(createReal).toBeVisible({ timeout: 15_000 });
   let projectId = "";

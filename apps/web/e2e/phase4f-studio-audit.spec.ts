@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginRealUser } from "./helpers/real-login";
+import { loginRealUser, switchToRealMode } from "./helpers/real-login";
 
 const viewports = [
   { name: "desktop1920", width: 1920, height: 1080 },
@@ -10,6 +10,8 @@ const viewports = [
 
 test.describe("Phase 4F studio UI audit", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
+  // Viewports are set inside each test; run this file with a single Playwright project (see staging-playwright-e2e.sh).
+  test.describe.configure({ mode: "serial" });
 
   for (const vp of viewports) {
     test(`screens DEMO + REAL markers @ ${vp.name}`, async ({ page }) => {
@@ -19,11 +21,7 @@ test.describe("Phase 4F studio UI audit", () => {
       await expect(page.getByText(/DEMO|Что создадим/i).first()).toBeVisible({ timeout: 15_000 });
 
       await loginRealUser(page);
-      await page.goto("/studio", { waitUntil: "domcontentloaded" });
-      await page.getByRole("button", { name: /Настройки/i }).click();
-      await page.getByRole("button", { name: "REAL" }).click();
-      await page.keyboard.press("Escape");
-      await expect(page.getByText("REAL").first()).toBeVisible();
+      await switchToRealMode(page);
       await page.screenshot({ path: `test-results/phase4f-real-${vp.name}.png`, fullPage: true });
       await expect(page.getByRole("button", { name: /Новый проект/i }).first()).toBeVisible();
     });
