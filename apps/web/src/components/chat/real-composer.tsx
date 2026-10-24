@@ -16,6 +16,8 @@ import type { QualityStrategy } from "@shotbro/contracts";
 type Props = {
   projectId: string;
   disabled?: boolean;
+  /** Conversation list still loading — composer stays visible, send disabled */
+  waitingForConversation?: boolean;
   onSend: (text: string) => void;
   onPickFile: () => void;
   uploadPending?: boolean;
@@ -26,6 +28,7 @@ type Props = {
 export function RealComposer({
   projectId,
   disabled,
+  waitingForConversation,
   onSend,
   onPickFile,
   uploadPending,
@@ -48,6 +51,7 @@ export function RealComposer({
     >
       <p className={`${CHAT_COLUMN} mb-2 text-xs text-muted-foreground`}>
         События: {sseConnected ? "подключено" : "переподключение…"}
+        {waitingForConversation ? " · подготовка диалога…" : ""}
         {assetHint ? ` · ${assetHint}` : ""}
       </p>
       <div className={`${CHAT_COLUMN} mb-2`}>
@@ -75,6 +79,8 @@ export function RealComposer({
         </Button>
         <Textarea
           ref={textareaRef}
+          data-testid="real-composer-input"
+          aria-label="Опишите задачу"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Опишите задачу — агент подготовит brief, сценарий и mock-производство…"

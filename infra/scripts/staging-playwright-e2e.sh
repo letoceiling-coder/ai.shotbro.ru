@@ -57,6 +57,10 @@ if [ ! -d node_modules ]; then pnpm install; fi
 cd apps/web
 if [ \"${MODE}\" = audit ]; then
   pnpm exec playwright test e2e/phase4f-studio-audit.spec.ts --project=desktop
+elif [ \"${MODE}\" = diagnostic ]; then
+  export E2E_DIAG_DIR=/tmp/phase4f-composer-diag
+  rm -rf \"\$E2E_DIAG_DIR\"
+  pnpm exec playwright test e2e/phase4f-real-composer-diagnostic.spec.ts --project=desktop --trace on
 elif [ \"${MODE}\" = regression ]; then
   pnpm exec playwright test e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile
 else

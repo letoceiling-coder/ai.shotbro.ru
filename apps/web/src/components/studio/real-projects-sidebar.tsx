@@ -3,11 +3,13 @@
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useCreateRealProject, useRealProjects } from "@/hooks/use-real-studio";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStudioStore } from "@/store/studio-store";
 import { NewProjectDialog } from "./new-project-dialog";
 import { api, apiFetch } from "@/lib/api-client";
 
 export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const qc = useQueryClient();
   const { data, isLoading } = useRealProjects();
   const create = useCreateRealProject();
   const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
@@ -37,6 +39,11 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
                 setActiveRealProject(p.id);
                 dialog.close();
                 onNavigate?.();
+                await qc.invalidateQueries({ queryKey: ["conversations", p.id] });
+                void qc.prefetchQuery({
+                  queryKey: ["conversations", p.id],
+                  queryFn: () => apiFetch(`/api/v1/projects/${p.id}/conversations`),
+                });
                 if (seedPrompt) {
                   const convs = (await apiFetch(`/api/v1/projects/${p.id}/conversations`)) as Array<{
                     id: string;

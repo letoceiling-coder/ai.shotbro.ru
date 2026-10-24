@@ -13,12 +13,18 @@ export async function loginRealUser(page: Page) {
   await expect(page).toHaveURL(/\/studio/, { timeout: 60_000 });
 }
 
-export async function fillRealComposer(page: Page, message: string) {
-  await expect(page.getByPlaceholder(/Опишите задачу|Сообщение сохранится|сообщение|опишите/i).first()).toBeVisible({
-    timeout: 45_000,
-  });
-  const input = page.getByPlaceholder(/Опишите задачу|Сообщение сохранится|сообщение|опишите/i).first();
+export async function expectRealComposerReady(page: Page) {
+  await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 15_000 });
+  const input = page.getByTestId("real-composer-input");
   await expect(input).toBeVisible({ timeout: 15_000 });
+  await expect(input).toBeEnabled({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: /отправить|send/i })).toBeEnabled({ timeout: 60_000 });
+  return input;
+}
+
+export async function fillRealComposer(page: Page, message: string) {
+  const input = await expectRealComposerReady(page);
   await input.click();
   await input.fill(message);
   const sendBtn = page.getByRole("button", { name: /отправить|send/i });
@@ -89,39 +95,18 @@ async function createProjectViaDialog(page: Page, projectTitle: string): Promise
       }),
     page.getByRole("button", { name: "Создать" }).click(),
   ]);
-  await expect(page.getByPlaceholder(/Опишите задачу/i).first()).toBeVisible({ timeout: 60_000 });
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(realProjectsSidebar(page).getByRole("button", { name: projectTitle, exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByText("REAL-режим: создайте")).toHaveCount(0, { timeout: 15_000 });
+  await expectRealComposerReady(page);
   if (!projectId) throw new Error("Could not capture project id from create response");
   return projectId;
-}
-
-async function createProjectViaApi(page: Page, projectTitle: string): Promise<string> {
-  const res = await page.request.post("/api/v1/projects", {
-    data: {
-      title: projectTitle,
-      settings: { qualityStrategy: "balance", productionTemplateId: "general" },
-    },
-  });
-  if (!res.ok()) {
-    throw new Error(`POST /api/v1/projects failed: ${res.status()} ${(await res.text()).slice(0, 200)}`);
-  }
-  const body = (await res.json()) as { id: string };
-  await page.goto("/studio", { waitUntil: "domcontentloaded" });
-  await switchToRealMode(page);
-  await expect(page.getByText("Загрузка…")).toHaveCount(0, { timeout: 30_000 });
-  const projectBtn = realProjectsSidebar(page).getByRole("button", { name: projectTitle, exact: true });
-  await expect(projectBtn).toBeVisible({ timeout: 45_000 });
-  await projectBtn.click();
-  await expect(page.getByText("REAL-режим: создайте")).toHaveCount(0, { timeout: 15_000 });
-  await expect(page.getByPlaceholder(/Опишите задачу/i).first()).toBeVisible({ timeout: 60_000 });
-  return body.id;
 }
 
 export async function openRealNewProject(page: Page): Promise<string> {
   await switchToRealMode(page);
   const projectTitle = `E2E ${Date.now().toString(36)}`;
-  try {
-    return await createProjectViaDialog(page, projectTitle);
-  } catch {
-    return createProjectViaApi(page, projectTitle);
-  }
+  return createProjectViaDialog(page, projectTitle);
 }
