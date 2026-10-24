@@ -2,7 +2,7 @@ import type { AppEnv } from "@shotbro/config/env";
 import { LlmGateway } from "../llm/llm-gateway.js";
 import type { LlmResponse } from "../llm/types.js";
 import type { ProductionStoragePort } from "../ports/production-storage.js";
-import { ToolExecutor } from "../tool-executor.js";
+import { ToolExecutor, type ToolExecutionDelegates } from "../tool-executor.js";
 import { ContextBuilder } from "./context-builder.js";
 import { ToolPolicyEngine } from "./tool-policy-engine.js";
 import { registerPhase4ToolHandlers } from "./tool-handlers/register.js";
@@ -45,6 +45,8 @@ export class AgentRuntime {
     userId: string;
     userMessage: string;
     storage: ProductionStoragePort;
+    conversationId?: string;
+    delegates?: ToolExecutionDelegates;
     modelId?: string;
     limits?: Partial<AgentRuntimeLimits>;
   }): Promise<AgentRunResult> {
@@ -111,6 +113,8 @@ export class AgentRuntime {
           runId: input.runId,
           projectId: input.projectId,
           userId: input.userId,
+          conversationId: input.conversationId,
+          delegates: input.delegates,
         }, { idempotencyKey: `${input.runId}:${tc.id}`, timeoutMs: 30_000 });
 
         if (tc.name === "request_approval") {

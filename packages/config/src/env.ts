@@ -49,6 +49,9 @@ export const envSchema = z
     /** Phase 3: when false, EXTERNAL_PAID tools still require explicit owner enable + approvals */
     PROVIDER_LIVE_EXECUTION_ENABLED: boolFromEnv.default(false),
 
+    /** Phase 4: run AgentRuntime before ProductionOrchestrator (mock-only; default off for Phase 3 parity) */
+    PHASE4_AGENT_RUNTIME_ENABLED: boolFromEnv.default(false),
+
     SMTP_HOST: emptyToUndefined,
     SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(465),
     SMTP_SECURE: boolFromEnv.default(true),

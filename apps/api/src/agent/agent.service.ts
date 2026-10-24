@@ -1,7 +1,7 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
-import { ProductionOrchestrator } from "@shotbro/ai";
+import { AgentRuntime, ProductionOrchestrator } from "@shotbro/ai";
 import { loadEnvFromProcess } from "@shotbro/config/env";
 import { CreateAgentRunBodySchema } from "@shotbro/contracts";
 import type { Db } from "@shotbro/db/client";
@@ -13,11 +13,16 @@ import { ApprovalsService } from "../approvals/approvals.service";
 import { CostReservationService } from "../production/cost-reservation.service";
 import { ProductionGraphService } from "../production/production-graph.service";
 import { DrizzleProductionStorage } from "./drizzle-production-storage";
+import { buildAgentToolDelegates } from "./agent-tool-delegates";
 import type { AgentProductionState } from "@shotbro/contracts";
+import { AssetsService } from "../assets/assets.service";
+import { ProviderJobsService } from "../providers/provider-jobs.service";
 
 @Injectable()
 export class AgentService {
-  private readonly orchestrator = new ProductionOrchestrator(loadEnvFromProcess());
+  private readonly env = loadEnvFromProcess();
+  private readonly orchestrator = new ProductionOrchestrator(this.env);
+  private readonly agentRuntime = new AgentRuntime(this.env);
 
   constructor(
     @Inject(DB) private readonly db: Db,
@@ -26,6 +31,8 @@ export class AgentService {
     @Inject(ApprovalsService) private readonly approvals: ApprovalsService,
     @Inject(ProductionGraphService) private readonly graph: ProductionGraphService,
     @Inject(CostReservationService) private readonly cost: CostReservationService,
+    @Inject(AssetsService) private readonly assets: AssetsService,
+    @Inject(ProviderJobsService) private readonly providerJobs: ProviderJobsService,
   ) {}
 
   async resumeAfterApproval(projectId: string, userId: string, targetType: string) {
@@ -115,13 +122,32 @@ export class AgentService {
       status: "RUNNING",
       productionState: "DRAFT",
       triggerMessage: input.userRequest,
-      metadata: { phase: 3, mock: true },
+      metadata: { phase: this.env.PHASE4_AGENT_RUNTIME_ENABLED ? 4 : 3, mock: true },
       createdAt: now,
       updatedAt: now,
     });
 
     const storage = new DrizzleProductionStorage(this.db, workspaceId, this.events);
     await storage.emitEvent("agent.run.started", { runId, projectId, productionState: "DRAFT" }, runId);
+
+    if (this.env.PHASE4_AGENT_RUNTIME_ENABLED) {
+      const delegates = buildAgentToolDelegates({
+        assets: this.assets,
+        approvals: this.approvals,
+        graph: this.graph,
+        providerJobs: this.providerJobs,
+        conversationId,
+      });
+      await this.agentRuntime.runTurn({
+        runId,
+        projectId,
+        userId,
+        userMessage: input.userRequest,
+        storage,
+        conversationId,
+        delegates,
+      });
+    }
 
     const state = await this.orchestrator.advance(
       runId,

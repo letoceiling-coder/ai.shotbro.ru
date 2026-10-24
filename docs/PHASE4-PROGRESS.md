@@ -1,65 +1,55 @@
 # Phase 4 — Progress
 
 **Branch:** `phase4/intelligent-production`  
+**Checkpoint:** `12f3f4f` → Phase 4B commit (pending push)  
 **Baseline:** `phase3-rc1` (`e66d480`)  
 **Staging runtime:** `66c1d2f` (unchanged until 4C deploy)
 
-Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**
+Legend: **IMPLEMENTED** | **TESTED** | **INTEGRATED** | **DEPLOYED** | **BLOCKED BY POLICY** | **NOT IMPLEMENTED**
 
 ---
 
 ## 4A — Intelligent Agent
 
-| Stage | Item | Status |
-|-------|------|--------|
-| A0 | Audit + branch | **IMPLEMENTED** **TESTED** |
-| A1 | LLM Gateway + types | **IMPLEMENTED** **TESTED** (mock fixtures) |
-| A2 | Tool Executor handlers | **PARTIAL** — core read/write tools **IMPLEMENTED**; generate/compose **ADAPTER_PENDING** |
-| A3 | AgentRuntime loop | **IMPLEMENTED** **TESTED** (unit via evaluation scenarios) |
-| A4 | ContextBuilder | **IMPLEMENTED** |
-| A5 | Creative roles | **IMPLEMENTED** (pipeline reuse, single orchestrator) |
-| A6 | Structured Zod persist | **IMPLEMENTED** (handlers) |
-| A7 | 12 mock evaluations | **IMPLEMENTED** **TESTED** |
+| Item | Status |
+|------|--------|
+| LLM Gateway | **IMPLEMENTED** **TESTED** |
+| AgentRuntime | **IMPLEMENTED** **TESTED** **INTEGRATED** (flag `PHASE4_AGENT_RUNTIME_ENABLED`, default **false**) |
+| ContextBuilder | **IMPLEMENTED** |
+| Tool handlers (core) | **IMPLEMENTED** **INTEGRATED** (API delegates) |
+| 12 mock evaluations | **TESTED** |
 
-## 4B — Multi-Provider Engine
+## 4B — Provider Engine (this milestone)
 
 | Stage | Item | Status |
 |-------|------|--------|
-| B1 | Provider interfaces + registry | **IMPLEMENTED** |
-| B2 | OpenRouter LLM adapter | **IMPLEMENTED** (mock/blocked HTTP) — live **BLOCKED BY POLICY** |
-| B3 | Image adapters | **NOT IMPLEMENTED** |
-| B4 | Video adapters | **NOT IMPLEMENTED** |
-| B5 | ElevenLabs | **NOT IMPLEMENTED** |
-| B6 | Provider Job Manager | **IMPLEMENTED** (in-memory port; DB **NOT IMPLEMENTED**) |
-| B7 | Model Router | **PARTIAL** (mock routing) |
-| B8 | Asset ingestion | **NOT IMPLEMENTED** |
-| B9 | Contract tests | **NOT IMPLEMENTED** |
+| B0 | Audit matrix | **IMPLEMENTED** (docs + code) |
+| B1 | `provider_job` / events / attempts migration **0005** | **IMPLEMENTED** **TESTED** (DB test when `RUN_DB_INTEGRATION_TESTS=1`) |
+| B1 | ProviderJobManager + PG store | **IMPLEMENTED** **TESTED** |
+| B2 | Provider contracts (LLM/image/video/audio) | **IMPLEMENTED** |
+| B3 | OpenRouter adapter | **IMPLEMENTED** **CONTRACT_TESTED** (mock transport) — live **BLOCKED BY POLICY** |
+| B4 | Image provider framework + Phase4 mock | **IMPLEMENTED** **TESTED** |
+| B5 | Video provider framework + Phase4 mock | **IMPLEMENTED** **TESTED** |
+| B6 | ElevenLabs mock adapter | **IMPLEMENTED** **TESTED** |
+| B7 | Job manager lifecycle + events | **IMPLEMENTED** **PARTIAL** (polling/webhook scheduler **NOT IMPLEMENTED**) |
+| B8 | Asset ingestion SSRF guards | **IMPLEMENTED** **TESTED** (fixtures) |
+| B9 | Model router `selectModel` | **IMPLEMENTED** **PARTIAL** |
+| B10 | AgentRuntime → Orchestrator single path | **INTEGRATED** behind flag; default off preserves Phase 3 |
+| B11 | Tool delegates (assets, approval, graph, mock jobs) | **IMPLEMENTED** **INTEGRATED** |
+| B12 | Tests | unit **TESTED**; DB provider job **TESTED** (optional gate) |
 
-## 4C — Production Readiness
-
-| Stage | Item | Status |
-|-------|------|--------|
-| C1 | ExecutionPolicyEngine | **IMPLEMENTED** **TESTED** |
-| C2 | Approval/cost hardening | **IMPLEMENTED** (Phase 3 baseline) |
-| C3 | Worker reliability | Phase 3 baseline — extended tests **NOT IMPLEMENTED** |
-| C4 | Observability / trace | **NOT IMPLEMENTED** |
-| C5 | Frontend cards | **NOT IMPLEMENTED** |
-| C6 | Security tests | Phase 3 baseline |
-| C7 | Mock E2E | Phase 3 spec — re-run after deploy |
-| C8 | Staging deploy | **NOT PERFORMED** |
-| C9 | Final acceptance | **NOT IMPLEMENTED** |
-
-## API (new)
+## API
 
 | Endpoint | Status |
 |----------|--------|
-| `GET /api/v1/ai/models` | **IMPLEMENTED** |
-| `GET /api/v1/ai/providers` | **IMPLEMENTED** |
-| `GET /api/v1/ai/tools` | **IMPLEMENTED** |
-| Agent run/trace/provider-jobs | existing + planned |
+| `GET /api/v1/projects/:id/provider-jobs` | **IMPLEMENTED** |
+| `GET /api/v1/ai/models|providers|tools` | **IMPLEMENTED** (4A) |
 
-## Policy confirmation
+## Policy
 
-Real OpenRouter inference: **0**  
-Real paid image/video/TTS: **0**  
+Real OpenRouter / image / video / ElevenLabs: **0**  
 Production cutover: **NOT PERFORMED**
+
+## Remaining (4C)
+
+Frontend cards, webhook receiver, polling scheduler, staging deploy, full Phase 4 E2E, live adapters **BLOCKED BY POLICY**

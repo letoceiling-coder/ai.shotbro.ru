@@ -1,35 +1,17 @@
 # Phase 4 — Tool Executor matrix
 
-| Tool | Handler | Status | Notes |
-|------|---------|--------|-------|
-| get_project_context | Yes | **TESTED** (unit path) | |
-| get_project_memory | Yes | **IMPLEMENTED** | |
-| update_project_brief | Yes | **IMPLEMENTED** | Zod + persist |
-| create_production_plan | Yes | **IMPLEMENTED** | |
-| update_production_plan | Yes | **IMPLEMENTED** | |
-| create_script | Yes | **IMPLEMENTED** | |
-| update_script | Yes | **IMPLEMENTED** | |
-| create_storyboard | Yes | **IMPLEMENTED** | |
-| update_storyboard | Yes | **IMPLEMENTED** | |
-| save_character | Yes | **IMPLEMENTED** | run metadata |
-| get_character | Yes | **IMPLEMENTED** | |
-| list_project_assets | Yes | **IMPLEMENTED** | empty list stub |
-| attach_reference | throws | **ADAPTER_PENDING** | |
-| prepare_image_prompt | Yes | **IMPLEMENTED** | |
-| prepare_video_prompt | Yes | **IMPLEMENTED** | |
-| prepare_voiceover | Yes | **IMPLEMENTED** | |
-| compare_models | Yes | **IMPLEMENTED** | mock router |
-| estimate_cost | Yes | **IMPLEMENTED** | |
-| request_approval | throws | **ORCHESTRATOR_DELEGATE** | ApprovalsService |
-| get_approval_status | Yes | **IMPLEMENTED** | |
-| create_production_graph | throws | **ORCHESTRATOR_DELEGATE** | graph service |
-| get_production_status | Yes | **IMPLEMENTED** | |
-| pause_production | Yes | **IMPLEMENTED** | |
-| cancel_production | Yes | **IMPLEMENTED** | |
-| prepare_timeline | Yes | **IMPLEMENTED** | |
-| compose_video | throws | **ADAPTER_PENDING** | worker FFmpeg |
-| validate_media | Yes | **IMPLEMENTED** | mock valid |
-| prepare_delivery | Yes | **IMPLEMENTED** | MOCK RESULT label |
-| generate.image / video / voice | throws | **ADAPTER_PENDING** | policy blocks paid |
+| Tool | Handler | Integration | Status |
+|------|---------|-------------|--------|
+| get_project_context | Yes | storage | **TESTED** path |
+| list_project_assets | Yes | `AssetsService` delegate | **INTEGRATED** |
+| attach_reference | Yes | asset ownership check | **INTEGRATED** |
+| validate_media | Yes | list + mime | **INTEGRATED** |
+| request_approval | Yes | `ApprovalsService` | **INTEGRATED** |
+| create_production_graph | Yes | `ProductionGraphService` | **INTEGRATED** |
+| compose_video | Yes | graph/worker enqueue | **INTEGRATED** |
+| generate.image/video/voice | Yes | `ProviderJobManager` mock PG | **INTEGRATED** |
+| estimate_cost / script / storyboard | Yes | pipeline + Zod | **IMPLEMENTED** |
 
-**Mock production:** continues via `ProductionOrchestrator` + worker (unchanged).
+Mock production default (`PHASE4_AGENT_RUNTIME_ENABLED=false`): **ProductionOrchestrator only** (Phase 3).
+
+With flag **true**: AgentRuntime mock LLM turn → same orchestrator (one `AgentRun`).

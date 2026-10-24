@@ -33,6 +33,6 @@
 |-----|----------|
 | No unified LLM Gateway | **4A** — **IMPLEMENTED** (branch) |
 | Tool handlers mostly missing | **4A** — **PARTIAL** (handlers + ADAPTER_PENDING) |
-| No provider job persistence table | **4B** — migration **NOT IMPLEMENTED** |
+| Provider job persistence | **4B** — migration **0005** **IMPLEMENTED** |
 | Frontend production cards | **4C** — **NOT IMPLEMENTED** |
 | Live provider verification | **BLOCKED BY POLICY** |

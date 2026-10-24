@@ -9,12 +9,40 @@ const emptyInput = z.object({}).strict();
 
 export type ToolHandler = (input: Record<string, unknown>, ctx: ToolRunContext) => Promise<Record<string, unknown>>;
 
+export type ToolExecutionDelegates = {
+  listAssets?: (projectId: string, userId: string) => Promise<Array<{ id: string; mimeType: string; originalName?: string }>>;
+  attachReference?: (input: { projectId: string; userId: string; assetId: string; sceneId?: string }) => Promise<{ linked: boolean }>;
+  requestApproval?: (input: {
+    projectId: string;
+    userId: string;
+    conversationId: string;
+    targetType: string;
+    targetId: string;
+    targetVersion: string;
+    payload: Record<string, unknown>;
+    title: string;
+    description?: string;
+  }) => Promise<void>;
+  startProductionGraph?: (input: { projectId: string; userId: string; runId: string }) => Promise<{ enqueued: boolean }>;
+  submitMockProviderJob?: (input: {
+    projectId: string;
+    userId: string;
+    runId: string;
+    toolName: string;
+    operation: string;
+    idempotencyKey: string;
+    payload: Record<string, unknown>;
+  }) => Promise<{ providerJobId: string; status: string }>;
+};
+
 export type ToolRunContext = {
   env: AppEnv;
   storage: ProductionStoragePort;
   runId: string;
   projectId: string;
   userId: string;
+  conversationId?: string;
+  delegates?: ToolExecutionDelegates;
 };
 
 export class ToolExecutor {

@@ -9,7 +9,6 @@ import { BriefBuilder, CreativeDirector, ProductionPlanner, Screenwriter, Storyb
 import { estimateMockProductionCost } from "../../cost/cost-engine.js";
 import { routeModel } from "../../model-router.js";
 import type { ToolExecutor } from "../../tool-executor.js";
-import { getPhase4Tool } from "../phase4-tool-catalog.js";
 
 const briefInput = ProductionBriefSchema.partial().extend({
   trigger: z.string().optional(),
@@ -222,7 +221,13 @@ export function registerPhase4ToolHandlers(executor: ToolExecutor) {
     return { cancelled: true, mock: true };
   });
 
-  executor.register("list_project_assets", z.object({}).strict(), async () => ({ items: [], mock: true }));
+  executor.register("list_project_assets", z.object({}).strict(), async (_in, ctx) => {
+    if (ctx.delegates?.listAssets) {
+      const items = await ctx.delegates.listAssets(ctx.projectId, ctx.userId);
+      return { items, mock: true };
+    }
+    return { items: [], mock: true, note: "delegate_missing" };
+  });
 
   executor.register("save_character", z.object({ name: z.string(), description: z.string().optional() }), async (input, ctx) => {
     const run = await ctx.storage.getRun(ctx.runId);
@@ -241,11 +246,16 @@ export function registerPhase4ToolHandlers(executor: ToolExecutor) {
     return { scenes: script?.payload?.scenes ?? [], mock: true };
   });
 
-  executor.register("validate_media", z.object({ assetId: z.string().optional() }), async (input) => ({
-    valid: true,
-    assetId: input.assetId ?? "mock-asset",
-    mock: true,
-  }));
+  executor.register("validate_media", z.object({ assetId: z.string().min(1) }), async (input, ctx) => {
+    const parsed = z.object({ assetId: z.string().min(1) }).parse(input);
+    if (ctx.delegates?.listAssets) {
+      const items = await ctx.delegates.listAssets(ctx.projectId, ctx.userId);
+      const hit = items.find((a) => a.id === parsed.assetId);
+      if (!hit) return { valid: false, reason: "asset_not_found", mock: true };
+      return { valid: hit.mimeType.length > 0, assetId: hit.id, mimeType: hit.mimeType, mock: true };
+    }
+    return { valid: false, reason: "delegate_missing", mock: true };
+  });
 
   executor.register("prepare_delivery", z.object({}).strict(), async () => ({
     format: "mp4",
@@ -253,12 +263,94 @@ export function registerPhase4ToolHandlers(executor: ToolExecutor) {
     mock: true,
   }));
 
-  for (const id of ["request_approval", "create_production_graph", "compose_video", "generate.image", "generate.video", "generate.voice", "attach_reference"]) {
-    const tool = getPhase4Tool(id);
-    if (tool?.implementationStatus === "ADAPTER_PENDING" || tool?.implementationStatus === "ORCHESTRATOR_DELEGATE") {
-      executor.register(id, z.object({}).passthrough(), async () => {
-        throw new Error(`${id}: ${tool.implementationStatus} — use ProductionOrchestrator/worker path`);
+  executor.register("attach_reference", z.object({ assetId: z.string(), sceneId: z.string().optional() }), async (input, ctx) => {
+    const parsed = z.object({ assetId: z.string(), sceneId: z.string().optional() }).parse(input);
+    if (!ctx.delegates?.attachReference) throw new Error("attach_reference: delegate missing");
+    const res = await ctx.delegates.attachReference({
+      projectId: ctx.projectId,
+      userId: ctx.userId,
+      assetId: parsed.assetId,
+      sceneId: parsed.sceneId,
+    });
+    return { ...res, mock: true };
+  });
+
+  executor.register(
+    "request_approval",
+    z.object({
+      targetType: z.string(),
+      targetId: z.string(),
+      targetVersion: z.string(),
+      title: z.string(),
+      description: z.string().optional(),
+      payload: z.record(z.unknown()).optional(),
+    }),
+    async (input, ctx) => {
+      const parsed = z
+        .object({
+          targetType: z.string(),
+          targetId: z.string(),
+          targetVersion: z.string(),
+          title: z.string(),
+          description: z.string().optional(),
+          payload: z.record(z.unknown()).optional(),
+        })
+        .parse(input);
+      if (!ctx.delegates?.requestApproval || !ctx.conversationId) {
+        throw new Error("request_approval: delegate or conversation missing");
+      }
+      await ctx.delegates.requestApproval({
+        projectId: ctx.projectId,
+        userId: ctx.userId,
+        conversationId: ctx.conversationId,
+        ...parsed,
+        payload: parsed.payload ?? {},
       });
-    }
+      return { requested: true, mock: true };
+    },
+  );
+
+  executor.register("create_production_graph", z.object({}).strict(), async (_in, ctx) => {
+    if (!ctx.delegates?.startProductionGraph) throw new Error("create_production_graph: delegate missing");
+    const res = await ctx.delegates.startProductionGraph({
+      projectId: ctx.projectId,
+      userId: ctx.userId,
+      runId: ctx.runId,
+    });
+    return { ...res, mock: true };
+  });
+
+  executor.register("compose_video", z.object({}).strict(), async (_in, ctx) => {
+    if (!ctx.delegates?.startProductionGraph) throw new Error("compose_video: enqueue via production graph/worker");
+    const res = await ctx.delegates.startProductionGraph({
+      projectId: ctx.projectId,
+      userId: ctx.userId,
+      runId: ctx.runId,
+    });
+    return { enqueued: res.enqueued, via: "worker", mock: true };
+  });
+
+  const mockGen = z.object({ sceneId: z.string().optional(), prompt: z.string().optional() });
+  for (const [toolName, operation] of [
+    ["generate.image", "TEXT_TO_IMAGE"],
+    ["generate.video", "TEXT_TO_VIDEO"],
+    ["generate.voice", "TEXT_TO_SPEECH"],
+  ] as const) {
+    executor.register(toolName, mockGen, async (input, ctx) => {
+      if (!ctx.delegates?.submitMockProviderJob) {
+        throw new Error(`${toolName}: mock provider job delegate missing`);
+      }
+      const parsed = mockGen.parse(input);
+      const res = await ctx.delegates.submitMockProviderJob({
+        projectId: ctx.projectId,
+        userId: ctx.userId,
+        runId: ctx.runId,
+        toolName,
+        operation,
+        idempotencyKey: `${ctx.runId}:${toolName}:${parsed.sceneId ?? "default"}`,
+        payload: parsed,
+      });
+      return { ...res, mock: true, label: "MOCK RESULT" };
+    });
   }
 }
