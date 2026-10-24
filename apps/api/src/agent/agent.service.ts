@@ -5,7 +5,7 @@ import { AgentRuntime, ProductionOrchestrator } from "@shotbro/ai";
 import { loadEnvFromProcess } from "@shotbro/config/env";
 import { CreateAgentRunBodySchema } from "@shotbro/contracts";
 import type { Db } from "@shotbro/db/client";
-import { agentRun, approval, conversation, message, messageBlock } from "@shotbro/db/schema";
+import { agentRun, approval, conversation, message, messageBlock, toolExecution, providerJob } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { EventLogService } from "../events/event-log.service";
@@ -101,6 +101,36 @@ export class AgentService {
     return { items: rows.map((r) => this.toRunDto(r)) };
   }
 
+  async getRunTrace(userId: string, projectId: string, runId: string) {
+    await this.access.assertProjectAccess(this.db, userId, projectId);
+    const [run] = await this.db.select().from(agentRun).where(eq(agentRun.id, runId)).limit(1);
+    if (!run || run.projectId !== projectId) throw new NotFoundException();
+    const tools = await this.db.select().from(toolExecution).where(eq(toolExecution.agentRunId, runId));
+    const jobs = await this.db.select().from(providerJob).where(eq(providerJob.runId, runId));
+    const meta = (run.metadata ?? {}) as { traceId?: string; conversationId?: string };
+    return {
+      runId,
+      projectId,
+      conversationId: meta.conversationId ?? run.conversationId,
+      traceId: meta.traceId,
+      productionState: run.productionState,
+      toolExecutions: tools.map((t) => ({
+        id: t.id,
+        toolName: t.toolName,
+        status: t.status,
+        sideEffect: t.sideEffect,
+      })),
+      providerJobs: jobs.map((j) => ({
+        id: j.id,
+        providerId: j.providerId,
+        modelId: j.modelId,
+        status: j.status,
+        operation: j.operation,
+      })),
+      mock: true,
+    };
+  }
+
   async getRun(userId: string, projectId: string, runId: string) {
     await this.access.assertProjectAccess(this.db, userId, projectId);
     const [row] = await this.db.select().from(agentRun).where(eq(agentRun.id, runId)).limit(1);
@@ -114,6 +144,7 @@ export class AgentService {
     const conversationId = await this.resolveConversation(projectId, input.conversationId);
 
     const runId = uuid();
+    const traceId = uuid();
     const now = new Date();
     await this.db.insert(agentRun).values({
       id: runId,
@@ -122,7 +153,13 @@ export class AgentService {
       status: "RUNNING",
       productionState: "DRAFT",
       triggerMessage: input.userRequest,
-      metadata: { phase: this.env.PHASE4_AGENT_RUNTIME_ENABLED ? 4 : 3, mock: true },
+      metadata: {
+        phase: this.env.PHASE4_AGENT_RUNTIME_ENABLED ? 4 : 3,
+        mock: true,
+        traceId,
+        conversationId,
+        projectId,
+      },
       createdAt: now,
       updatedAt: now,
     });
@@ -138,6 +175,27 @@ export class AgentService {
         providerJobs: this.providerJobs,
         conversationId,
       });
+      await this.postAssistantBlocks(conversationId, projectId, [
+        {
+          type: "agent_activity",
+          demo: true,
+          label: "AgentRuntime · mock LLM planning",
+          status: "running",
+          simulationLabel: "MOCK · Phase 4",
+          runId,
+          traceId,
+          goal: "Structured plan and tools before production orchestrator",
+        },
+        {
+          type: "production_progress",
+          demo: true,
+          runId,
+          traceId,
+          stage: "Agent planning",
+          percent: 15,
+          message: "Context builder + mock LLM gateway",
+        },
+      ]);
       await this.agentRuntime.runTurn({
         runId,
         projectId,

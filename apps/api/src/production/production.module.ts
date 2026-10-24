@@ -8,6 +8,7 @@ import { ProductionController } from "./production.controller";
 import { ProductionDocumentService } from "./production-document.service";
 import { CharacterContinuityService } from "./character-continuity.service";
 import { PromptVersionService } from "./prompt-version.service";
+import { ProductionAssetIngestionService } from "./production-asset-ingestion.service";
 
 @Module({
   imports: [QueueModule],
@@ -19,6 +20,7 @@ import { PromptVersionService } from "./prompt-version.service";
     ProductionDocumentService,
     CharacterContinuityService,
     PromptVersionService,
+    ProductionAssetIngestionService,
     AccessPolicyService,
   ],
   exports: [
@@ -28,6 +30,7 @@ import { PromptVersionService } from "./prompt-version.service";
     ProductionDocumentService,
     CharacterContinuityService,
     PromptVersionService,
+    ProductionAssetIngestionService,
   ],
 })
 export class ProductionModule {}

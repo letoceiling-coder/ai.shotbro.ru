@@ -39,4 +39,9 @@ export class AgentController {
   cancel(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("runId") runId: string) {
     return this.agent.cancelRun(req.user.id, projectId, runId);
   }
+
+  @Get("runs/:runId/trace")
+  trace(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("runId") runId: string) {
+    return this.agent.getRunTrace(req.user.id, projectId, runId);
+  }
 }

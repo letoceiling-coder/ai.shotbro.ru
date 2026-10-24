@@ -173,6 +173,10 @@ export const AgentActivityBlockSchema = z.object({
   label: z.string(),
   status: GenerationStatusSchema,
   simulationLabel: z.string().default("Симуляция процесса"),
+  runId: z.string().optional(),
+  traceId: z.string().optional(),
+  activeTools: z.array(z.string()).optional(),
+  goal: z.string().optional(),
 });
 
 export const VersionHistoryItemSchema = z.object({
@@ -205,6 +209,38 @@ export const ProductionBoardBlockSchema = z.object({
   stages: z.array(ProductionBoardStageSchema),
 });
 
+export const ProviderStatusBlockSchema = z.object({
+  type: z.literal("provider_status"),
+  demo: z.literal(true),
+  providerJobId: z.string(),
+  providerId: z.string(),
+  modelId: z.string(),
+  operation: z.string(),
+  status: z.string(),
+  graphNodeId: z.string().optional(),
+  mockLabel: z.string().default("MOCK · provider job"),
+});
+
+export const ProductionProgressBlockSchema = z.object({
+  type: z.literal("production_progress"),
+  demo: z.literal(true),
+  runId: z.string(),
+  traceId: z.string().optional(),
+  stage: z.string(),
+  percent: z.number().min(0).max(100),
+  message: z.string().optional(),
+});
+
+export const DeliveryBlockSchema = z.object({
+  type: z.literal("delivery"),
+  demo: z.literal(true),
+  runId: z.string(),
+  assetId: z.string().optional(),
+  url: z.string().optional(),
+  format: z.string().default("mp4"),
+  mockLabel: z.string().default("MOCK RESULT"),
+});
+
 export const MessageBlockSchema = z.discriminatedUnion("type", [
   TextBlockSchema,
   GenerationPlanBlockSchema,
@@ -221,6 +257,9 @@ export const MessageBlockSchema = z.discriminatedUnion("type", [
   AgentActivityBlockSchema,
   VersionHistoryBlockSchema,
   ProductionBoardBlockSchema,
+  ProviderStatusBlockSchema,
+  ProductionProgressBlockSchema,
+  DeliveryBlockSchema,
 ]);
 
 export type MessageBlock = z.infer<typeof MessageBlockSchema>;

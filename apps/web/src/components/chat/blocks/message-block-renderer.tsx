@@ -16,6 +16,9 @@ import { VersionHistoryCard } from "./version-history-card";
 import { VideoResultCard } from "./video-result-card";
 import { ProductionBoardCard } from "./production-board-card";
 import { AudioResultCard } from "./audio-result-card";
+import { ProviderStatusCard } from "./provider-status-card";
+import { ProductionProgressCard } from "./production-progress-card";
+import { DeliveryCard } from "./delivery-card";
 
 export function MessageBlockRenderer({
   block,
@@ -53,6 +56,12 @@ export function MessageBlockRenderer({
       return <AgentActivity block={block} />;
     case "production_board":
       return <ProductionBoardCard block={block} projectId={projectId} />;
+    case "provider_status":
+      return <ProviderStatusCard block={block} />;
+    case "production_progress":
+      return <ProductionProgressCard block={block} />;
+    case "delivery":
+      return <DeliveryCard block={block} />;
     case "version_history":
       return <VersionHistoryCard block={block} />;
     default:

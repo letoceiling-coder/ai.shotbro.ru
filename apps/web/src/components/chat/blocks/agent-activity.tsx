@@ -12,6 +12,10 @@ export function AgentActivity({ block }: { block: Block }) {
       <span className="font-medium">{block.label}</span>
       <Badge variant="demo">{block.simulationLabel}</Badge>
       <Badge variant="success">{block.status}</Badge>
+      {block.goal ? <span className="w-full text-muted-foreground">{block.goal}</span> : null}
+      {block.activeTools?.length ? (
+        <span className="w-full text-xs text-muted-foreground">Tools: {block.activeTools.join(", ")}</span>
+      ) : null}
     </div>
   );
 }
