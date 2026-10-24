@@ -3,7 +3,7 @@ import { v4 as uuid } from "uuid";
 import { and, eq } from "drizzle-orm";
 import type { Db } from "@shotbro/db/client";
 import { productionDocument } from "@shotbro/db/schema";
-import { ScriptDocumentSchema, ScriptScenePayloadSchema } from "@shotbro/contracts/production";
+import { ScriptDocumentSchema, ScriptScenePayloadSchema } from "@shotbro/contracts";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { ProductionGraphService } from "./production-graph.service";

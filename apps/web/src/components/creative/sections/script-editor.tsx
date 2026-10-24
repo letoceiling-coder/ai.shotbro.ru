@@ -14,7 +14,7 @@ import {
   usePatchScriptScene,
   useScriptSceneMutations,
 } from "@/hooks/use-creative-documents";
-import type { ScriptDocument } from "@shotbro/contracts/production";
+import type { ScriptDocument } from "@shotbro/contracts";
 
 type Scene = ScriptDocument["scenes"][number];
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ScriptDocumentSchema, ScriptScenePayloadSchema } from "@shotbro/contracts/production";
+import { ScriptDocumentSchema, ScriptScenePayloadSchema } from "@shotbro/contracts";
 
 describe("ScriptDocumentSchema", () => {
   it("parses legacy scenes with defaults for revision and status", () => {

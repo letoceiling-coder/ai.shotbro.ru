@@ -1,4 +1,10 @@
-import type { ProductionBrief, ProductionPlan, ScriptDocument, StoryboardDocument } from "@shotbro/contracts";
+import {
+  ScriptDocumentSchema,
+  type ProductionBrief,
+  type ProductionPlan,
+  type ScriptDocument,
+  type StoryboardDocument,
+} from "@shotbro/contracts";
 
 /** Deterministic parsing — no LLM calls in Phase 3 mock mode. */
 export function buildMockBriefFromRequest(userRequest: string): ProductionBrief {
@@ -74,13 +80,13 @@ export function buildMockScript(brief: ProductionBrief, plan: ProductionPlan): S
       narration: plan.narrativeStructure.includes("tagline") ? "Tagline read." : undefined,
     },
   ];
-  return {
+  return ScriptDocumentSchema.parse({
     schemaVersion: 1,
     title: "Mock script",
     totalDurationSeconds: brief.durationSeconds,
     scenes,
     mock: true,
-  };
+  });
 }
 
 export function buildMockStoryboard(script: ScriptDocument): StoryboardDocument {
