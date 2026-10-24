@@ -1,7 +1,8 @@
 # Phase 4F — UI audit (baseline)
 
 **Date:** 2026-10-24  
-**Pre-4F staging web:** `4a3896f`
+**Pre-4F staging web:** `4a3896f`  
+**Post-4F staging web:** **`c3178cb`** (2026-10-24)
 
 ## Root cause (why Phase 2–4E felt invisible)
 
