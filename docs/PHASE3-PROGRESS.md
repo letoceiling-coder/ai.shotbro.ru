@@ -1,8 +1,9 @@
 # Phase 3 — Progress
 
 **Branch:** `phase3/agent`  
-**Staging deploy SHA:** `6dcc810` on VPS (`DEPLOYED.txt`); repo HEAD `a8c7a6b` (tests + docs)  
-**Staging acceptance:** **TESTED** — see `PHASE3-FINAL-ACCEPTANCE.md`  
+**Staging deploy SHA:** `42fb413` on VPS  
+**Git HEAD:** `42fb413` (+ e2e mobile helper) — **push blocked** (no origin)  
+**RC acceptance:** **TESTED** — Phase 2 integration 19/19, Phase 3 integration 6/6, Playwright 4/4  
 **Baseline RC:** `e5c4045` / tag `phase2-rc1` (unchanged)
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**

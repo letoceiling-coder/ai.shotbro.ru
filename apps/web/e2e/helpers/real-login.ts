@@ -13,7 +13,11 @@ export async function loginRealUser(page: Page) {
 
 export async function openRealNewProject(page: Page) {
   await page.goto("/studio", { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Настройки" }).click();
+  const settings = page.getByRole("button", { name: "Настройки" });
+  if (!(await settings.isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: "Проекты" }).click();
+  }
+  await settings.click();
   await page.getByRole("button", { name: "REAL" }).click();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Новый проект" }).click();

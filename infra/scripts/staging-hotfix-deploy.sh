@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 SHA="${1:?commit sha short}"
-TAR="/tmp/phase3-deploy-${SHA}.tar"
+TAR="${2:-/tmp/phase3-deploy-${SHA}.tar}"
 SRC=/var/www/ai.shotbro.ru-src
 cp -a "$SRC/infra/staging.env" /tmp/staging.env.bak
 tar -xf "$TAR" -C "$SRC"
