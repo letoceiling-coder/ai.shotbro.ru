@@ -1,5 +1,6 @@
 import {
   ScriptDocumentSchema,
+  ScriptScenePayloadSchema,
   type ProductionBrief,
   type ProductionPlan,
   type ScriptDocument,
@@ -80,11 +81,12 @@ export function buildMockScript(brief: ProductionBrief, plan: ProductionPlan): S
       narration: plan.narrativeStructure.includes("tagline") ? "Tagline read." : undefined,
     },
   ];
+  const normalizedScenes = scenes.map((scene) => ScriptScenePayloadSchema.parse(scene));
   return ScriptDocumentSchema.parse({
     schemaVersion: 1,
     title: "Mock script",
     totalDurationSeconds: brief.durationSeconds,
-    scenes,
+    scenes: normalizedScenes,
     mock: true,
   });
 }
