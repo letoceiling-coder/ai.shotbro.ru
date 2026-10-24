@@ -1,17 +1,24 @@
-# Phase 4 — Security report (in progress)
+# Phase 4 — Security report
 
-**Scope:** Phase 4A + 4B on branch `phase4/intelligent-production`.
+**Scope:** Phase 4A–4D, branch `phase4/intelligent-production`, staging **b1de217**.
 
 | Control | Status |
 |---------|--------|
-| `AI_MOCK_MODE=true` default | **IMPLEMENTED** |
-| Provider network I/O gate | **IMPLEMENTED** **TESTED** |
-| Tool EXTERNAL_PAID block | Phase 3 **TESTED** |
-| LLM no direct DB | **IMPLEMENTED** (tools only) |
-| Prompt injection fixture | **TESTED** (scenario 12) |
-| Provider job idempotency (PG) | **TESTED** (optional DB gate) |
-| Asset ingestion SSRF (private IP) | **TESTED** |
-| Public model execution API | **NOT IMPLEMENTED** (by design) |
-| Webhook signature verification | **NOT IMPLEMENTED** |
+| `AI_MOCK_MODE=true` | **DEPLOYED** |
+| Paid provider network hard block | **TESTED** |
+| No public “enable AI execution” client flag | **IMPLEMENTED** — rollout via admin allowlist or loopback secret |
+| AgentRuntime rollout audit events | **IMPLEMENTED** |
+| Cross-project access (API guards) | **EXISTING** Phase 3 + rollout checks |
+| SSE stream | **SessionGuard** + project access |
+| Tool duplicate-call policy | **TESTED** (mock LLM iteration fix) |
+| Webhook HMAC (mock provider) | **IMPLEMENTED** **DEPLOYED** |
+| Asset ingestion SSRF | **TESTED** |
+| Live OpenRouter / paid adapters | **BLOCKED BY POLICY** |
+
+## 4D regression notes
+
+- Internal rollout: loopback-only + `INTEGRATION_ROLLOUT_ENABLED` + secret (≥32 chars).
+- Admin rollout: `PHASE4_ROLLOUT_ADMIN_EMAILS` — not exposed to arbitrary project members.
+- `runtimeVersion` fixed at run creation — no mid-run mode switch.
 
 Live provider verification: **NOT TESTED / BLOCKED BY POLICY**

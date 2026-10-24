@@ -1,75 +1,72 @@
 # Phase 4 — Final acceptance
 
-**Status:** Phase 4C **staging accepted** (mock-only policy). Playwright multi-viewport UI regression **not re-run in this session** — API smokes cover both production paths.
+**Status:** Phase **4D** staging accepted (mock-only). Browser Playwright matrix **8/8 passed**.
 
 **Branch:** `phase4/intelligent-production`  
-**Git HEAD:** `e135d00`  
-**Baseline:** `phase3-rc1` → `e66d480`  
-**Prior checkpoints:** `7e95f19` (4B), `6687b0b` (4C scaffold), `db00c2f` (provider ingestion)
+**Git HEAD:** `b1de217` (+ web deploy script fix pending commit)  
+**Baseline:** `phase3-rc1` → `e66d480`
 
-## Policy (confirmed)
+## Policy
 
 | Metric | Value |
 |--------|-------|
-| Real OpenRouter inference | **0** |
-| Real image / video / TTS | **0** |
+| Real OpenRouter / image / video / TTS | **0** |
 | Production cutover | **NOT PERFORMED** |
-| `AI_MOCK_MODE` | **true** (compose + staging) |
-| `PHASE4_AGENT_RUNTIME_ENABLED` (staging default) | **false** (enabled only for scoped unified smoke) |
+| `AI_MOCK_MODE` | **true** |
+| Global `PHASE4_AGENT_RUNTIME_ENABLED` (staging) | **false** |
+| Project-scoped AgentRuntime | **`PHASE4_PROJECT_SCOPED_ENABLED=true`** |
 
-## Staging deployment
+## Staging deployment (2026-10-24)
 
-| Item | Value |
+| Component | SHA / ID |
+|-----------|----------|
+| API | `ai-shotbro-staging-api:latest` → `2876d78b880d` |
+| Worker | `ai-shotbro-staging-worker:latest` → `52a2eecf8dbf` |
+| Web (systemd @ :3020) | `shotbro-web-build:b1de217` → `29039890d00b` |
+| `DEPLOYED.txt` | **b1de217** |
+| Migration 0005 | Applied (not re-run) |
+
+Web path: `infra/scripts/staging-deploy-web.sh` (Docker build → `/var/www/ai.shotbro.ru/standalone`).
+
+## AgentRuntime rollout (4D)
+
+| Mode | Behavior |
+|------|----------|
+| Default | Phase **3** orchestrator only |
+| Per-project | `project.settings.agentRuntimeV4` via **admin allowlist** (`PHASE4_ROLLOUT_ADMIN_EMAILS`) or **loopback** internal API |
+| Run pinning | `metadata.runtimeVersion` set at **createRun**, not changed mid-run |
+| Audit | `agent.runtime.rollout.changed` in EventLog |
+
+API:
+- `GET/POST /api/v1/projects/:id/agent/runtime-rollout` (admin email allowlist)
+- `POST /api/v1/internal/projects/:id/agent-runtime-rollout` (loopback + `INTEGRATION_ROLLOUT_*`)
+
+## E2E results
+
+| Test | Viewports | Result |
+|------|-----------|--------|
+| `phase3-mock-production.spec.ts` | 1920, 1440, tablet, 390 | **4/4 pass** |
+| `phase4-unified-production.spec.ts` | 1920, 1440, tablet, 390 | **4/4 pass** |
+| API smokes (VPS) | n/a | Phase 3 + Phase 4 unified **pass** |
+
+Staging URL: `https://ai.shotbro.ru`, `E2E_REAL_BACKEND=1`.
+
+## SSE / UI (4D)
+
+| Item | Status |
 |------|--------|
-| Deployed SHA | **`e135d00`** (`DEPLOYED.txt` on VPS) |
-| DB backup (pre-4C) | `/var/backups/shotbro-staging-pre-phase4c-20261024.sql.gz` |
-| Migration **0005** | **Applied** — `provider_job`, `provider_job_event`, `provider_execution_attempt` |
-| Docker API image | `ai-shotbro-staging-api:latest` → `2753ab1fed3d` |
-| Docker Worker image | `ai-shotbro-staging-worker:latest` → `bd041f05f035` |
-| Web | Host/orphan `ai-shotbro-staging-web-1` (unchanged static; API/worker carry Phase 4 backend) |
+| `message.created` on assistant blocks | **INTEGRATED** |
+| SSE invalidates messages / assets / agent-runs | **INTEGRATED** (`use-project-events`) |
+| Event aliases (`agent.approval.required`, `production.delivery.ready`) | **INTEGRATED** |
+| Chat blocks from orchestrator (plan, script, board, cost, …) | **INTEGRATED** (existing) |
+| `production_progress` on mock production start | **INTEGRATED** |
+| Full provider_status stream from worker | **partial** (cards + API list; not every transition) |
 
-## E2E / smoke (staging, mock MP4 in MinIO)
+## Sign-off
 
-| Scenario | Command / spec | Result |
-|----------|----------------|--------|
-| Phase 3 fallback (`PHASE4_AGENT_RUNTIME_ENABLED=false`) | `infra/scripts/staging-phase3-agent-smoke.sh` | **PASS** (2026-10-24) |
-| Phase 4 unified agent (flag **true**, test project only) | `infra/scripts/staging-phase4-unified-smoke.sh` | **PASS** — single `runId`, `traceId`, `mock-delivery` MP4 |
-| Playwright `phase3-mock-production.spec.ts` × viewports | Not executed this session | **Skipped** — re-run with `E2E_STAGING_URL` + credentials for UI sign-off |
+Both production paths with **mock MP4 in MinIO**, **reload persistence**, **no paid AI**, project-scoped Phase 4 agent:
 
-## Deliverables matrix (4C)
+1. Phase 3 fallback — **confirmed** (Playwright + API smoke)  
+2. Phase 4 unified agent — **confirmed** (Playwright + API smoke)
 
-| Area | Status |
-|------|--------|
-| ProviderJob PostgreSQL + scheduler poll | **DEPLOYED** **TESTED** (mock) |
-| Mock provider → MinIO ingestion | **INTEGRATED** (`ProviderJobsService.ingestMockOutputsIfNeeded`) |
-| Webhook HMAC receiver | **DEPLOYED** (mock secret on VPS only) |
-| AgentRuntime → Orchestrator (one `runId`) | **INTEGRATED** **TESTED** (unified smoke) |
-| Mock LLM iteration dedupe | **FIXED** (`mock-llm-fixtures` iteration gate) |
-| Production UI blocks (provider_status, production_progress, delivery) | **IMPLEMENTED** (web); live SSE fill **partial** |
-| Trace API | **TESTED** (unified smoke) |
-| Cost / approval hardening | Phase 3 path unchanged; mock usage only |
-| Security unit gates | `phase4-security.integration.spec.ts` + `@shotbro/ai` guards **TESTED** |
-
-## Unit / integration (local CI)
-
-| Suite | Result |
-|-------|--------|
-| `@shotbro/ai` vitest | **32/32 passed** |
-| `api typecheck` | **passed** (Docker build gate) |
-| `RUN_DB_INTEGRATION_TESTS=1` provider job DB | Optional — run on isolated PG before live policy change |
-
-## Remaining / non-blockers
-
-- Playwright desktop/tablet/mobile regression on staging UI (recommended before production cutover).
-- Emit `provider_status` / `delivery` blocks from worker/orchestrator into chat (cards exist; backend events partial).
-- Per-project feature flag for Phase 4 (today: global env flag for smoke only).
-- Live provider adapters remain **BLOCKED BY POLICY**.
-
-## Sign-off criterion (4C)
-
-Both mock production paths complete with **real mock MP4 asset in S3/MinIO** on staging:
-
-1. Phase 3 fallback — **confirmed**  
-2. Phase 4 unified intelligent agent — **confirmed**
-
-No paid AI API usage. Production cutover **not** performed.
+Remaining (non-blocking): richer provider job SSE per transition; dedicated PostgreSQL integration job on isolated DB in CI.
