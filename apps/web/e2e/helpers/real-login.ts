@@ -14,7 +14,9 @@ export async function loginRealUser(page: Page) {
 }
 
 export async function fillRealComposer(page: Page, message: string) {
-  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByPlaceholder(/Опишите задачу|Сообщение сохранится|сообщение|опишите/i).first()).toBeVisible({
+    timeout: 45_000,
+  });
   const input = page.getByPlaceholder(/Опишите задачу|Сообщение сохранится|сообщение|опишите/i).first();
   await expect(input).toBeVisible({ timeout: 15_000 });
   await input.click();
@@ -87,7 +89,7 @@ async function createProjectViaDialog(page: Page, projectTitle: string): Promise
       }),
     page.getByRole("button", { name: "Создать" }).click(),
   ]);
-  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByPlaceholder(/Опишите задачу/i).first()).toBeVisible({ timeout: 60_000 });
   if (!projectId) throw new Error("Could not capture project id from create response");
   return projectId;
 }
@@ -109,7 +111,7 @@ async function createProjectViaApi(page: Page, projectTitle: string): Promise<st
   await expect(projectBtn).toBeVisible({ timeout: 45_000 });
   await projectBtn.click();
   await expect(page.getByText("REAL-режим: создайте")).toHaveCount(0, { timeout: 15_000 });
-  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByPlaceholder(/Опишите задачу/i).first()).toBeVisible({ timeout: 60_000 });
   return body.id;
 }
 
