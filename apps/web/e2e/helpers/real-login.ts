@@ -23,11 +23,16 @@ export async function fillRealComposer(page: Page, message: string) {
   await expect(sendBtn).toBeEnabled({ timeout: 45_000 });
 }
 
+function realProjectsSidebar(page: Page) {
+  return page.getByRole("complementary").filter({ hasText: "SHOTBRO" });
+}
+
 function realCreateProjectButton(page: Page) {
-  return page
+  const sidebar = realProjectsSidebar(page);
+  return sidebar
     .getByTestId("real-new-project-btn")
-    .or(page.getByRole("button", { name: "Создать проект", exact: true }))
-    .or(page.getByRole("button", { name: "Новый проект", exact: true }).first());
+    .or(sidebar.getByRole("button", { name: "Создать проект", exact: true }))
+    .or(sidebar.getByRole("button", { name: "Новый проект", exact: true }));
 }
 
 async function openStudioSettings(page: Page) {
