@@ -64,6 +64,9 @@ elif [ \"${MODE}\" = diagnostic ]; then
 elif [ \"${MODE}\" = regression-strict ]; then
   export E2E_STRICT=1
   pnpm exec playwright test e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
+elif [ \"${MODE}\" = phase3-desktop-strict ]; then
+  export E2E_STRICT=1
+  pnpm exec playwright test e2e/phase3-mock-production.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = regression ]; then
   pnpm exec playwright test e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile
 else

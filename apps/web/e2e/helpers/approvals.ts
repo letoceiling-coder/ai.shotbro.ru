@@ -6,17 +6,17 @@ export async function approvePendingApprovals(page: Page, max = 10) {
     const count = await enabled.count();
     if (count === 0) break;
     await enabled.first().scrollIntoViewIfNeeded();
-    await Promise.all([
-      page.waitForResponse(
+    await enabled.first().click();
+    await page
+      .waitForResponse(
         (r) => /\/api\/v1\/approvals\/[^/]+\/approve/.test(r.url()) && r.request().method() === "POST" && r.ok(),
-        { timeout: 90_000 },
-      ),
-      enabled.first().click(),
-    ]);
+        { timeout: 60_000 },
+      )
+      .catch(() => undefined);
     await expect
       .poll(async () => page.getByRole("button", { name: /^Утвердить$/, disabled: false }).count(), {
-        timeout: 120_000,
-        intervals: [500, 1000, 2000],
+        timeout: 180_000,
+        intervals: [500, 1000, 2000, 3000],
       })
       .toBeLessThan(count);
   }

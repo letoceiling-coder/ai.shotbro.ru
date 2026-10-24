@@ -1,8 +1,8 @@
 # Phase 4 — Progress
 
 **Branch:** `phase4/intelligent-production`  
-**Git HEAD:** `cf51494`  
-**Staging:** API/worker **4b127c7** · web **`4a89fef`** (compose `infra-web-1` @ `:3020`)
+**Git HEAD:** `3b31be8`  
+**Staging:** API/worker **4b127c7** · web **`9c22914`** (compose `infra-web-1` @ `:3020`, label-validated deploy)
 
 Legend: **IMPLEMENTED** | **TESTED** | **INTEGRATED** | **DEPLOYED** | **BLOCKED BY POLICY** | **NOT IMPLEMENTED**
 
@@ -44,8 +44,10 @@ Details: **`PHASE4E-PROVIDER-READINESS.md`**.
 | Model selector wired to catalog | **WIRED** **VISIBLE** |
 | Web staging deploy | **DEPLOYED** **`4a89fef`** |
 | VPS Playwright audit (4 viewports) | **TESTED** **4/4 PASS** |
-| Phase 3/4 Playwright regression | **TESTED** **8/8** (3 flaky retries on Phase 3) |
-| RealComposer + deploy pipeline fix | **FIXED** `7604e76`…`4a89fef` |
+| Phase 3/4 Playwright regression (retries=2) | **8/8** @ `cf51494` (3 Phase 3 pass after retry) |
+| Playwright **regression-strict** (retries=0) | **IN PROGRESS** — see `PHASE4F-USER-FACING-ACCEPTANCE.md` |
+| Deploy digest validation + verify script | **DEPLOYED** `dbfb6ac`…`9c22914` |
+| RealComposer + thread loading fix | **FIXED** `7604e76`…`4a89fef` |
 | `staging-playwright-e2e.sh` (Docker) | **IMPLEMENTED** |
 
 See **`PHASE4F-UI-AUDIT.md`**, **`PHASE4F-USER-FACING-ACCEPTANCE.md`**.
