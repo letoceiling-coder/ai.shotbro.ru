@@ -1,31 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PROJECT_TEMPLATES, type ProjectTemplateId } from "@/lib/project-templates";
 import { cn } from "@/lib/utils";
 
+export type NewProjectCreateInput = {
+  title: string;
+  templateId: ProjectTemplateId;
+  seedPrompt?: string;
+};
+
 type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onCreate: (input: {
-    title: string;
-    templateId: ProjectTemplateId;
-    seedPrompt?: string;
-  }) => void;
+  onCreate: (input: NewProjectCreateInput, dialog: { close: () => void }) => void;
   pending?: boolean;
 };
 
-export function NewProjectDialog({ open, onOpenChange, onCreate, pending }: Props) {
+export function NewProjectDialog({ onCreate, pending }: Props) {
+  const [open, setOpen] = useState(false);
   const [templateId, setTemplateId] = useState<ProjectTemplateId>("general");
   const [title, setTitle] = useState("");
 
   const template = PROJECT_TEMPLATES.find((t) => t.id === templateId)!;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="mb-2 justify-start gap-2"
+          aria-label="Создать проект"
+          data-testid="real-new-project-btn"
+          type="button"
+        >
+          <Plus className="size-4" />
+          Новый проект
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg" data-testid="new-project-dialog">
         <DialogHeader>
           <DialogTitle>Новый проект</DialogTitle>
@@ -61,17 +82,17 @@ export function NewProjectDialog({ open, onOpenChange, onCreate, pending }: Prop
           className="mt-2"
         />
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" type="button" onClick={() => setOpen(false)}>
             Отмена
           </Button>
           <Button
+            type="button"
             disabled={!title.trim() || pending}
             onClick={() =>
-              onCreate({
-                title: title.trim(),
-                templateId,
-                seedPrompt: template.seedPrompt,
-              })
+              onCreate(
+                { title: title.trim(), templateId, seedPrompt: template.seedPrompt },
+                { close: () => setOpen(false) },
+              )
             }
           >
             {pending ? "Создаём…" : "Создать"}

@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useCreateRealProject, useRealProjects } from "@/hooks/use-real-studio";
 import { useStudioStore } from "@/store/studio-store";
@@ -14,7 +12,6 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
   const create = useCreateRealProject();
   const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
   const setActiveRealProject = useStudioStore((s) => s.setActiveRealProject);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!activeRealProjectId && data?.items?.[0]) {
@@ -24,22 +21,9 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
 
   return (
     <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 pb-3">
-      <Button
-        variant="secondary"
-        size="sm"
-        className="mb-2 justify-start gap-2"
-        aria-label="Создать проект"
-        data-testid="real-new-project-btn"
-        onClick={() => setDialogOpen(true)}
-      >
-        <Plus className="size-4" />
-        Новый проект
-      </Button>
       <NewProjectDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
         pending={create.isPending}
-        onCreate={({ title, templateId, seedPrompt }) => {
+        onCreate={({ title, templateId, seedPrompt }, dialog) => {
           create.mutate(
             {
               title,
@@ -51,7 +35,7 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
             {
               onSuccess: async (p: { id: string }) => {
                 setActiveRealProject(p.id);
-                setDialogOpen(false);
+                dialog.close();
                 onNavigate?.();
                 if (seedPrompt) {
                   const convs = (await apiFetch(`/api/v1/projects/${p.id}/conversations`)) as Array<{
