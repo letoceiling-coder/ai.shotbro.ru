@@ -43,18 +43,37 @@ export const ProductionPlanSchema = z.object({
   mock: z.literal(true).optional(),
 });
 
+export const ScriptSceneStatusSchema = z.enum(["draft", "review", "approved", "locked"]);
+
 export const ScriptScenePayloadSchema = z.object({
   id: z.string(),
   sequence: z.number().int(),
   title: z.string(),
   durationSeconds: z.number().positive(),
   description: z.string(),
+  action: z.string().optional(),
+  dialogue: z.string().optional(),
+  voiceover: z.string().optional(),
+  camera: z.string().optional(),
+  lighting: z.string().optional(),
+  location: z.string().optional(),
+  characters: z.array(z.string()).default([]),
+  visualStyle: z.string().optional(),
+  transition: z.string().optional(),
+  status: ScriptSceneStatusSchema.default("draft"),
+  revision: z.number().int().positive().default(1),
   narration: z.string().optional(),
 });
 
 export const ScriptDocumentSchema = z.object({
   schemaVersion: z.literal(1).default(1),
   title: z.string(),
+  concept: z.string().optional(),
+  format: z.string().optional(),
+  style: z.string().optional(),
+  targetAudience: z.string().optional(),
+  toneOfVoice: z.string().optional(),
+  synopsis: z.string().optional(),
   totalDurationSeconds: z.number().positive(),
   scenes: z.array(ScriptScenePayloadSchema).min(1),
   mock: z.literal(true).optional(),

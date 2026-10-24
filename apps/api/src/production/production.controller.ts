@@ -27,14 +27,44 @@ export class ProductionController {
     return this.documents.getActive(req.user.id, projectId, "BRIEF");
   }
 
+  @Get("script")
+  getScript(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    return this.documents.getActiveScript(req.user.id, projectId);
+  }
+
+  @Patch("script")
+  patchScript(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: Record<string, unknown>) {
+    return this.documents.patchScriptDocument(req.user.id, projectId, body);
+  }
+
+  @Post("scripts/scenes")
+  addScene(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: { afterSceneId?: string; title?: string }) {
+    return this.documents.addScriptScene(req.user.id, projectId, body);
+  }
+
+  @Post("scripts/scenes/reorder")
+  reorderScenes(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: { sceneIds: string[] }) {
+    return this.documents.reorderScriptScenes(req.user.id, projectId, body.sceneIds ?? []);
+  }
+
+  @Post("scripts/scenes/:sceneId/duplicate")
+  duplicateScene(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("sceneId") sceneId: string) {
+    return this.documents.duplicateScriptScene(req.user.id, projectId, sceneId);
+  }
+
   @Patch("scripts/scenes/:sceneId")
   patchScene(
     @Req() req: AuthedRequest,
     @Param("projectId") projectId: string,
     @Param("sceneId") sceneId: string,
-    @Body() body: { description?: string; durationSeconds?: number },
+    @Body() body: Record<string, unknown>,
   ) {
     return this.documents.patchScriptScene(req.user.id, projectId, sceneId, body);
+  }
+
+  @Post("scripts/scenes/:sceneId/delete")
+  deleteScene(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("sceneId") sceneId: string) {
+    return this.documents.deleteScriptScene(req.user.id, projectId, sceneId);
   }
 
   @Get("memory")

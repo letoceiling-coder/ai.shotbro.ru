@@ -14,6 +14,17 @@ import { persist } from "zustand/middleware";
 
 export type StudioPanel = Project["activePanel"];
 
+export type CreativeSection =
+  | "chat"
+  | "brief"
+  | "script"
+  | "storyboard"
+  | "characters"
+  | "references"
+  | "production"
+  | "timeline"
+  | "assets";
+
 type AdStageMap = Record<string, AdDemoStage>;
 
 interface StudioState {
@@ -22,6 +33,8 @@ interface StudioState {
   /** REAL mode — server project UUID */
   activeRealProjectId: string | null;
   setActiveRealProject: (id: string | null) => void;
+  creativeSection: CreativeSection;
+  setCreativeSection: (section: CreativeSection) => void;
   sidebarCollapsed: boolean;
   qualityStrategy: QualityStrategy;
   adStages: AdStageMap;
@@ -74,6 +87,8 @@ export const useStudioStore = create<StudioState>()(
       activeProjectId: "demo-ad",
       activeRealProjectId: null,
       setActiveRealProject: (id) => set({ activeRealProjectId: id }),
+      creativeSection: "chat",
+      setCreativeSection: (creativeSection) => set({ creativeSection }),
       sidebarCollapsed: false,
       qualityStrategy: "balance",
       adStages: { "demo-ad": "initial" },
@@ -266,6 +281,7 @@ export const useStudioStore = create<StudioState>()(
         projects: s.projects,
         activeProjectId: s.activeProjectId,
         activeRealProjectId: s.activeRealProjectId,
+        creativeSection: s.creativeSection,
         sidebarCollapsed: s.sidebarCollapsed,
         qualityStrategy: s.qualityStrategy,
         adStages: s.adStages,
