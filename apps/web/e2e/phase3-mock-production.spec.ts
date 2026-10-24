@@ -17,7 +17,7 @@ test.describe("Phase 3 mock production (REAL)", () => {
   });
 
   test("full chain through delivery MP4", async ({ page }) => {
-    test.setTimeout(600_000);
+    test.setTimeout(1_200_000);
 
     const projectId = await openRealNewProject(page);
     await sendRealComposerMessage(

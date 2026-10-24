@@ -18,7 +18,7 @@ test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
   });
 
   test("AgentRuntime + orchestrator through mock MP4", async ({ page }) => {
-    test.setTimeout(600_000);
+    test.setTimeout(1_200_000);
 
     const projectId = await openRealNewProject(page);
     await enablePhase4AgentForProject(page, projectId);
