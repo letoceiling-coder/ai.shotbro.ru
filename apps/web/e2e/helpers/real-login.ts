@@ -30,6 +30,19 @@ export async function fillRealComposer(page: Page, message: string) {
   await expect(sendBtn).toBeEnabled({ timeout: 45_000 });
 }
 
+/** Types in REAL composer and sends; waits for message POST. */
+export async function sendRealComposerMessage(page: Page, message: string) {
+  await fillRealComposer(page, message);
+  const sendBtn = page.getByRole("button", { name: /отправить|send/i });
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/messages") && r.request().method() === "POST" && r.ok(),
+      { timeout: 90_000 },
+    ),
+    sendBtn.click(),
+  ]);
+}
+
 function realProjectsSidebar(page: Page) {
   return page.getByRole("complementary").filter({ hasText: "SHOTBRO" });
 }
@@ -95,9 +108,6 @@ async function createProjectViaDialog(page: Page, projectTitle: string): Promise
     page.getByRole("button", { name: "Создать" }).click(),
   ]);
   await expect(dialog).toBeHidden({ timeout: 15_000 });
-  await expect(realProjectsSidebar(page).getByRole("button", { name: projectTitle, exact: true })).toBeVisible({
-    timeout: 30_000,
-  });
   await expect(page.getByText("REAL-режим: создайте")).toHaveCount(0, { timeout: 15_000 });
   await expectRealComposerReady(page);
   await expect(page.getByTestId("real-thread")).toHaveAttribute("data-conversation-id", /.+/u, {

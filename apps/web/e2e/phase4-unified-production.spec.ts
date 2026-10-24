@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { fillRealComposer, loginRealUser, openRealNewProject } from "./helpers/real-login";
+import { loginRealUser, openRealNewProject, sendRealComposerMessage } from "./helpers/real-login";
 import { enablePhase4AgentForProject } from "./helpers/phase4-rollout";
 
 async function approvePendingApprovals(page: import("@playwright/test").Page, max = 10) {
