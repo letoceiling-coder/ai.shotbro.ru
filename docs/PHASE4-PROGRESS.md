@@ -1,8 +1,8 @@
 # Phase 4 — Progress
 
 **Branch:** `phase4/intelligent-production`  
-**Git HEAD:** `6513b63` (+ DialogTrigger web fix pending push/deploy)  
-**Staging:** API/worker **4b127c7** · web **046016b**
+**Git HEAD:** `cf51494`  
+**Staging:** API/worker **4b127c7** · web **`4a89fef`** (compose `infra-web-1` @ `:3020`)
 
 Legend: **IMPLEMENTED** | **TESTED** | **INTEGRATED** | **DEPLOYED** | **BLOCKED BY POLICY** | **NOT IMPLEMENTED**
 
@@ -14,7 +14,7 @@ Legend: **IMPLEMENTED** | **TESTED** | **INTEGRATED** | **DEPLOYED** | **BLOCKED
 | Admin + loopback rollout API | **IMPLEMENTED** **TESTED** |
 | Run metadata `runtimeVersion` | **INTEGRATED** |
 | SSE `message.created` + agent/production events | **INTEGRATED** **TESTED** |
-| Web staging deploy (Docker → systemd) | **DEPLOYED** |
+| Web staging deploy (Docker compose `:3020`) | **DEPLOYED** |
 | Playwright Phase 3 × 4 viewports | **TESTED** **8/8 pass** |
 | Playwright Phase 4 unified × 4 viewports | **TESTED** **8/8 pass** |
 | Provider job UI on every SSE transition | **partial** → see **4E** |
@@ -42,9 +42,10 @@ Details: **`PHASE4E-PROVIDER-READINESS.md`**.
 | REAL context panel + agent strip | **IMPLEMENTED** **DEPLOYED** **VISIBLE** |
 | Project templates dialog | **IMPLEMENTED** **WIRED** **VISIBLE** |
 | Model selector wired to catalog | **WIRED** **VISIBLE** |
-| Web staging deploy | **DEPLOYED** **`c3178cb`** |
+| Web staging deploy | **DEPLOYED** **`4a89fef`** |
 | VPS Playwright audit (4 viewports) | **TESTED** **4/4 PASS** |
-| Phase 3/4 Playwright regression | **BLOCKED** **0/8** — dialog trigger fix + redeploy web |
+| Phase 3/4 Playwright regression | **TESTED** **8/8** (3 flaky retries on Phase 3) |
+| RealComposer + deploy pipeline fix | **FIXED** `7604e76`…`4a89fef` |
 | `staging-playwright-e2e.sh` (Docker) | **IMPLEMENTED** |
 
 See **`PHASE4F-UI-AUDIT.md`**, **`PHASE4F-USER-FACING-ACCEPTANCE.md`**.

@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-24  
 **Pre-4F staging web:** `4a3896f`  
-**Post-4F staging web:** **`c3178cb`** (2026-10-24)
+**Post-4F staging web:** **`4a89fef`** (2026-10-24, compose `infra-web-1`)
 
 ## Root cause (why Phase 2–4E felt invisible)
 
@@ -28,5 +28,15 @@
 | Project templates | — | `NewProjectDialog` (new) | partial | create + settings |
 
 Screenshots: server Playwright `phase4f-studio-audit.spec.ts` → `test-results/phase4f-*.png` after deploy.
+
+## 2026-10-24 closeout — RealComposer
+
+| Issue | Fix |
+|-------|-----|
+| Composer absent during message load | `RealThread` no longer unmounts `RealComposer` on `isLoading` |
+| Deploy drift (systemd vs compose) | `staging-deploy-web.sh` recreates `infra-web-1` |
+| E2E false negatives | Removed API create fallback; mobile sidebar assertion removed |
+
+Diagnostic: `staging-playwright-e2e.sh … diagnostic` → **PASS** (`/tmp/phase4f-diagnostic-4a89fef.log`).
 
 See **`PHASE4F-USER-FACING-ACCEPTANCE.md`** for post-deploy status.
