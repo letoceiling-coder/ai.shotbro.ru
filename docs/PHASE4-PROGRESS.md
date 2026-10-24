@@ -1,8 +1,8 @@
 # Phase 4 — Progress
 
 **Branch:** `phase4/intelligent-production`  
-**Git HEAD:** `b1de217`  
-**Staging:** **b1de217** (API/worker/web)
+**Git HEAD:** `4a3896f`  
+**Staging:** **4a3896f** (API/worker/web)
 
 Legend: **IMPLEMENTED** | **TESTED** | **INTEGRATED** | **DEPLOYED** | **BLOCKED BY POLICY** | **NOT IMPLEMENTED**
 
@@ -28,7 +28,8 @@ Legend: **IMPLEMENTED** | **TESTED** | **INTEGRATED** | **DEPLOYED** | **BLOCKED
 | ProviderJob SSE (`provider.job.status`) | **IMPLEMENTED** |
 | Model catalog API | **IMPLEMENTED** |
 | PostgreSQL CI workflow | **IMPLEMENTED** (GitHub Actions) |
-| Staging deploy + Playwright regression | **pending** |
+| Staging deploy + Playwright regression | **STAGING_TESTED** **8/8** |
+| GitHub Actions PG CI | **BLOCKED** (verify in GitHub UI) |
 | Tool path vendor swap | **NOT IMPLEMENTED** (mock tools remain) |
 
 Details: **`PHASE4E-PROVIDER-READINESS.md`**.

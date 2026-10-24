@@ -1,6 +1,6 @@
 # Phase 4 — Security report
 
-**Scope:** Phase 4A–4E, branch `phase4/intelligent-production`, staging **b1de217** (4E code not yet deployed).
+**Scope:** Phase 4A–4E, branch `phase4/intelligent-production`, staging **4a3896f** (2026-10-24).
 
 | Control | Status |
 |---------|--------|

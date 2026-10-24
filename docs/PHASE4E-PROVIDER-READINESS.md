@@ -1,96 +1,97 @@
-# Phase 4E — Provider readiness (no live inference)
+# Phase 4E — Provider readiness (staging release)
 
 **Branch:** `phase4/intelligent-production`  
-**Docs checkpoint (4D):** `ea34523`  
-**Staging runtime (unchanged until redeploy):** `b1de217`  
-**4E implementation:** local working tree (see `git rev-parse HEAD` after merge)
+**Git HEAD (4E):** `4a3896f` (+ E2E flake fix commit if pushed after)  
+**Remote:** `origin/phase4/intelligent-production` @ `4a3896f`  
+**Staging deployed SHA:** `4a3896f`  
+**Prior staging:** `b1de217` → `ea34523` (docs only)
 
-## Policy (unchanged)
+## Policy (verified on staging API container)
 
-| Flag | Required value |
+| Flag | Staging value |
 |------|----------------|
-| `AI_MOCK_MODE` | `true` |
-| `PROVIDER_LIVE_EXECUTION_ENABLED` | `false` |
-| `OPENROUTER_ENABLED` | `false` |
-| `OPENROUTER_ALLOW_PAID_REQUESTS` | `false` |
-| `LIVE_APPROVED` runtime | **not enabled** |
+| `AI_MOCK_MODE` | **true** |
+| `OPENROUTER_ENABLED` | **false** |
+| `OPENROUTER_ALLOW_PAID_REQUESTS` | **false** |
+| `PROVIDER_LIVE_EXECUTION_ENABLED` | **false** |
+| `PHASE4_AGENT_RUNTIME_ENABLED` | **false** (global) |
+| `LIVE_APPROVED` | **not enabled** |
 
-No live text/image/video/TTS generation was performed for this acceptance. Contract tests use `MockHttpTransport` only.
+**Confirmed:** Real OpenRouter inference **0** · Real Fal image **0** · Real Fal video **0** · Real ElevenLabs TTS **0** · Production cutover **NOT PERFORMED**.
 
 ## Provider status matrix
 
-| Provider | Adapter | Contract tests | Runtime wiring | Staging | Status |
-|----------|---------|----------------|----------------|---------|--------|
+| Provider | Adapter | Contract | Runtime tool path | Staging | Status |
+|----------|---------|----------|-------------------|---------|--------|
 | mock LLM | fixtures | unit | yes | mock | **MOCK_READY** · **BLOCKED_BY_POLICY** |
-| OpenRouter LLM | `OpenRouterLlmAdapter` | `openrouter.contract.test.ts` + HTTP normalize | yes | disabled | **IMPLEMENTED** · **CONTRACT_TESTED** · **DEPLOYED_DISABLED** |
-| mock-image | `Phase4MockImageProvider` | unit + PG | `ProviderJobManager` | mock | **MOCK_READY** · **BLOCKED_BY_POLICY** |
-| mock-video | `Phase4MockVideoProvider` | unit + PG | yes | mock | **MOCK_READY** · **BLOCKED_BY_POLICY** |
-| mock-elevenlabs | `Phase4MockElevenLabsProvider` | unit | yes | mock | **MOCK_READY** · **BLOCKED_BY_POLICY** |
-| Fal FLUX dev | `FalFluxDevImageAdapter` | `fal-flux.contract.test.ts` | typed adapter, not default tool path | not deployed | **IMPLEMENTED** · **CONTRACT_TESTED** · **LIVE_UNVERIFIED** · **BLOCKED_BY_POLICY** |
-| Fal MiniMax H3 video | `FalMinimaxH3VideoAdapter` | `fal-minimax-video.contract.test.ts` | typed adapter | not deployed | **IMPLEMENTED** · **CONTRACT_TESTED** · **LIVE_UNVERIFIED** · **BLOCKED_BY_POLICY** |
-| ElevenLabs TTS | `ElevenLabsTtsAdapter` | `elevenlabs.contract.test.ts` | typed adapter | not deployed | **IMPLEMENTED** · **CONTRACT_TESTED** · **LIVE_UNVERIFIED** · **BLOCKED_BY_POLICY** |
+| OpenRouter LLM | `OpenRouterLlmAdapter` | **CONTRACT_TESTED** | gateway | disabled | **IMPLEMENTED** · **DEPLOYED_DISABLED** |
+| mock-image/video/TTS | Phase4 mock | unit + PG | **yes** | mock | **STAGING_TESTED** · **BLOCKED_BY_POLICY** |
+| Fal FLUX dev | `FalFluxDevImageAdapter` | **CONTRACT_TESTED** | not wired | n/a | **IMPLEMENTED** · **LIVE_UNVERIFIED** · **BLOCKED_BY_POLICY** |
+| Fal MiniMax H3 video | `FalMinimaxH3VideoAdapter` | **CONTRACT_TESTED** | not wired | n/a | **IMPLEMENTED** · **LIVE_UNVERIFIED** · **BLOCKED_BY_POLICY** |
+| ElevenLabs TTS | `ElevenLabsTtsAdapter` | **CONTRACT_TESTED** | not wired | n/a | **IMPLEMENTED** · **LIVE_UNVERIFIED** · **BLOCKED_BY_POLICY** |
 
-Official API references (verification date **2026-03-24**):
+Official API references (verification **2026-03-24**, no live calls):
 
 - OpenRouter: `POST /chat/completions` @ `https://openrouter.ai/api/v1`
-- Fal queue: `POST https://queue.fal.run/{model}` (FLUX dev, MiniMax H3 text-to-video)
+- Fal queue: `POST https://queue.fal.run/fal-ai/flux/dev`, `POST https://queue.fal.run/minimax/h3/text-to-video`
 - ElevenLabs: `POST /v1/text-to-speech/{voice_id}` @ `https://api.elevenlabs.io`
+
+## Staging deployment (2026-10-24)
+
+| Component | ID / tag |
+|-----------|----------|
+| API image | `ai-shotbro-staging-api:latest` → `sha256:4956f5b816c445f7e02b93c87b908d0935191a7df408f25b7d19fd288bbfa971` |
+| Worker image | `ai-shotbro-staging-worker:latest` → `sha256:b43c2b55bae0b66c14a819f0ee34a5bccad82a5c1a68b9a1ea52b9264a8271a3` |
+| Web build | `shotbro-web-build:4a3896f` → `43ba63bd36ab` (systemd @ `:3020`) |
+| `DEPLOYED.txt` | **4a3896f** |
+| PG backup | `/var/backups/shotbro-staging-4e.sql.gz` (451304 bytes) + isolated restore test **OK** |
+| Migrations | **0000–0005** (0005 not re-applied) |
+
+Deploy path: tarball `phase4-deploy-4a3896f.tar` → `staging-hotfix-deploy.sh` (api/worker) → `staging-deploy-web.sh` (bash).
 
 ## ProviderJob SSE
 
-- `ProviderJobManager` lifecycle hook emits deterministic `event_log` / outbox rows via `ProviderJobEventBridgeService`.
-- Event types: `provider.job.created`, `provider.job.status` (payload: `from`, `to`, `status`, `version`, `providerJobId`).
-- Dedupe: stable event IDs (`{jobId}:created`, `{jobId}:status:{to}:{version}`) + SSE `seen` set on reconnect.
-- Web: `use-project-events.ts` listens for both types and invalidates `provider-jobs` + `agent-runs`.
-- PostgreSQL remains source of truth after F5 (`GET /provider-jobs`, job row status).
+- `ProviderJobManager` lifecycle → `ProviderJobEventBridgeService` → `event_log` / outbox.
+- Types: `provider.job.created`, `provider.job.status` (dedupe IDs `{jobId}:created`, `{jobId}:status:{to}:{version}`).
+- Web: `use-project-events.ts` invalidates `provider-jobs` + `agent-runs`.
+- **STAGING_TESTED** indirectly via Phase 3/4 production smokes + Playwright (mock provider jobs on tool path).
 
-Transitions persisted in `provider_job_event`: CREATED → AUTHORIZED → SUBMITTING → SUBMITTED → (QUEUED for async adapters) → RUNNING → COMPLETED | FAILED | NEEDS_RECONCILIATION | CANCELLED.
+Dedicated SSE matrix (created→completed, reconnect, cross-project): **partial** — recommend follow-up automated API test against `events/stream`.
 
-## Model catalog
+## CI
 
-- `PHASE4_MODEL_CATALOG` in `@shotbro/ai` — pricing **UNKNOWN** when not verified (never `0` for vendor models).
-- HTTP: `GET /api/v1/providers/model-catalog` (read-only, reflects live env flags).
+| Job | Result |
+|-----|--------|
+| GitHub Actions `postgres-integration.yml` | **BLOCKED** — `gh` not authenticated in release environment; verify run at https://github.com/letoceiling-coder/ai.shotbro.ru/actions |
+| Local Docker PG (Windows agent) | **BLOCKED** — Docker daemon not running |
+| `@shotbro/ai` vitest | **52/52 PASS** (includes contract + `vendor-adapters-blocked`) |
+| API/worker/web typecheck | **PASS** |
 
-## Financial protection (verified in code paths)
+## Regression
 
-- Live submit errors → `NEEDS_RECONCILIATION` (no automatic resubmit of ambiguous paid submit).
-- `ExecutionPolicyEngine.assertLiveApproved` requires production approval + `approvedMaxCostUsd`.
-- Budget reserve/release: existing `CostReservationService` + PG integration tests (`cost-reservation.db.integration.spec.ts`).
-- Mock path unchanged; no duplicate charge paths added.
+| Test | Result |
+|------|--------|
+| VPS Phase 3 API smoke | **PASS** (`mock:true`) |
+| VPS Phase 4 unified smoke | **PASS** (`mock:true`) |
+| Playwright 8 viewport matrix | **8/8 PASS** (desktop1440 Phase 3 retried after send-button flake fix) |
+| Provider catalog `GET /api/v1/providers/model-catalog` | **PASS** (staging loopback) |
 
-## Output ingestion
+## Security (4E)
 
-- `ProductionAssetIngestionService.ingestFromUrl` — allowlist, redirect validation, size/MIME guards, DNS safety (allowlisted fixtures skip live DNS).
-- Mock provider outputs: MinIO via `ingestMockProviderOutput` (fixtures host `fixtures.shotbro.test`).
+- Default HTTP: `BlockedHttpTransport` / `ExecutionPolicyEngine` **MOCK_ONLY** on staging.
+- Vendor keys in env do **not** bypass policy (`vendor-adapters-blocked.test.ts`).
+- No public live-generation API; catalog is read-only metadata.
+- Asset ingestion: SSRF/redirect/size/MIME tests in `@shotbro/ai`.
+- Unknown vendor pricing: **UNKNOWN** in catalog (not zero).
 
-## PostgreSQL CI
+## Remaining blockers (before live AI)
 
-- Workflow: `.github/workflows/postgres-integration.yml`
-- Isolated Postgres 16 service; migrations; `RUN_DB_INTEGRATION_TESTS=1`
-- Suites: `apps/api/test/db/*.db.integration.spec.ts` (provider job idempotency, events, cross-project isolation, budget)
+1. Owner approval + budget + explicit `PROVIDER_LIVE_EXECUTION_ENABLED` / mock off (separate cutover).
+2. Wire Fal/ElevenLabs into `generate.*` tool path behind flags.
+3. GitHub Actions PG job: confirm green on `4a3896f` push.
+4. Optional: dedicated ProviderJob SSE integration test on isolated DB.
 
-## Automated tests (local)
+## Git
 
-| Suite | Result |
-|-------|--------|
-| `@shotbro/ai` vitest | **45/45 PASS** |
-| `api` typecheck | **PASS** |
-| PG integration | requires Docker/Postgres + `RUN_DB_INTEGRATION_TESTS=1` |
-| Playwright 8/8 (staging) | **not re-run in 4E commit** — repeat before deploy sign-off |
-
-## Remaining blockers before any live AI
-
-1. Owner approval + per-project budget + `PROVIDER_LIVE_EXECUTION_ENABLED` + disable mock (explicit cutover plan).
-2. Staging deploy of 4E API/worker/web images and smoke + Playwright regression.
-3. Live credential verification (keys present ≠ model available).
-4. Wire Fal/ElevenLabs adapters into tool executor behind feature flags (currently mock adapters on tool path).
-
-## Docker / staging (baseline at 4D)
-
-| Component | Image / tag (4D) |
-|-----------|------------------|
-| API | `2876d78b880d` @ `b1de217` |
-| Worker | `52a2eecf8dbf` @ `b1de217` |
-| Web | `shotbro-web-build:b1de217` |
-
-Migrations **0000–0005** unchanged.
+- Commit: `4a3896f` — `phase4: add vendor provider contracts and provider job events`
+- Push: `origin/phase4/intelligent-production` updated (`ea34523..4a3896f`)

@@ -29,7 +29,9 @@ test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
 
     const input = page.getByPlaceholder(/Сообщение сохранится|сообщение|опишите/i).first();
     await input.fill("Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo");
-    await page.getByRole("button", { name: /отправить|send/i }).click();
+    const sendBtn = page.getByRole("button", { name: /отправить|send/i });
+    await expect(sendBtn).toBeEnabled({ timeout: 30_000 });
+    await sendBtn.click();
 
     await expect(
       page.getByText(/AgentRuntime|MOCK · Phase 4|Brief \(MOCK\)|План производства/i).first(),

@@ -1,10 +1,10 @@
 # Phase 4 — Final acceptance
 
-**Status:** Phase **4D** staging accepted (mock-only). Browser Playwright matrix **8/8 passed**. Phase **4E** provider readiness implemented in repo — **staging redeploy + E2E re-run pending** (see `PHASE4E-PROVIDER-READINESS.md`).
+**Status:** Phase **4E** staging provider-readiness release accepted (mock-only). Playwright **8/8** · VPS smokes **PASS**. Not **LIVE_PRODUCTION_READY**.
 
 **Branch:** `phase4/intelligent-production`  
-**Git HEAD:** `b1de217` (+ web deploy script fix pending commit)  
-**Baseline:** `phase3-rc1` → `e66d480`
+**Git HEAD:** `4a3896f` (see follow-up commits for E2E/docs if any)  
+**Baseline:** `phase3-rc1` → `e66d480` · 4D `b1de217` · 4E `4a3896f`
 
 ## Policy
 
@@ -16,15 +16,18 @@
 | Global `PHASE4_AGENT_RUNTIME_ENABLED` (staging) | **false** |
 | Project-scoped AgentRuntime | **`PHASE4_PROJECT_SCOPED_ENABLED=true`** |
 
-## Staging deployment (2026-10-24)
+## Staging deployment (2026-10-24, 4E)
 
 | Component | SHA / ID |
 |-----------|----------|
-| API | `ai-shotbro-staging-api:latest` → `2876d78b880d` |
-| Worker | `ai-shotbro-staging-worker:latest` → `52a2eecf8dbf` |
-| Web (systemd @ :3020) | `shotbro-web-build:b1de217` → `29039890d00b` |
-| `DEPLOYED.txt` | **b1de217** |
+| API | `ai-shotbro-staging-api:latest` → `4956f5b816c4…` |
+| Worker | `ai-shotbro-staging-worker:latest` → `b43c2b55bae0…` |
+| Web (systemd @ :3020) | `shotbro-web-build:4a3896f` → `43ba63bd36ab` |
+| `DEPLOYED.txt` | **4a3896f** |
 | Migration 0005 | Applied (not re-run) |
+| PG backup | `/var/backups/shotbro-staging-4e.sql.gz` + restore test **OK** |
+
+Details: **`PHASE4E-PROVIDER-READINESS.md`**
 
 Web path: `infra/scripts/staging-deploy-web.sh` (Docker build → `/var/www/ai.shotbro.ru/standalone`).
 

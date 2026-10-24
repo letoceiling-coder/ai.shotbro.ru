@@ -23,7 +23,7 @@ export type CatalogModelEntry = {
   executionStatus: ModelExecutionStatus;
 };
 
-/** Verified against vendor docs on 2026-03-24 — no live inference performed. */
+/** Verified against vendor docs on 2026-10-24 — no live inference performed. */
 export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
   {
     provider: "mock",
@@ -33,7 +33,7 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     pricingSource: "INTERNAL_ESTIMATE",
     priceStatus: "KNOWN",
     pricingUsd: 0,
-    verificationDate: "2026-03-24",
+    verificationDate: "2026-10-24",
     availability: "MOCK",
     executionStatus: "MOCK_READY",
   },
@@ -44,7 +44,7 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     supportedOperations: ["text"],
     pricingSource: "OPENROUTER",
     priceStatus: "UNKNOWN",
-    verificationDate: "2026-03-24",
+    verificationDate: "2026-10-24",
     availability: "CONFIGURED",
     executionStatus: "BLOCKED_BY_POLICY",
   },
@@ -56,7 +56,7 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     resolution: "configurable",
     pricingSource: "VENDOR_DOC",
     priceStatus: "UNKNOWN",
-    verificationDate: "2026-03-24",
+    verificationDate: "2026-10-24",
     availability: "UNVERIFIED",
     executionStatus: "CONTRACT_READY",
   },
@@ -68,7 +68,7 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     durationSeconds: { max: 120 },
     pricingSource: "VENDOR_DOC",
     priceStatus: "UNKNOWN",
-    verificationDate: "2026-03-24",
+    verificationDate: "2026-10-24",
     availability: "UNVERIFIED",
     executionStatus: "CONTRACT_READY",
   },
@@ -79,7 +79,7 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     supportedOperations: ["TEXT_TO_SPEECH"],
     pricingSource: "VENDOR_DOC",
     priceStatus: "UNKNOWN",
-    verificationDate: "2026-03-24",
+    verificationDate: "2026-10-24",
     availability: "UNVERIFIED",
     executionStatus: "CONTRACT_READY",
   },
@@ -91,7 +91,7 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     priceStatus: "KNOWN",
     pricingUsd: 0,
     pricingSource: "INTERNAL_ESTIMATE",
-    verificationDate: "2026-03-24",
+    verificationDate: "2026-10-24",
     availability: "MOCK",
     executionStatus: "MOCK_READY",
   },
@@ -103,7 +103,7 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     priceStatus: "KNOWN",
     pricingUsd: 0,
     pricingSource: "INTERNAL_ESTIMATE",
-    verificationDate: "2026-03-24",
+    verificationDate: "2026-10-24",
     availability: "MOCK",
     executionStatus: "MOCK_READY",
   },
@@ -115,7 +115,7 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     priceStatus: "KNOWN",
     pricingUsd: 0,
     pricingSource: "INTERNAL_ESTIMATE",
-    verificationDate: "2026-03-24",
+    verificationDate: "2026-10-24",
     availability: "MOCK",
     executionStatus: "MOCK_READY",
   },
