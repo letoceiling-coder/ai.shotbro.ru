@@ -1,9 +1,9 @@
 # Phase 3 — Release Candidate acceptance
 
 **Branch:** `phase3/agent`  
-**Git HEAD (RC):** `42fb413` (+ e2e mobile helper in follow-up commit)  
-**Staging runtime deploy:** `42fb413` (`DEPLOYED.txt` on VPS)  
-**Git push:** **BLOCKED** — no `origin` remote configured locally  
+**Git HEAD:** `66c1d2f` — **pushed** to `git@github.com:letoceiling-coder/ai.shotbro.ru.git`  
+**Staging runtime deploy:** `66c1d2f` (`DEPLOYED.txt` on VPS)  
+**Tag phase3-rc1:** **pending** (mobile Playwright fail)  
 
 ## Staging consistency
 
@@ -84,15 +84,15 @@ AI_MOCK_MODE=true
 
 ---
 
-## RC hardening (2026-10-24)
+## RC hardening + GitHub (2026-10-24)
 
 **Полный отчёт:** [PHASE3-RC-HARDENING.md](./PHASE3-RC-HARDENING.md)
 
 | Area | Result |
 |------|--------|
-| Integration users (no public register) | **IMPLEMENTED** locally — internal provision API + script; staging **BLOCKED** until deploy + `0004` + secret |
-| Budget race / ledger | **IMPLEMENTED** locally + DB tests; staging **pending deploy** |
-| Worker delivery dedup | **IMPLEMENTED** locally; **pending worker deploy** |
-| Graph invalidation tests | **IMPLEMENTED** (unit + new integration spec) |
-| Git push | **BLOCKED** (no origin) |
-| Hardening committed | **NOT YET** — working tree on `6b0656e` |
+| GitHub origin + history | **DONE** — `phase2/backend`, `phase3/agent`, tag `phase2-rc1` |
+| Migration 0004 | **APPLIED** on staging |
+| Integration users A/B | **TESTED** — provision + sign-in 200 |
+| API integration @ staging | **31 pass**, 3 skip (DB) |
+| Playwright desktop mock E2E | **pass** |
+| Playwright mobile | **1 fail** — blocks `phase3-rc1` tag |
