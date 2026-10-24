@@ -168,7 +168,9 @@ export function ScriptEditor({ projectId }: { projectId: string }) {
                 <Badge variant="outline">rev {selected.revision}</Badge>
                 {saveState === "saved" ? <Badge variant="secondary">Сохранено</Badge> : null}
                 {saveState === "conflict" ? (
-                  <Badge variant="destructive">Конфликт версии — обновите страницу</Badge>
+                  <Badge variant="outline" className="border-destructive text-destructive">
+                    Конфликт версии — обновите страницу
+                  </Badge>
                 ) : null}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
