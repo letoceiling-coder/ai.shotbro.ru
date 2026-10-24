@@ -18,7 +18,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
     navigationTimeout: realBackend ? 60_000 : 30_000,
     actionTimeout: realBackend ? 45_000 : 15_000,
-    ...(realBackend && stagingBase
+    ...(realBackend && stagingBase && process.platform === "win32"
       ? {
           // headless_shell can hang on Windows waiting for full "load" on remote Next.js
           launchOptions: { channel: "chrome" },
