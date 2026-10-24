@@ -38,10 +38,10 @@ Today REAL mode is **chat-first**: script, storyboard, and production artifacts 
 
 Captured on VPS via Playwright (`phase5-audit` mode):
 
-- `apps/web/test-results/phase5-real-{desktop1920,desktop1440,tablet,mobile390}.png`
-- `apps/web/test-results/phase5-script-tab-*.png`
+- `apps/web/test-results/phase5-baseline-real-{desktop1920,desktop1440,tablet,mobile390}.png` — **live web** before Phase 5 deploy (no section nav yet).
+- After web deploy (`phase5/creative-studio`): `phase5-script-tab-*.png` and `creative-section-nav` visible.
 
-Pre–Phase 5 branch deploy, compare with `phase4f-real-*.png` from Phase 4F audit.
+Compare with `phase4f-real-*.png` from Phase 4F audit.
 
 ## Real user gaps (priority)
 
