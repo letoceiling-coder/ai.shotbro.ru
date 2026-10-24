@@ -7,8 +7,9 @@ export async function waitForAgentRunPersisted(page: Page, projectId: string, ti
       async () => {
         const res = await page.request.get(`/api/v1/projects/${projectId}/agent/runs`);
         if (!res.ok()) return 0;
-        const body = (await res.json()) as unknown;
-        return Array.isArray(body) ? body.length : 0;
+        const body = (await res.json()) as { items?: unknown[] } | unknown[];
+        if (Array.isArray(body)) return body.length;
+        return Array.isArray(body.items) ? body.items.length : 0;
       },
       { timeout: timeoutMs, intervals: [500, 1000, 2000] },
     )

@@ -49,7 +49,6 @@ systemctl disable ai-shotbro-web.service 2>/dev/null || true
 
 # --- build ---
 cd "$COMPOSE_DIR"
-export DOCKER_BUILDKIT=1
 log "building image=${IMAGE}"
 docker build -f Dockerfile.web --build-arg "BUILD_SHA=${SHA}" -t "$IMAGE" ..
 docker tag "$IMAGE" infra-web:deployed
