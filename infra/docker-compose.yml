@@ -1,8 +1,11 @@
 services:
   web:
+    image: ${WEB_IMAGE:-infra-web:latest}
     build:
       context: ..
       dockerfile: infra/Dockerfile.web
+      args:
+        BUILD_SHA: ${WEB_BUILD_SHA:-dev}
     restart: unless-stopped
     environment:
       NODE_ENV: production

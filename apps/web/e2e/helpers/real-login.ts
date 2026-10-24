@@ -9,8 +9,16 @@ export async function loginRealUser(page: Page) {
   await page.getByPlaceholder("Пароль").fill(password);
   const submit = page.getByRole("button", { name: "Войти" });
   await submit.scrollIntoViewIfNeeded();
-  await submit.click();
-  await expect(page).toHaveURL(/\/studio/, { timeout: 60_000 });
+  await Promise.all([
+    page.waitForURL(/\/studio/, { timeout: 60_000 }),
+    submit.click(),
+  ]);
+  await expect
+    .poll(async () => (await page.request.get("/api/v1/users/me")).ok(), {
+      timeout: 30_000,
+      intervals: [300, 500, 1000],
+    })
+    .toBe(true);
 }
 
 export async function expectRealComposerReady(page: Page) {
@@ -39,6 +47,12 @@ export async function sendRealComposerMessage(page: Page, message: string) {
       (r) => r.url().includes("/messages") && r.request().method() === "POST" && r.ok(),
       { timeout: 90_000 },
     ),
+    page
+      .waitForResponse(
+        (r) => r.url().includes("/agent/runs") && r.request().method() === "POST",
+        { timeout: 90_000 },
+      )
+      .catch(() => null),
     sendBtn.click(),
   ]);
 }

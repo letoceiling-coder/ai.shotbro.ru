@@ -1,16 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { loginRealUser, openRealNewProject, sendRealComposerMessage } from "./helpers/real-login";
 import { enablePhase4AgentForProject } from "./helpers/phase4-rollout";
-
-async function approvePendingApprovals(page: import("@playwright/test").Page, max = 10) {
-  for (let i = 0; i < max; i++) {
-    const enabled = page.getByRole("button", { name: /^Утвердить$/, disabled: false });
-    if ((await enabled.count()) === 0) break;
-    await enabled.first().scrollIntoViewIfNeeded();
-    await enabled.first().click();
-    await page.waitForTimeout(4000);
-  }
-}
+import {
+  waitForAgentRunPersisted,
+  waitForMockDeliveryVisible,
+  waitForPhase4AgentSignalVisible,
+} from "./helpers/agent-waits";
+import { approvePendingApprovals } from "./helpers/approvals";
 
 test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
@@ -31,16 +27,12 @@ test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
       page,
       "Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo",
     );
-
-    const agentSignal = page.getByText(/AgentRuntime|MOCK · Phase 4|Brief \(MOCK\)|План производства/i).first();
-    await agentSignal.scrollIntoViewIfNeeded();
-    await expect(agentSignal).toBeVisible({ timeout: 180_000 });
+    await waitForAgentRunPersisted(page, projectId);
+    await waitForPhase4AgentSignalVisible(page);
 
     await approvePendingApprovals(page, 6);
 
-    await expect(
-      page.getByText(/Финальный ролик|Mock-производство|Production board|Готово: mock|mock-delivery/i).first(),
-    ).toBeVisible({ timeout: 420_000 });
+    await waitForMockDeliveryVisible(page);
 
     await page.reload();
     await expect(page.getByText(/Brief \(MOCK\)|Финальный ролик|Утверждено|MOCK · Phase 4/i).first()).toBeVisible({
