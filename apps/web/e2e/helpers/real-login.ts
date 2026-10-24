@@ -23,25 +23,42 @@ export async function fillRealComposer(page: Page, message: string) {
   await expect(sendBtn).toBeEnabled({ timeout: 45_000 });
 }
 
-/** Opens settings and switches studio from DEMO to REAL (mobile-safe). */
-export async function switchToRealMode(page: Page) {
-  await page.goto("/studio", { waitUntil: "domcontentloaded" });
-  const settings = page.getByRole("button", { name: "Настройки" });
+async function openStudioSettings(page: Page) {
+  const settings = page.getByRole("button", { name: "Настройки", exact: true });
   if (!(await settings.isVisible().catch(() => false))) {
     await page.getByRole("button", { name: "Проекты" }).click();
   }
-  await settings.click();
-  await page.getByRole("button", { name: "REAL" }).click();
+  await page.getByRole("button", { name: "Настройки", exact: true }).click();
+}
+
+/** Ensures REAL sidebar create control is visible (mobile sheet / collapsed sidebar). */
+export async function ensureRealCreateVisible(page: Page) {
+  const byTestId = page.getByTestId("real-new-project-btn");
+  if (await byTestId.isVisible().catch(() => false)) return;
+  const projects = page.getByRole("button", { name: "Проекты" });
+  if (await projects.isVisible().catch(() => false)) {
+    await projects.click();
+  }
+  const expand = page.getByRole("button", { name: "Развернуть sidebar" });
+  if (await expand.isVisible().catch(() => false)) {
+    await expand.click();
+  }
+  await expect(page.getByTestId("real-new-project-btn")).toBeVisible({ timeout: 20_000 });
+}
+
+/** Opens settings and switches studio from DEMO to REAL (mobile-safe). */
+export async function switchToRealMode(page: Page) {
+  await page.goto("/studio", { waitUntil: "domcontentloaded" });
+  await openStudioSettings(page);
+  await page.getByRole("button", { name: "REAL", exact: true }).click();
   await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("button", { name: /Создать проект|Новый проект/i }).first(),
-  ).toBeVisible({ timeout: 15_000 });
+  await ensureRealCreateVisible(page);
 }
 
 export async function openRealNewProject(page: Page): Promise<string> {
   await switchToRealMode(page);
-  await page.getByRole("button", { name: /Создать проект|Новый проект/i }).first().click();
-  await expect(page.getByRole("heading", { name: "Новый проект" })).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId("real-new-project-btn").click();
+  await expect(page.getByTestId("new-project-dialog")).toBeVisible({ timeout: 15_000 });
   const projectTitle = `E2E ${Date.now().toString(36)}`;
   await page.getByPlaceholder("Название проекта").fill(projectTitle);
   let projectId = "";

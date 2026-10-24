@@ -29,6 +29,7 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
         size="sm"
         className="mb-2 justify-start gap-2"
         aria-label="Создать проект"
+        data-testid="real-new-project-btn"
         onClick={() => setDialogOpen(true)}
       >
         <Plus className="size-4" />

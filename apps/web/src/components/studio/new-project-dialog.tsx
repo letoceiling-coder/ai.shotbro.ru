@@ -26,7 +26,7 @@ export function NewProjectDialog({ open, onOpenChange, onCreate, pending }: Prop
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg" data-testid="new-project-dialog">
         <DialogHeader>
           <DialogTitle>Новый проект</DialogTitle>
         </DialogHeader>

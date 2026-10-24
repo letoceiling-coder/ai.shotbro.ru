@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { test, expect, type BrowserContext } from "@playwright/test";
-import { loginRealUser, switchToRealMode } from "./helpers/real-login";
+import { ensureRealCreateVisible, loginRealUser, switchToRealMode } from "./helpers/real-login";
 
 const viewports = [
   { name: "desktop1920", width: 1920, height: 1080 },
@@ -40,10 +40,9 @@ test.describe("Phase 4F studio UI audit", () => {
       await expect(page.getByText(/DEMO|Что создадим/i).first()).toBeVisible({ timeout: 15_000 });
 
       await switchToRealMode(page);
+      await ensureRealCreateVisible(page);
       await page.screenshot({ path: `test-results/phase4f-real-${vp.name}.png`, fullPage: true });
-      await expect(
-        page.getByRole("button", { name: /Создать проект|Новый проект/i }).first(),
-      ).toBeVisible();
+      await expect(page.getByTestId("real-new-project-btn")).toBeVisible();
     });
   }
 });

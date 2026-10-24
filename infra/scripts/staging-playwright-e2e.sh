@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="${1:-/var/www/ai.shotbro.ru-src}"
 ENVF="${ROOT}/infra/staging.env"
 MODE="${2:-full}"
+# Must match pnpm-lock @playwright/test (currently 1.64.1).
 PW_IMAGE="${PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v1.64.1-jammy}"
 
 if [ ! -f "$ENVF" ]; then
