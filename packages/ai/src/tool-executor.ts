@@ -2,7 +2,8 @@ import type { AppEnv } from "@shotbro/config/env";
 import { assertExternalProviderExecutionAllowed } from "@shotbro/config";
 import { z } from "zod";
 import type { ProductionStoragePort } from "./ports/production-storage.js";
-import { PHASE3_TOOLS, type Phase3ToolDefinition, type ToolSideEffectClass } from "./tool-side-effects.js";
+import { PHASE4_TOOLS, type Phase4ToolDefinition } from "./agent/phase4-tool-catalog.js";
+import type { ToolSideEffectClass } from "./tool-side-effects.js";
 
 const emptyInput = z.object({}).strict();
 
@@ -21,7 +22,7 @@ export class ToolExecutor {
   private readonly schemas = new Map<string, z.ZodTypeAny>();
 
   constructor(private readonly env: AppEnv) {
-    for (const tool of PHASE3_TOOLS) {
+    for (const tool of PHASE4_TOOLS) {
       this.schemas.set(tool.id, emptyInput);
     }
   }
@@ -31,8 +32,8 @@ export class ToolExecutor {
     this.handlers.set(toolId, handler);
   }
 
-  getTool(id: string): Phase3ToolDefinition | undefined {
-    return PHASE3_TOOLS.find((t) => t.id === id);
+  getTool(id: string): Phase4ToolDefinition | undefined {
+    return PHASE4_TOOLS.find((t) => t.id === id);
   }
 
   async execute(

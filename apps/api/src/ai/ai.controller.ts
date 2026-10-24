@@ -13,4 +13,19 @@ export class AiController {
   registry() {
     return this.ai.registrySnapshot();
   }
+
+  @Get("models")
+  models() {
+    return this.ai.listModels();
+  }
+
+  @Get("providers")
+  providers() {
+    return this.ai.listProviders();
+  }
+
+  @Get("tools")
+  tools() {
+    return this.ai.listTools();
+  }
 }
