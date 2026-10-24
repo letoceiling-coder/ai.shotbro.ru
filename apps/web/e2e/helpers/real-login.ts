@@ -7,8 +7,19 @@ export async function loginRealUser(page: Page) {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await page.getByPlaceholder("Email").fill(email);
   await page.getByPlaceholder("Пароль").fill(password);
-  await page.getByRole("button", { name: "Войти" }).click();
+  const submit = page.getByRole("button", { name: "Войти" });
+  await submit.scrollIntoViewIfNeeded();
+  await submit.click();
   await expect(page).toHaveURL(/\/studio/, { timeout: 60_000 });
+}
+
+export async function fillRealComposer(page: Page, message: string) {
+  const input = page.getByPlaceholder(/Опишите задачу|Сообщение сохранится|сообщение|опишите/i).first();
+  await input.scrollIntoViewIfNeeded();
+  await input.click();
+  await input.fill(message);
+  const sendBtn = page.getByRole("button", { name: /отправить|send/i });
+  await expect(sendBtn).toBeEnabled({ timeout: 45_000 });
 }
 
 /** Opens settings and switches studio from DEMO to REAL (mobile-safe). */

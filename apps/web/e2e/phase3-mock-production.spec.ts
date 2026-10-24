@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginRealUser, openRealNewProject } from "./helpers/real-login";
+import { fillRealComposer, loginRealUser, openRealNewProject } from "./helpers/real-login";
 
 async function approvePendingApprovals(page: import("@playwright/test").Page, max = 10) {
   for (let i = 0; i < max; i++) {
@@ -24,11 +24,11 @@ test.describe("Phase 3 mock production (REAL)", () => {
     test.setTimeout(600_000);
 
     await openRealNewProject(page);
-    const input = page.getByPlaceholder(/Сообщение сохранится|сообщение|опишите/i).first();
-    await input.fill("Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo");
-    const sendBtn = page.getByRole("button", { name: /отправить|send/i });
-    await expect(sendBtn).toBeEnabled({ timeout: 30_000 });
-    await sendBtn.click();
+    await fillRealComposer(
+      page,
+      "Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo",
+    );
+    await page.getByRole("button", { name: /отправить|send/i }).click();
 
     await expect(page.getByText(/Brief \(MOCK\)|План производства/i).first()).toBeVisible({ timeout: 120_000 });
 
