@@ -41,7 +41,9 @@ test.describe("Phase 4F studio UI audit", () => {
 
       await switchToRealMode(page);
       await page.screenshot({ path: `test-results/phase4f-real-${vp.name}.png`, fullPage: true });
-      await expect(page.getByRole("button", { name: /Новый проект/i }).first()).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Создать проект|Новый проект/i }).first(),
+      ).toBeVisible();
     });
   }
 });

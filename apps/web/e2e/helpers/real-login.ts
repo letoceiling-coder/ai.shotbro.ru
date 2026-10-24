@@ -33,15 +33,15 @@ export async function switchToRealMode(page: Page) {
   await settings.click();
   await page.getByRole("button", { name: "REAL" }).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: /Новый проект/i }).first()).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(
+    page.getByRole("button", { name: /Создать проект|Новый проект/i }).first(),
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 export async function openRealNewProject(page: Page): Promise<string> {
   await switchToRealMode(page);
-  await page.getByRole("button", { name: /Новый проект/i }).first().click();
-  await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: /Создать проект|Новый проект/i }).first().click();
+  await expect(page.getByRole("heading", { name: "Новый проект" })).toBeVisible({ timeout: 15_000 });
   const projectTitle = `E2E ${Date.now().toString(36)}`;
   await page.getByPlaceholder("Название проекта").fill(projectTitle);
   let projectId = "";

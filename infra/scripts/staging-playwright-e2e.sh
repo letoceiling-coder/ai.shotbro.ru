@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="${1:-/var/www/ai.shotbro.ru-src}"
 ENVF="${ROOT}/infra/staging.env"
-SPECS="${2:-e2e/phase4f-studio-audit.spec.ts e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts}"
+MODE="${2:-full}"
 PW_IMAGE="${PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v1.64.1-jammy}"
 
 if [ ! -f "$ENVF" ]; then
@@ -54,9 +54,15 @@ pnpm config set verify-deps-before-run false
 pnpm config set strict-dep-builds false
 if [ ! -d node_modules ]; then pnpm install; fi
 cd apps/web
-set +e
-pnpm exec playwright test e2e/phase4f-studio-audit.spec.ts --project=desktop
-F4=\$?
-pnpm exec playwright test e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile
-F34=\$?
-exit \$(( F4 != 0 ? F4 : F34 ))"
+if [ \"${MODE}\" = audit ]; then
+  pnpm exec playwright test e2e/phase4f-studio-audit.spec.ts --project=desktop
+elif [ \"${MODE}\" = regression ]; then
+  pnpm exec playwright test e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile
+else
+  set +e
+  pnpm exec playwright test e2e/phase4f-studio-audit.spec.ts --project=desktop
+  F4=\$?
+  pnpm exec playwright test e2e/phase3-mock-production.spec.ts e2e/phase4-unified-production.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile
+  F34=\$?
+  exit \$(( F4 != 0 ? F4 : F34 ))
+fi"
