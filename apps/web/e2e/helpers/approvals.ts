@@ -5,8 +5,8 @@ export async function approvePendingApprovals(page: Page, max = 10) {
     const enabled = page.getByRole("button", { name: /^Утвердить$/, disabled: false });
     const count = await enabled.count();
     if (count === 0) break;
-    await enabled.first().scrollIntoViewIfNeeded();
-    await enabled.first().click();
+    const btn = page.getByRole("button", { name: /^Утвердить$/, disabled: false }).first();
+    await btn.click();
     await page
       .waitForResponse(
         (r) => /\/api\/v1\/approvals\/[^/]+\/approve/.test(r.url()) && r.request().method() === "POST" && r.ok(),
