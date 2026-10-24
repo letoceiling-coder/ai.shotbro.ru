@@ -42,7 +42,8 @@ export async function executeProductionRun(
 
   const sceneVideoAssets: string[] = [];
   let voiceAssetId: string | undefined;
-  let deliveryAssetId: string | undefined;
+  const priorRunMeta = (runRow?.metadata ?? {}) as { deliveryAssetId?: string; deliveryMessageId?: string };
+  let deliveryAssetId: string | undefined = priorRunMeta.deliveryAssetId;
 
   for (const node of orderGraphNodes(nodes)) {
     if (node.status === "COMPLETED" || node.status === "CANCELLED") {
@@ -99,6 +100,13 @@ export async function executeProductionRun(
           })
           .where(eq(productionGraphNode.id, node.id));
       } else if (node.nodeType === "ASSEMBLY") {
+        if (deliveryAssetId && node.outputAssetIds?.includes(deliveryAssetId)) {
+          await db
+            .update(productionGraphNode)
+            .set({ status: "COMPLETED", updatedAt: new Date() })
+            .where(eq(productionGraphNode.id, node.id));
+          continue;
+        }
         const out = await assembleMp4(fixtures, sceneVideoAssets, log);
         const assetId = randomUUID();
         const key = `workspaces/${data.workspaceId}/projects/${data.projectId}/assets/${assetId}/mock/final.mp4`;
@@ -156,18 +164,29 @@ export async function executeProductionRun(
 
   const finalAssetId = deliveryAssetId;
   const [runAfter] = await db.select().from(agentRun).where(eq(agentRun.id, data.runId)).limit(1);
+  const priorMeta = (runAfter?.metadata ?? {}) as {
+    deliveryMessageId?: string;
+    mock?: boolean;
+    deliveryReady?: boolean;
+    deliveryAssetId?: string;
+  };
 
   await db
     .update(agentRun)
     .set({
       status: "COMPLETED",
       productionState: "COMPLETED",
-      metadata: { mock: true, deliveryReady: true, deliveryAssetId: finalAssetId },
+      metadata: {
+        ...priorMeta,
+        mock: true,
+        deliveryReady: true,
+        deliveryAssetId: finalAssetId ?? priorMeta.deliveryAssetId,
+      },
       updatedAt: new Date(),
     })
     .where(eq(agentRun.id, data.runId));
 
-  if (runAfter?.conversationId && finalAssetId) {
+  if (runAfter?.conversationId && finalAssetId && !priorMeta.deliveryMessageId) {
     const messageId = randomUUID();
     await db.insert(message).values({
       id: messageId,
@@ -193,6 +212,13 @@ export async function executeProductionRun(
         version: 1,
       },
     });
+    await db
+      .update(agentRun)
+      .set({
+        metadata: { ...priorMeta, mock: true, deliveryReady: true, deliveryAssetId: finalAssetId, deliveryMessageId: messageId },
+        updatedAt: new Date(),
+      })
+      .where(eq(agentRun.id, data.runId));
   }
 
   log.info({ runId: data.runId, sceneVideos: sceneVideoAssets.length }, "production.run completed");

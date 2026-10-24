@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ["test/integration/**/*.integration.spec.ts"],
+    include: ["test/integration/**/*.integration.spec.ts", "test/db/**/*.db.integration.spec.ts"],
     testTimeout: 120_000,
     hookTimeout: 120_000,
     fileParallelism: false,

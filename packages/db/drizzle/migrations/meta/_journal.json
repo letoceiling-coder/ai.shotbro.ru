@@ -29,6 +29,13 @@
       "when": 1792800000000,
       "tag": "0003_production_approval_state",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792810000000,
+      "tag": "0004_better_auth_admin_fields",
+      "breakpoints": true
     }
   ]
 }

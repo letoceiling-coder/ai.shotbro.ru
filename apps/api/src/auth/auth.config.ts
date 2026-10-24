@@ -1,6 +1,7 @@
 import { loadEnvFromProcess } from "@shotbro/config/env";
 import { passwordResetTemplate, sendEmail, verifyEmailTemplate } from "@shotbro/email";
 import { betterAuth } from "better-auth";
+import { admin } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import type { Db } from "@shotbro/db/client";
 import * as schema from "@shotbro/db/schema";
@@ -22,7 +23,8 @@ function emailVerificationOptions() {
   };
 }
 
-export function createAuth(db: Db, env: { secret: string; baseURL: string; trustedOrigins: string[] }) {
+/** Return type widened: admin plugin pulls zod v4 types that break `declaration` emit (TS2742). */
+export function createAuth(db: Db, env: { secret: string; baseURL: string; trustedOrigins: string[] }): Auth {
   const emailEnabled = process.env.EMAIL_ENABLED === "true";
   const requireEmailVerification =
     emailEnabled && process.env.EMAIL_VERIFICATION_REQUIRED !== "false";
@@ -55,7 +57,9 @@ export function createAuth(db: Db, env: { secret: string; baseURL: string; trust
         verification: schema.verification,
       },
     }),
-  });
+    plugins: [admin()],
+  }) as Auth;
 }
 
-export type Auth = ReturnType<typeof createAuth>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Auth = any;

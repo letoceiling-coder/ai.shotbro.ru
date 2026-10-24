@@ -2,8 +2,9 @@
 
 **Branch:** `phase3/agent`  
 **Staging deploy SHA:** `42fb413` on VPS  
-**Git HEAD:** `42fb413` (+ e2e mobile helper) — **push blocked** (no origin)  
-**RC acceptance:** **TESTED** — Phase 2 integration 19/19, Phase 3 integration 6/6, Playwright 4/4  
+**Git HEAD (commit):** `6b0656e` — **push BLOCKED** (no origin)  
+**RC hardening:** см. **[PHASE3-RC-HARDENING.md](./PHASE3-RC-HARDENING.md)** (код в working tree, не закоммичен)  
+**RC acceptance @ staging:** Phase 2 integration 19/19, Phase 3 integration 6/6, Playwright 4/4  
 **Baseline RC:** `e5c4045` / tag `phase2-rc1` (unchanged)
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**

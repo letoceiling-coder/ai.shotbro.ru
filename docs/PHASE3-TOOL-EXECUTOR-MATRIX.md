@@ -10,9 +10,9 @@
 | estimate_cost | **No** | empty | READ_ONLY | — | cost-engine | **PARTIAL** |
 | request_approval | **No** | empty | DATABASE_WRITE | — | approval-flow int. | **PARTIAL** (ApprovalsService) |
 | prepare_image_prompt | **No** | empty | READ_ONLY | — | — | **NOT IMPLEMENTED** |
-| generate.image | **No** | empty | EXTERNAL_PAID | ToolExecution | worker mock | **MOCK via worker**, executor throws if no handler |
-| generate.video | **No** | empty | EXTERNAL_PAID | ToolExecution | worker mock | **MOCK via worker** |
-| generate.voice | **No** | empty | EXTERNAL_PAID | ToolExecution | worker mock | **MOCK via worker** |
+| generate.image | **No** | empty | EXTERNAL_PAID | ToolExecution | worker mock | **ADAPTER_PENDING** — mock via worker; executor blocks without handler |
+| generate.video | **No** | empty | EXTERNAL_PAID | ToolExecution | worker mock | **ADAPTER_PENDING** — mock via worker |
+| generate.voice | **No** | empty | EXTERNAL_PAID | ToolExecution | worker mock | **ADAPTER_PENDING** — mock via worker |
 | compose_video | **No** | empty | LOCAL_MEDIA_PROCESSING | — | production-run | **PARTIAL** (worker FFmpeg) |
 
 **EXTERNAL_PAID:** `ToolExecutor.assertSideEffectAllowed` + `@shotbro/config` guards — **TESTED** in `phase3-guards.test.ts`.

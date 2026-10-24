@@ -6,6 +6,11 @@ import { budgetReservation, costLedgerEntry, project } from "@shotbro/db/schema"
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 
+function isUniqueViolation(err: unknown): boolean {
+  const code = (err as { code?: string })?.code;
+  return code === "23505";
+}
+
 @Injectable()
 export class CostReservationService {
   constructor(
@@ -20,15 +25,15 @@ export class CostReservationService {
   ) {
     await this.access.assertProjectAccess(this.db, userId, projectId);
 
-    const existing = await this.db
-      .select()
-      .from(budgetReservation)
-      .where(eq(budgetReservation.idempotencyKey, input.idempotencyKey))
-      .limit(1);
-    if (existing[0]) return existing[0];
-
     return this.db.transaction(async (tx) => {
-      const [proj] = await tx.select().from(project).where(eq(project.id, projectId)).limit(1);
+      const [existing] = await tx
+        .select()
+        .from(budgetReservation)
+        .where(eq(budgetReservation.idempotencyKey, input.idempotencyKey))
+        .limit(1);
+      if (existing) return existing;
+
+      const [proj] = await tx.select().from(project).where(eq(project.id, projectId)).for("update").limit(1);
       const budgetMax = Number((proj?.settings as { budgetMaxUsd?: number })?.budgetMaxUsd ?? 1000);
       const held = await tx
         .select({ total: sql<number>`coalesce(sum(${budgetReservation.amountUsd}), 0)` })
@@ -40,28 +45,40 @@ export class CostReservationService {
       }
 
       const id = uuid();
-      await tx.insert(budgetReservation).values({
-        id,
-        projectId,
-        agentRunId: input.agentRunId,
-        idempotencyKey: input.idempotencyKey,
-        amountUsd: input.amountUsd,
-        status: "HELD",
-        reason: input.reason,
-        createdBy: userId,
-      });
+      try {
+        await tx.insert(budgetReservation).values({
+          id,
+          projectId,
+          agentRunId: input.agentRunId,
+          idempotencyKey: input.idempotencyKey,
+          amountUsd: input.amountUsd,
+          status: "HELD",
+          reason: input.reason,
+          createdBy: userId,
+        });
 
-      await tx.insert(costLedgerEntry).values({
-        id: uuid(),
-        projectId,
-        agentRunId: input.agentRunId,
-        reservationId: id,
-        entryType: "RESERVE",
-        amountUsd: input.amountUsd,
-        source: "mock",
-        mock: 1,
-        metadata: { reason: input.reason },
-      });
+        await tx.insert(costLedgerEntry).values({
+          id: uuid(),
+          projectId,
+          agentRunId: input.agentRunId,
+          reservationId: id,
+          entryType: "RESERVE",
+          amountUsd: input.amountUsd,
+          source: "mock",
+          mock: 1,
+          metadata: { reason: input.reason },
+        });
+      } catch (err) {
+        if (isUniqueViolation(err)) {
+          const [row] = await tx
+            .select()
+            .from(budgetReservation)
+            .where(eq(budgetReservation.idempotencyKey, input.idempotencyKey))
+            .limit(1);
+          if (row) return row;
+        }
+        throw err;
+      }
 
       const [row] = await tx.select().from(budgetReservation).where(eq(budgetReservation.id, id)).limit(1);
       return row!;
@@ -87,5 +104,16 @@ export class CostReservationService {
       .update(budgetReservation)
       .set({ status: "RELEASED", updatedAt: new Date() })
       .where(eq(budgetReservation.id, reservationId));
+    await this.db.insert(costLedgerEntry).values({
+      id: uuid(),
+      projectId: row.projectId,
+      agentRunId: row.agentRunId,
+      reservationId: row.id,
+      entryType: "RELEASE",
+      amountUsd: row.amountUsd,
+      source: "mock",
+      mock: 1,
+      metadata: { reason: row.reason },
+    });
   }
 }

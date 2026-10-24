@@ -80,4 +80,19 @@ AI_MOCK_MODE=true
 
 **ACCEPTED (staging mock-production RC)** at deploy **`42fb413`**.
 
-**Remaining before tag `phase3-rc1`:** configure git `origin` and push; optional invalidation integration test; budget/DAG concurrency tests; full ToolExecutor handlers.
+**Remaining before tag `phase3-rc1`:** configure git `origin` and push; deploy RC hardening (see below); provision User B; full regression after deploy.
+
+---
+
+## RC hardening (2026-10-24)
+
+**Полный отчёт:** [PHASE3-RC-HARDENING.md](./PHASE3-RC-HARDENING.md)
+
+| Area | Result |
+|------|--------|
+| Integration users (no public register) | **IMPLEMENTED** locally — internal provision API + script; staging **BLOCKED** until deploy + `0004` + secret |
+| Budget race / ledger | **IMPLEMENTED** locally + DB tests; staging **pending deploy** |
+| Worker delivery dedup | **IMPLEMENTED** locally; **pending worker deploy** |
+| Graph invalidation tests | **IMPLEMENTED** (unit + new integration spec) |
+| Git push | **BLOCKED** (no origin) |
+| Hardening committed | **NOT YET** — working tree on `6b0656e` |
