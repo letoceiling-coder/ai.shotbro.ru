@@ -23,7 +23,12 @@ import { InternalModule } from "./internal/internal.module";
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
-        redact: ["req.headers.cookie", "req.headers.authorization"],
+        redact: [
+          "req.headers.cookie",
+          "req.headers.authorization",
+          "req.headers.x-shotbro-integration-provision",
+          "req.headers.x-shotbro-staging-gate",
+        ],
         transport: process.env.NODE_ENV === "development" ? { target: "pino-pretty" } : undefined,
       },
     }),

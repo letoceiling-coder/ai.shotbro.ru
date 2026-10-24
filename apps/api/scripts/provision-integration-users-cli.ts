@@ -1,6 +1,6 @@
 /**
  * Server-side provisioning (preferred on staging). No HTTP; reads secrets from env only.
- * Usage (inside API container): pnpm exec tsx scripts/provision-integration-users-cli.ts
+ * Usage (inside API container): pnpm exec tsx --tsconfig apps/api/tsconfig.json apps/api/scripts/provision-integration-users-cli.ts
  */
 import "reflect-metadata";
 import { config as loadEnv } from "dotenv";
