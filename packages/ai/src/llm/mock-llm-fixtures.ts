@@ -4,6 +4,8 @@ import type { LlmRequest, LlmResponse } from "./types.js";
 export async function mockLlmComplete(req: LlmRequest): Promise<LlmResponse> {
   const user = [...req.messages].reverse().find((m) => m.role === "user")?.content ?? "";
   const lower = user.toLowerCase();
+  const iterMatch = req.requestId.match(/-(\d+)$/);
+  const iteration = iterMatch ? Number(iterMatch[1]) : 1;
 
   if (lower.includes("injection") || lower.includes("ignore previous")) {
     return {
@@ -18,7 +20,9 @@ export async function mockLlmComplete(req: LlmRequest): Promise<LlmResponse> {
   }
 
   const toolCalls =
-    req.allowedTools?.includes("update_project_brief") && !lower.includes("continue")
+    iteration === 1 &&
+    req.allowedTools?.includes("update_project_brief") &&
+    !lower.includes("continue")
       ? [
           {
             id: "tc_brief",

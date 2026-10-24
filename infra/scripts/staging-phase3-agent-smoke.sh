@@ -48,6 +48,19 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+async function waitHealth() {
+  for (let i = 0; i < 40; i++) {
+    try {
+      const r = await fetch(`${base}/api/v1/health/live`);
+      if (r.ok) return;
+    } catch {
+      /* retry */
+    }
+    await sleep(2000);
+  }
+  throw new Error("api_not_ready");
+}
+
 async function signIn() {
   const r = await json("/api/auth/sign-in/email", {
     method: "POST",
@@ -82,6 +95,7 @@ async function approveAll(cookies, projectId, rounds = 12) {
 }
 
 (async () => {
+  await waitHealth();
   let cookies = await signIn();
   const ts = Date.now();
   const created = await json(

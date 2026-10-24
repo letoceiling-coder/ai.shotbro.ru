@@ -49,6 +49,19 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+async function waitHealth() {
+  for (let i = 0; i < 40; i++) {
+    try {
+      const r = await fetch(`${base}/api/v1/health/live`);
+      if (r.ok) return;
+    } catch {
+      /* retry */
+    }
+    await sleep(2000);
+  }
+  throw new Error("api_not_ready");
+}
+
 async function signIn() {
   const r = await json("/api/auth/sign-in/email", {
     method: "POST",
@@ -82,6 +95,7 @@ async function approveAll(cookies, projectId, rounds = 12) {
 }
 
 (async () => {
+  await waitHealth();
   let cookies = await signIn();
   const ts = Date.now();
   const created = await json(
@@ -103,9 +117,10 @@ async function approveAll(cookies, projectId, rounds = 12) {
     },
     cookies,
   );
-  const runId = run.body.id;
-  const trace = await json(`/api/v1/projects/${projectId}/agent/runs/${runId}/trace`, {}, cookies);
-  if (trace.status !== 200 || trace.body.runId !== runId) throw new Error("trace_failed");
+  const runId = run.body?.id;
+  if (!runId || (run.status !== 200 && run.status !== 201)) {
+    throw new Error(`create_run_failed status=${run.status}`);
+  }
   await approveAll(cookies, projectId, 10);
   let finalState = "UNKNOWN";
   for (let i = 0; i < 90; i++) {
@@ -118,8 +133,13 @@ async function approveAll(cookies, projectId, rounds = 12) {
     await sleep(4000);
   }
   if (finalState !== "COMPLETED") throw new Error("not_completed");
+  const trace = await json(`/api/v1/projects/${projectId}/agent/runs/${runId}/trace`, {}, cookies);
+  if (trace.status !== 200 || trace.body?.runId !== runId) {
+    throw new Error(`trace_failed status=${trace.status}`);
+  }
   const runs = await json(`/api/v1/projects/${projectId}/agent/runs`, {}, cookies);
-  const dup = (runs.body ?? []).filter((r) => r.id === runId);
+  const items = runs.body?.items ?? runs.body ?? [];
+  const dup = items.filter((r) => r.id === runId);
   if (dup.length !== 1) throw new Error("duplicate_run_ids");
   let deliveryId;
   for (let i = 0; i < 30; i++) {
