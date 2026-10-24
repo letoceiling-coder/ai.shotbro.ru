@@ -36,7 +36,9 @@ export { Phase4MockElevenLabsProvider } from "./providers/mock-elevenlabs-provid
 export { FalFluxDevImageAdapter } from "./providers/fal-flux-image-adapter.js";
 export { FalMinimaxH3VideoAdapter } from "./providers/fal-minimax-video-adapter.js";
 export { ElevenLabsTtsAdapter } from "./providers/elevenlabs-tts-adapter.js";
+export { MagnificImageUpscalerAdapter, MagnificProviderAdapter } from "./providers/magnific-image-upscaler-adapter.js";
 export { FalQueueClient } from "./providers/fal-queue-client.js";
+export * from "./model-parameters/index.js";
 export * from "./providers/provider-http-errors.js";
 export * from "./model-catalog/phase4-model-catalog.js";
 export * from "./asset-ingestion/production-asset-ingestion.js";

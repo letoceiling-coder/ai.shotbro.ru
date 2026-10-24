@@ -6,8 +6,9 @@
 | Stage | Scope | Status |
 |-------|--------|--------|
 | 5A | Product audit + baseline screenshots | **IMPLEMENTED** (docs + `phase5-baseline-audit.spec.ts`) |
-| 5B | Creative workspace shell + section nav | **WIRED** (REAL projects; placeholders 5D–5J) |
-| 5C | Script editor + API CRUD | **WIRED** (UI + API; VPS typecheck/tests pending) |
+| 5B | Creative workspace shell + section nav | **DEPLOYED** staging web `dab449f`+ |
+| 5C | Script editor + API CRUD | **DEPLOYED** API `b2d78d3`+ |
+| 5H ext | Magnific + Model Settings Engine | **WIRED** (adapter, registry, UI Models tab) |
 | 5D | Storyboard studio | NOT IMPLEMENTED |
 | 5E | Character studio | NOT IMPLEMENTED |
 | 5F | Reference manager | NOT IMPLEMENTED |

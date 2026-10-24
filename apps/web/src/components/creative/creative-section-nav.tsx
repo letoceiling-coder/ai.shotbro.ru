@@ -11,6 +11,7 @@ const SECTIONS: { id: CreativeSection; label: string }[] = [
   { id: "storyboard", label: "Storyboard" },
   { id: "characters", label: "Characters" },
   { id: "references", label: "References" },
+  { id: "models", label: "Models" },
   { id: "production", label: "Production" },
   { id: "timeline", label: "Timeline" },
   { id: "assets", label: "Assets" },

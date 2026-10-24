@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, ConflictException, Controller, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { AuthedRequest } from "../auth/session.guard";
 import { SessionGuard } from "../auth/session.guard";
@@ -8,6 +8,7 @@ import { ProductionGraphService } from "./production-graph.service";
 import { ProjectMemoryService } from "./project-memory.service";
 import { CharacterContinuityService } from "./character-continuity.service";
 import { PromptVersionService } from "./prompt-version.service";
+import { ModelParameterValidator, SceneModelSettingsSchema } from "@shotbro/ai";
 
 @ApiTags("production")
 @Controller("api/v1/projects/:projectId")
@@ -103,6 +104,51 @@ export class ProductionController {
   @Get("scenes/:sceneId/prompts")
   listPrompts(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("sceneId") sceneId: string) {
     return this.prompts.listForScene(req.user.id, projectId, sceneId);
+  }
+
+  @Get("scenes/:sceneId/model-settings")
+  async getSceneModelSettings(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+  ) {
+    const mem = await this.memory.get(req.user.id, projectId);
+    const prefs = (mem.preferences ?? {}) as { sceneModelSettings?: Record<string, unknown> };
+    const hit = prefs.sceneModelSettings?.[sceneId];
+    return SceneModelSettingsSchema.parse({ sceneId, version: 1, parameters: {}, ...(hit ?? {}) });
+  }
+
+  @Patch("scenes/:sceneId/model-settings")
+  async patchSceneModelSettings(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    const current = await this.getSceneModelSettings(req, projectId, sceneId);
+    if (body.expectedVersion != null && body.expectedVersion !== current.version) {
+      throw new ConflictException({ code: "scene_model_settings_conflict", currentVersion: current.version });
+    }
+    const validator = new ModelParameterValidator();
+    const nextParams = { ...current.parameters, ...(body.parameters as Record<string, Record<string, unknown>>) };
+    for (const [modelId, params] of Object.entries(nextParams)) {
+      const op =
+        modelId.includes("upscaler") || modelId.includes("magnific") ? "IMAGE_UPSCALE" : "TEXT_TO_IMAGE";
+      const check = validator.validate(modelId, op, params);
+      if (!check.valid) return { valid: false, issues: check.issues };
+    }
+    const next = SceneModelSettingsSchema.parse({
+      ...current,
+      ...body,
+      sceneId,
+      parameters: nextParams,
+      version: current.version + 1,
+    });
+    const mem = await this.memory.get(req.user.id, projectId);
+    const prefs = (mem.preferences ?? {}) as { sceneModelSettings?: Record<string, unknown> };
+    const sceneModelSettings = { ...(prefs.sceneModelSettings ?? {}), [sceneId]: next };
+    await this.memory.patch(req.user.id, projectId, { preferences: { ...prefs, sceneModelSettings } });
+    return next;
   }
 
   @Post("scenes/:sceneId/prompts")

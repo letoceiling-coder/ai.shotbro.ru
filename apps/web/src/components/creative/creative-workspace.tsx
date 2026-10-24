@@ -6,6 +6,7 @@ import { CreativeSectionNav } from "./creative-section-nav";
 import { ScriptEditor } from "./sections/script-editor";
 import { BriefSection } from "./sections/brief-section";
 import { PlaceholderSection } from "./sections/placeholder-section";
+import { ModelSettingsSection } from "./sections/model-settings-section";
 
 export function CreativeWorkspace({ projectId }: { projectId: string }) {
   const section = useStudioStore((s) => s.creativeSection);
@@ -30,6 +31,7 @@ export function CreativeWorkspace({ projectId }: { projectId: string }) {
         {section === "references" ? (
           <PlaceholderSection title="Reference Manager" phase="5F" hint="Привязка assets к сценам и персонажам." />
         ) : null}
+        {section === "models" ? <ModelSettingsSection projectId={projectId} /> : null}
         {section === "production" ? (
           <PlaceholderSection title="Production" phase="5H" hint="Граф, jobs и approvals — см. правую панель и чат." />
         ) : null}

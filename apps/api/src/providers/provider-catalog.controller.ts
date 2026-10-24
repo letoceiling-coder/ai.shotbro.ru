@@ -1,12 +1,24 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { PHASE4_MODEL_CATALOG } from "@shotbro/ai";
+import { getModelParameterDefinition, MODEL_PARAMETER_REGISTRY, PHASE4_MODEL_CATALOG } from "@shotbro/ai";
 import { loadEnvFromProcess } from "@shotbro/config/env";
 
 @ApiTags("providers")
 @Controller("api/v1/providers")
 export class ProviderCatalogController {
   private readonly env = loadEnvFromProcess();
+
+  @Get("model-parameters")
+  listModelParameters() {
+    return { items: MODEL_PARAMETER_REGISTRY };
+  }
+
+  @Get("model-parameters/:modelId")
+  getModelParameters(@Param("modelId") modelId: string, @Query("operation") operation?: string) {
+    const def = getModelParameterDefinition(decodeURIComponent(modelId), operation);
+    if (!def) return { found: false };
+    return { found: true, definition: def };
+  }
 
   @Get("model-catalog")
   catalog() {

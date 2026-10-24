@@ -48,6 +48,7 @@ export const ImageOperationSchema = z.enum([
   "IMAGE_EDIT",
   "REFERENCE_GUIDED_IMAGE",
   "IMAGE_VARIATION",
+  "IMAGE_UPSCALE",
 ]);
 
 export const VideoOperationSchema = z.enum([

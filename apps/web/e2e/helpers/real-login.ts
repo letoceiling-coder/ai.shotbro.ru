@@ -127,6 +127,10 @@ async function createProjectViaDialog(page: Page, projectTitle: string): Promise
   await expect(page.getByTestId("real-thread")).toHaveAttribute("data-conversation-id", /.+/u, {
     timeout: 60_000,
   });
+  const chatTab = page.getByTestId("creative-section-chat");
+  if (await chatTab.isVisible().catch(() => false)) {
+    await chatTab.click();
+  }
   if (!projectId) throw new Error("Could not capture project id from create response");
   return projectId;
 }

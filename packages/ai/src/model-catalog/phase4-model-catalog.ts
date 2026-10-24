@@ -119,6 +119,31 @@ export const PHASE4_MODEL_CATALOG: CatalogModelEntry[] = [
     availability: "MOCK",
     executionStatus: "MOCK_READY",
   },
+  {
+    provider: "magnific",
+    modelId: "magnific/image-upscaler-creative",
+    displayName: "Magnific Creative Upscaler",
+    supportedOperations: ["IMAGE_UPSCALE"],
+    resolution: "up to 16x (vendor)",
+    referenceCapabilities: ["image_url", "base64"],
+    pricingSource: "VENDOR_DOC",
+    priceStatus: "UNKNOWN",
+    verificationDate: "2026-10-25",
+    availability: "CONFIGURED",
+    executionStatus: "BLOCKED_BY_POLICY",
+  },
+  {
+    provider: "mock-magnific",
+    modelId: "mock/magnific-upscale",
+    displayName: "Mock Magnific Upscale",
+    supportedOperations: ["IMAGE_UPSCALE"],
+    priceStatus: "KNOWN",
+    pricingUsd: 0,
+    pricingSource: "INTERNAL_ESTIMATE",
+    verificationDate: "2026-10-25",
+    availability: "MOCK",
+    executionStatus: "MOCK_READY",
+  },
 ];
 
 export function getCatalogModel(modelId: string): CatalogModelEntry | undefined {

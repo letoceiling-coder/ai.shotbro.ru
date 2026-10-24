@@ -21,6 +21,7 @@ export type CreativeSection =
   | "storyboard"
   | "characters"
   | "references"
+  | "models"
   | "production"
   | "timeline"
   | "assets";
