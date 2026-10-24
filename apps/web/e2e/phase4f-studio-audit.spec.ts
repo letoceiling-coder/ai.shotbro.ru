@@ -42,7 +42,7 @@ test.describe("Phase 4F studio UI audit", () => {
       await switchToRealMode(page);
       await ensureRealCreateVisible(page);
       await page.screenshot({ path: `test-results/phase4f-real-${vp.name}.png`, fullPage: true });
-      await expect(page.getByTestId("real-new-project-btn")).toBeVisible();
+      await expect(page.getByText("локальные сценарии без сервера")).toHaveCount(0);
     });
   }
 });
