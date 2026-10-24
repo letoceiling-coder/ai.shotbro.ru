@@ -8,6 +8,20 @@ const SSE_EVENT_TYPES = [
   "media.processing",
   "media.completed",
   "approval.created",
+  "approval.required",
+  "agent.approval.required",
+  "agent.run.started",
+  "agent.run.updated",
+  "agent.run.completed",
+  "agent.tool.started",
+  "agent.tool.completed",
+  "agent.tool.failed",
+  "production.graph.updated",
+  "production.step.queued",
+  "production.delivery.ready",
+  "delivery.ready",
+  "provider.job.created",
+  "agent.runtime.rollout.changed",
 ] as const;
 
 function handleEventPayload(
@@ -22,8 +36,22 @@ function handleEventPayload(
     if (data.type === "media.completed" || data.type === "media.processing") {
       void qc.invalidateQueries({ queryKey: ["assets", projectId] });
     }
-    if (data.type === "message.created" || data.type === "approval.created") {
+    if (
+      data.type === "message.created" ||
+      data.type === "approval.created" ||
+      data.type === "approval.required" ||
+      data.type === "agent.approval.required"
+    ) {
       void qc.invalidateQueries({ queryKey: ["messages"] });
+      void qc.invalidateQueries({ queryKey: ["approvals", projectId] });
+    }
+    if (
+      data.type?.startsWith("agent.") ||
+      data.type?.startsWith("production.") ||
+      data.type === "delivery.ready"
+    ) {
+      void qc.invalidateQueries({ queryKey: ["messages"] });
+      void qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
     }
   } catch {
     /* ignore malformed */

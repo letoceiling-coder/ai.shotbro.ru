@@ -51,6 +51,8 @@ export const envSchema = z
 
     /** Phase 4: run AgentRuntime before ProductionOrchestrator (mock-only; default off for Phase 3 parity) */
     PHASE4_AGENT_RUNTIME_ENABLED: boolFromEnv.default(false),
+    /** Phase 4D: allow per-project AgentRuntime when project.settings.agentRuntimeV4 is set */
+    PHASE4_PROJECT_SCOPED_ENABLED: boolFromEnv.default(false),
 
     SMTP_HOST: emptyToUndefined,
     SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(465),

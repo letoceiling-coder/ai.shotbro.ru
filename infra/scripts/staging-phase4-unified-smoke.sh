@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Phase 4 unified agent smoke — requires PHASE4_AGENT_RUNTIME_ENABLED=true in API container.
+# Phase 4 unified agent smoke — project-scoped rollout (PHASE4_PROJECT_SCOPED_ENABLED).
 docker exec -i ai-shotbro-staging-api-1 node <<'NODE'
 const base = "http://127.0.0.1:3001";
 const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
 const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
+const rolloutSecret = process.env.INTEGRATION_ROLLOUT_SECRET ?? process.env.INTEGRATION_PROVISION_SECRET;
 if (!password) process.exit(1);
-if (process.env.PHASE4_AGENT_RUNTIME_ENABLED !== "true") {
-  console.error(JSON.stringify({ ok: false, error: "PHASE4_AGENT_RUNTIME_ENABLED not true" }));
+if (process.env.PHASE4_PROJECT_SCOPED_ENABLED !== "true") {
+  console.error(JSON.stringify({ ok: false, error: "PHASE4_PROJECT_SCOPED_ENABLED not true" }));
+  process.exit(1);
+}
+if (!rolloutSecret) {
+  console.error(JSON.stringify({ ok: false, error: "missing INTEGRATION_ROLLOUT_SECRET" }));
   process.exit(1);
 }
 
@@ -68,7 +73,9 @@ async function signIn() {
     body: JSON.stringify({ email, password }),
   });
   if (r.status !== 200) throw new Error("sign_in_failed");
-  return r.cookies;
+  const me = await json("/api/v1/users/me", {}, r.cookies);
+  if (me.status !== 200 || !me.body?.id) throw new Error("users_me_failed");
+  return { cookies: r.cookies, userId: me.body.id };
 }
 
 async function approveAll(cookies, projectId, rounds = 12) {
@@ -96,7 +103,8 @@ async function approveAll(cookies, projectId, rounds = 12) {
 
 (async () => {
   await waitHealth();
-  let cookies = await signIn();
+  const session = await signIn();
+  let cookies = session.cookies;
   const ts = Date.now();
   const created = await json(
     "/api/v1/projects",
@@ -104,6 +112,15 @@ async function approveAll(cookies, projectId, rounds = 12) {
     cookies,
   );
   const projectId = created.body.id;
+  const rollout = await fetch(`${base}/api/v1/internal/projects/${projectId}/agent-runtime-rollout`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shotbro-Integration-Rollout": rolloutSecret,
+    },
+    body: JSON.stringify({ enable: true, userId: session.userId, reason: "staging_smoke" }),
+  });
+  if (!rollout.ok) throw new Error(`rollout_failed status=${rollout.status}`);
   const convs = await json(`/api/v1/projects/${projectId}/conversations`, {}, cookies);
   const conversationId = convs.body[0]?.id;
   const run = await json(

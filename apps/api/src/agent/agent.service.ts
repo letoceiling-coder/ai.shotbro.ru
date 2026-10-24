@@ -5,7 +5,18 @@ import { AgentRuntime, ProductionOrchestrator } from "@shotbro/ai";
 import { loadEnvFromProcess } from "@shotbro/config/env";
 import { CreateAgentRunBodySchema } from "@shotbro/contracts";
 import type { Db } from "@shotbro/db/client";
-import { agentRun, approval, conversation, message, messageBlock, toolExecution, providerJob } from "@shotbro/db/schema";
+import {
+  agentRun,
+  approval,
+  conversation,
+  message,
+  messageBlock,
+  toolExecution,
+  providerJob,
+  project,
+} from "@shotbro/db/schema";
+import type { ProjectAgentSettings } from "./agent-runtime-rollout.service";
+import { AgentRuntimeRolloutService } from "./agent-runtime-rollout.service";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { EventLogService } from "../events/event-log.service";
@@ -33,6 +44,7 @@ export class AgentService {
     @Inject(CostReservationService) private readonly cost: CostReservationService,
     @Inject(AssetsService) private readonly assets: AssetsService,
     @Inject(ProviderJobsService) private readonly providerJobs: ProviderJobsService,
+    @Inject(AgentRuntimeRolloutService) private readonly rollout: AgentRuntimeRolloutService,
   ) {}
 
   async resumeAfterApproval(projectId: string, userId: string, targetType: string) {
@@ -142,6 +154,9 @@ export class AgentService {
     const input = CreateAgentRunBodySchema.parse(body);
     const { workspaceId } = await this.access.assertProjectAccess(this.db, userId, projectId);
     const conversationId = await this.resolveConversation(projectId, input.conversationId);
+    const [projRow] = await this.db.select().from(project).where(eq(project.id, projectId)).limit(1);
+    const projectSettings = (projRow?.settings ?? {}) as ProjectAgentSettings;
+    const runtimeVersion = this.rollout.resolveRuntimeVersion(projectSettings);
 
     const runId = uuid();
     const traceId = uuid();
@@ -154,7 +169,8 @@ export class AgentService {
       productionState: "DRAFT",
       triggerMessage: input.userRequest,
       metadata: {
-        phase: this.env.PHASE4_AGENT_RUNTIME_ENABLED ? 4 : 3,
+        phase: runtimeVersion,
+        runtimeVersion,
         mock: true,
         traceId,
         conversationId,
@@ -167,7 +183,7 @@ export class AgentService {
     const storage = new DrizzleProductionStorage(this.db, workspaceId, this.events);
     await storage.emitEvent("agent.run.started", { runId, projectId, productionState: "DRAFT" }, runId);
 
-    if (this.env.PHASE4_AGENT_RUNTIME_ENABLED) {
+    if (runtimeVersion === 4) {
       const delegates = buildAgentToolDelegates({
         assets: this.assets,
         approvals: this.approvals,
@@ -316,7 +332,7 @@ export class AgentService {
       },
       onStartProduction: async (input: { runId: string; projectId: string; userId: string }) => {
         const [runRow] = await this.db.select().from(agentRun).where(eq(agentRun.id, input.runId)).limit(1);
-        const meta = (runRow?.metadata ?? {}) as { productionEnqueued?: boolean };
+        const meta = (runRow?.metadata ?? {}) as { productionEnqueued?: boolean; traceId?: string };
         if (meta.productionEnqueued) return;
         await this.graph.startProductionRun(input.userId, input.projectId, input.runId);
         await this.db
@@ -333,6 +349,17 @@ export class AgentService {
             label: "Mock-производство запущено",
             status: "running",
             simulationLabel: "MOCK · локальные fixtures",
+            runId: input.runId,
+            traceId: meta.traceId,
+          },
+          {
+            type: "production_progress",
+            demo: true,
+            runId: input.runId,
+            traceId: meta.traceId,
+            stage: "Mock production graph",
+            percent: 55,
+            message: "Provider jobs + FFmpeg assembly (mock)",
           },
         ]);
       },
@@ -353,6 +380,7 @@ export class AgentService {
   private async postAssistantBlocks(conversationId: string, projectId: string, blocks: Record<string, unknown>[]) {
     const [conv] = await this.db.select().from(conversation).where(eq(conversation.id, conversationId)).limit(1);
     if (!conv) return;
+    const [projRow] = await this.db.select().from(project).where(eq(project.id, projectId)).limit(1);
     const messageId = uuid();
     await this.db.insert(message).values({
       id: messageId,
@@ -368,6 +396,15 @@ export class AgentService {
         position: idx,
         type: String(payload.type),
         payload,
+      });
+    }
+    if (projRow) {
+      await this.events.append({
+        workspaceId: projRow.workspaceId,
+        projectId,
+        type: "message.created",
+        resourceId: messageId,
+        payload: { messageId, conversationId, projectId, blockTypes: blocks.map((b) => b.type) },
       });
     }
   }

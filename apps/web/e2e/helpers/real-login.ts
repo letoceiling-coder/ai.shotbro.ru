@@ -11,7 +11,7 @@ export async function loginRealUser(page: Page) {
   await page.waitForURL("**/studio**", { timeout: 45_000 });
 }
 
-export async function openRealNewProject(page: Page) {
+export async function openRealNewProject(page: Page): Promise<string> {
   await page.goto("/studio", { waitUntil: "domcontentloaded" });
   const settings = page.getByRole("button", { name: "Настройки" });
   if (!(await settings.isVisible().catch(() => false))) {
@@ -22,14 +22,22 @@ export async function openRealNewProject(page: Page) {
   await page.keyboard.press("Escape");
   const createReal = page.getByRole("button", { name: "Новый проект" });
   await expect(createReal).toBeVisible({ timeout: 15_000 });
+  let projectId = "";
   await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes("/api/v1/projects") && r.request().method() === "POST" && r.ok(),
-      { timeout: 45_000 },
-    ),
+    page
+      .waitForResponse(
+        (r) => r.url().includes("/api/v1/projects") && r.request().method() === "POST" && r.ok(),
+        { timeout: 45_000 },
+      )
+      .then(async (r) => {
+        const body = (await r.json()) as { id?: string };
+        if (body.id) projectId = body.id;
+      }),
     createReal.click(),
   ]).catch(async () => {
     await createReal.click();
   });
   await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 30_000 });
+  if (!projectId) throw new Error("Could not capture project id from create response");
+  return projectId;
 }

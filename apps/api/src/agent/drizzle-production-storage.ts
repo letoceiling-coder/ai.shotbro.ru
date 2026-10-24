@@ -167,12 +167,28 @@ export class DrizzleProductionStorage implements ProductionStoragePort {
     const run = payload.runId ? await this.getRun(String(payload.runId)) : null;
     const pid = run?.projectId ?? projectId;
     if (!pid) return;
+    const enriched = { ...payload, projectId: pid, traceId: run?.metadata?.traceId };
     await this.events.append({
       workspaceId: this.workspaceId,
       projectId: pid,
       type,
       resourceId: resourceId ?? (payload.runId as string | undefined),
-      payload,
+      payload: enriched,
     });
+    const aliases: Record<string, string> = {
+      "approval.required": "agent.approval.required",
+      "delivery.ready": "production.delivery.ready",
+      "production.step.queued": "production.graph.updated",
+    };
+    const alias = aliases[type];
+    if (alias) {
+      await this.events.append({
+        workspaceId: this.workspaceId,
+        projectId: pid,
+        type: alias,
+        resourceId: resourceId ?? (payload.runId as string | undefined),
+        payload: enriched,
+      });
+    }
   }
 }
