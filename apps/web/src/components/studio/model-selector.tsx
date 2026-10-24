@@ -3,15 +3,7 @@
 import { useMemo } from "react";
 import type { QualityStrategy } from "@shotbro/contracts";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useModelCatalog } from "@/hooks/use-studio-production";
 
 const strategyLabels: Record<QualityStrategy | "manual", string> = {
@@ -78,27 +70,22 @@ export function ModelSelector({
                 ["Видео", groups.video],
                 ["Голос", groups.voice],
               ] as const
-            ).map(([label, items]) =>
-              items.length ? (
-                <SelectGroup key={label}>
-                  <SelectLabel>{label}</SelectLabel>
-                  {items.map((m) => (
-                    <SelectItem key={m.modelId} value={m.modelId}>
-                      <span className="flex flex-col gap-0.5">
-                        <span>{m.displayName}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {m.priceStatus === "UNKNOWN"
-                            ? "Стоимость не подтверждена"
-                            : m.executionStatus === "BLOCKED_BY_POLICY" ||
-                                m.executionStatus === "LIVE_UNVERIFIED"
-                              ? "Подготовлена, генерация недоступна"
-                              : m.executionStatus}
-                        </span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ) : null,
+            ).flatMap(([label, items]) =>
+              items.length
+                ? [
+                    <SelectItem key={`${label}-hdr`} value={`__header_${label}`} disabled>
+                      — {label} —
+                    </SelectItem>,
+                    ...items.map((m) => (
+                      <SelectItem key={m.modelId} value={m.modelId}>
+                        {m.displayName} ·{" "}
+                        {m.priceStatus === "UNKNOWN"
+                          ? "стоимость не подтверждена"
+                          : "подготовлена, live недоступен"}
+                      </SelectItem>
+                    )),
+                  ]
+                : [],
             )}
           </SelectContent>
         </Select>
