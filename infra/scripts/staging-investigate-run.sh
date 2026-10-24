@@ -27,7 +27,7 @@ if [ -n "$RUN_ID" ]; then
   $PSQL -c "SELECT id, target_type, status, target_version, decided_at FROM approval WHERE project_id = '$PROJECT_ID' ORDER BY requested_at;"
 
   echo "=== production graph nodes ==="
-  $PSQL -c "SELECT id, node_type, status, attempts, failure_reason FROM production_graph_node WHERE agent_run_id = '$RUN_ID' ORDER BY created_at;"
+  $PSQL -c "SELECT id, node_type, status, error_code FROM production_graph_node WHERE agent_run_id = '$RUN_ID' ORDER BY created_at;"
 
   echo "=== assets (mp4) ==="
   $PSQL -c "SELECT id, mime_type, original_name, status, created_at FROM asset WHERE project_id = '$PROJECT_ID' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 20;"
