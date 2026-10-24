@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 export async function loginRealUser(page: Page) {
   const email = process.env.E2E_TEST_EMAIL;
@@ -20,5 +20,16 @@ export async function openRealNewProject(page: Page) {
   await settings.click();
   await page.getByRole("button", { name: "REAL" }).click();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Новый проект" }).click();
+  const createReal = page.getByRole("button", { name: "Новый проект" });
+  await expect(createReal).toBeVisible({ timeout: 15_000 });
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/v1/projects") && r.request().method() === "POST" && r.ok(),
+      { timeout: 45_000 },
+    ),
+    createReal.click(),
+  ]).catch(async () => {
+    await createReal.click();
+  });
+  await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 30_000 });
 }

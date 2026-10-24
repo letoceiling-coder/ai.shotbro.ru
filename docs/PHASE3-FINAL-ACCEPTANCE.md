@@ -1,98 +1,96 @@
-# Phase 3 — Release Candidate acceptance
+# Phase 3 — Release Candidate acceptance (RC1)
 
 **Branch:** `phase3/agent`  
-**Git HEAD:** `66c1d2f` — **pushed** to `git@github.com:letoceiling-coder/ai.shotbro.ru.git`  
-**Staging runtime deploy:** `66c1d2f` (`DEPLOYED.txt` on VPS)  
-**Tag phase3-rc1:** **pending** (mobile Playwright fail)  
+**Project:** https://ai.shotbro.ru  
+**VPS:** `root@85.117.235.93`  
+**GitHub:** `git@github.com:letoceiling-coder/ai.shotbro.ru.git`  
 
-## Staging consistency
+## Git / deploy consistency (2026-10-24 RC1 closeout)
 
-| Check | Result |
-|-------|--------|
-| VPS `DEPLOYED.txt` | `42fb413` |
-| Repo vs VPS | API/worker/web aligned at `42fb413`; e2e helper may be ahead until next web-less commit only |
-| API image | `sha256:1ce0e91bf37b52ee87b2aa0b490be1b8e70425f31a45124623c0a9604ab064e2` |
-| Worker image | `sha256:0b9de40b930b8a6bdf74c7f974ec663cf35c5a20dc78ea13a3eb20128e29d592` |
-| Web image | `sha256:8cf6dbec4b5ff8b7e6984337bab0bf2b48ae813b277df9191e1f5ce5c9bfebcc` |
-| Mock flags in API container | `OPENROUTER_ENABLED=false` (verified) |
-
-## Phase 2 regression (integration @ staging)
-
-`RUN_INTEGRATION_TESTS=1` + `INTEGRATION_API_URL=https://ai.shotbro.ru`
-
-| Suite | Pass | Fail | Skip |
-|-------|------|------|------|
-| approval-flow | 4 | 0 | 0 |
-| approval-cross-tenant | 1 | 0 | 0 |
-| security-isolation | 9 | 0 | 0 |
-| upload-flow | 1 | 0 | 0 |
-| upload-idor | 3 | 0 | 0 |
-| sse-replay | 1 | 0 | 0 |
-| **Total Phase 2** | **19** | **0** | **0** |
-
-## Phase 3 integration (staging)
-
-| Suite | Pass | Fail |
-|-------|------|------|
-| phase3-full-agent (E2E agent + MinIO MP4) | 2 | 0 |
-| agent-production (idempotency) | 1 | 0 |
-| phase3-rc (guards + budget + cross-tenant) | 3 | 0 |
-| **Total Phase 3** | **6** | **0** |
-
-**Not covered in automated matrix:** budget race, worker crash recovery, DAG enqueue idempotency under concurrency (manual/code review only).
-
-## Playwright (`phase3-mock-production.spec.ts`)
-
-| Project | Result |
-|---------|--------|
-| desktop | **pass** |
-| desktop1440 | **pass** |
-| tablet | **pass** |
-| mobile | **pass** (after opening «Проекты» sheet in e2e helper) |
-
-## Character / Prompt → DAG
-
-| Item | Status |
+| Item | Value |
 |------|--------|
-| `sceneGraphVersionHash` (prompt + character + scene revision) | **IMPLEMENTED** + unit test |
-| Selective `invalidateSceneDependents` | **IMPLEMENTED** (existing planner) |
-| API: scene patch / prompt create / character upsert → invalidate nodes | **IMPLEMENTED** in `42fb413` |
-| **TESTED on staging** | unit + code path; no dedicated invalidation integration test yet |
+| **Git HEAD (local/remote after RC1 commit)** | see `git rev-parse origin/phase3/agent` |
+| **Staging runtime (`DEPLOYED.txt`)** | `66c1d2f` (API/worker; docs/e2e-only commits do not change runtime until next web/API deploy) |
+| **Tag `phase3-rc1`** | created after acceptance commit (annotated) |
+| **Force push** | not used |
+| **phase2-rc1** | unchanged |
 
-## Tool Executor
+| Image | ID (short) |
+|-------|------------|
+| API | `21516745c50c` |
+| Worker | `376ea777aeeb` |
+| Web | `d943d2778efe` |
 
-See [PHASE3-TOOL-EXECUTOR-MATRIX.md](./PHASE3-TOOL-EXECUTOR-MATRIX.md). Mock production path via orchestrator + worker; **no full ToolExecutor handler registry**.
+**Mock / billing flags:** `OPENROUTER_ENABLED=false`, `ALLOW_PUBLIC_REGISTER=false`; app defaults keep `AI_MOCK_MODE=true`, `OPENROUTER_ALLOW_PAID_REQUESTS=false`, `PROVIDER_LIVE_EXECUTION_ENABLED=false` (`packages/config`).
 
-## Flags & billing
-
-```dotenv
-OPENROUTER_ENABLED=false
-OPENROUTER_ALLOW_PAID_REQUESTS=false
-PROVIDER_LIVE_EXECUTION_ENABLED=false
-AI_MOCK_MODE=true
-```
-
-**Real AI inference calls:** 0  
-**Paid image/video/audio generations:** 0  
-**Production cutover:** NOT PERFORMED  
-
-## RC verdict
-
-**ACCEPTED (staging mock-production RC)** at deploy **`42fb413`**.
-
-**Remaining before tag `phase3-rc1`:** configure git `origin` and push; deploy RC hardening (see below); provision User B; full regression after deploy.
+**Real AI inference / paid media / production cutover:** 0 / 0 / NOT PERFORMED.
 
 ---
 
-## RC hardening + GitHub (2026-10-24)
+## Playwright — `phase3-mock-production.spec.ts`
 
-**Полный отчёт:** [PHASE3-RC-HARDENING.md](./PHASE3-RC-HARDENING.md)
+**Env:** `E2E_REAL_BACKEND=1`, `E2E_STAGING_URL=https://ai.shotbro.ru`, User A credentials (staging integration users).
 
-| Area | Result |
+| Project | Result | Duration (approx.) |
+|---------|--------|---------------------|
+| desktop | **pass** | ~30s |
+| desktop1440 | **pass** | ~25s |
+| tablet | **pass** | ~25s |
+| mobile | **pass** | ~25s |
+
+**Mobile root cause (fixed):** the spec clicked **«Новый REAL-проект»** in the project list (existing project title) instead of **«Новый проект»** (create). Empty-state heading **«REAL-проект»** only appears for a new thread (`real-thread.tsx`). **Fix:** `openRealNewProject()` in `apps/web/e2e/helpers/real-login.ts`; removed wrong click in `phase3-mock-production.spec.ts`; `aria-label` on create button in `real-projects-sidebar.tsx`.
+
+**Skipped tests:** none in this spec (skipped elsewhere do not count as pass).
+
+---
+
+## API integration @ staging
+
+`RUN_INTEGRATION_TESTS=1`, in-container `INTEGRATION_API_URL=http://127.0.0.1:3001` (2026-10-24 post–secret rotation):
+
+| Result | Count |
+|--------|-------|
+| Pass | **22** |
+| Skip | **9** (agent E2E, DB-gated hardening, etc.) |
+| Fail | **0** |
+
+Includes security isolation, cross-tenant approval, upload IDOR, SSE replay, approval flow, phase3-rc guards.
+
+---
+
+## PostgreSQL budget integration (isolated DB)
+
+| Item | Value |
 |------|--------|
-| GitHub origin + history | **DONE** — `phase2/backend`, `phase3/agent`, tag `phase2-rc1` |
-| Migration 0004 | **APPLIED** on staging |
-| Integration users A/B | **TESTED** — provision + sign-in 200 |
-| API integration @ staging | **31 pass**, 3 skip (DB) |
-| Playwright desktop mock E2E | **pass** |
-| Playwright mobile | **1 fail** — blocks `phase3-rc1` tag |
+| Container | `shotbro-budget-test-pg` on `ai-shotbro-staging_staging_internal` |
+| Migrations | `0000`–`0004` applied to `shotbro_test` |
+| Command | `RUN_DB_INTEGRATION_TESTS=1` + `DATABASE_URL=postgresql://shotbro:***@shotbro-budget-test-pg:5432/shotbro_test` |
+| `cost-reservation.db.integration.spec.ts` | **3/3 pass** (concurrency idempotency, budget cap, RELEASE ledger) |
+| Script | `infra/scripts/staging-run-budget-db-tests.sh` |
+
+No destructive budget tests on staging user projects.
+
+---
+
+## Provisioning secret & hardening
+
+| Check | Result |
+|-------|--------|
+| Secret rotation | **DONE** on VPS (`staging-rotate-provision-secret.sh`); new value **not** in repo/logs/chat |
+| Old / wrong secret | **403** from external curl; loopback with garbage secret **non-200** |
+| Post-RC1 provisioning | **DISABLED** (`INTEGRATION_PROVISION_ENABLED=false`, `staging-disable-provision.sh`) |
+| Sign-in User A/B | **200** (smoke after rotation) |
+| Public register | **false** |
+
+Prior log exposure of provision header — mitigated by rotation + pino redaction (`66c1d2f`).
+
+---
+
+## RC1 verdict
+
+**ACCEPTED** for Phase 3 Release Candidate on staging mock-production path: all mandatory viewports, budget DB tests, secret rotation, integration security regression, deploy at **`66c1d2f`** runtime with RC1 git/docs/e2e checkpoint on `phase3/agent`.
+
+**GitHub default branch:** not changed (requires admin / `gh auth`); recommend setting default to **`phase3/agent`** for active Phase 3 work.
+
+**Full hardening narrative:** [PHASE3-RC-HARDENING.md](./PHASE3-RC-HARDENING.md)  
+**Progress index:** [PHASE3-PROGRESS.md](./PHASE3-PROGRESS.md)

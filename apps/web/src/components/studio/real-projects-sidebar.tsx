@@ -25,6 +25,7 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
         variant="secondary"
         size="sm"
         className="mb-2 justify-start gap-2"
+        aria-label="Создать REAL-проект"
         disabled={create.isPending}
         onClick={() => {
           create.mutate(

@@ -1,10 +1,10 @@
 # Phase 3 — Progress
 
 **Branch:** `phase3/agent`  
-**Staging deploy SHA:** `42fb413` on VPS  
-**Git HEAD (commit):** `6b0656e` — **push BLOCKED** (no origin)  
-**RC hardening:** см. **[PHASE3-RC-HARDENING.md](./PHASE3-RC-HARDENING.md)** (код в working tree, не закоммичен)  
-**RC acceptance @ staging:** Phase 2 integration 19/19, Phase 3 integration 6/6, Playwright 4/4  
+**Staging runtime (`DEPLOYED.txt`):** `66c1d2f`  
+**Git RC1:** tag **`phase3-rc1`** on acceptance commit (e2e + ops + docs)  
+**RC hardening / acceptance:** **[PHASE3-RC-HARDENING.md](./PHASE3-RC-HARDENING.md)**, **[PHASE3-FINAL-ACCEPTANCE.md](./PHASE3-FINAL-ACCEPTANCE.md)**  
+**RC1 checks:** Playwright 4/4 @ staging, API integration 22 pass, budget DB 3/3, secret rotated, provision disabled  
 **Baseline RC:** `e5c4045` / tag `phase2-rc1` (unchanged)
 
 Legend: **IMPLEMENTED** | **TESTED** | **DEPLOYED** | **BLOCKED** | **NOT IMPLEMENTED**

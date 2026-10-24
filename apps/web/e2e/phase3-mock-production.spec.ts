@@ -24,8 +24,6 @@ test.describe("Phase 3 mock production (REAL)", () => {
     test.setTimeout(600_000);
 
     await openRealNewProject(page);
-    await page.getByRole("button", { name: "Новый REAL-проект" }).first().click();
-    await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 30_000 });
     const input = page.getByPlaceholder(/Сообщение сохранится|сообщение|опишите/i).first();
     await input.fill("Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo");
     await page.getByRole("button", { name: /отправить|send/i }).click();
