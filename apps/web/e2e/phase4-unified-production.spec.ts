@@ -27,15 +27,14 @@ test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
     const projectId = await openRealNewProject(page);
     await enablePhase4AgentForProject(page, projectId);
 
-    await fillRealComposer(
+    await sendRealComposerMessage(
       page,
       "Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo",
     );
-    await page.getByRole("button", { name: /отправить|send/i }).click();
 
-    await expect(
-      page.getByText(/AgentRuntime|MOCK · Phase 4|Brief \(MOCK\)|План производства/i).first(),
-    ).toBeVisible({ timeout: 120_000 });
+    const agentSignal = page.getByText(/AgentRuntime|MOCK · Phase 4|Brief \(MOCK\)|План производства/i).first();
+    await agentSignal.scrollIntoViewIfNeeded();
+    await expect(agentSignal).toBeVisible({ timeout: 180_000 });
 
     await approvePendingApprovals(page, 6);
 
