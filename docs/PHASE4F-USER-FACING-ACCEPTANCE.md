@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-24  
 **Branch:** `phase4/intelligent-production`  
-**Git HEAD:** `fc0b43c`
+**Git HEAD:** `5534e29`
 
 ## Deploy (VPS 85.117.235.93)
 
@@ -55,8 +55,8 @@ Path on VPS: `/var/www/ai.shotbro.ru-src/apps/web/test-results/phase4f-{demo|rea
 |-------|--------|-------|
 | Phase 3 API smoke | **PASS** | `mock:true` |
 | Phase 4 unified API smoke | **PASS** | `mock:true` |
-| Playwright `phase4f-studio-audit` | **3/4 viewports stable**; mobile REAL assertion fixed in Git | Docker `mcr.microsoft.com/playwright:v1.64.1-jammy` |
-| Playwright Phase 3 / 4 regression | **BLOCKED → fix** | `openRealNewProject` updated for template dialog (was one-click create) |
+| Playwright `phase4f-studio-audit` | **4/4 pass** (`audit` mode, 7.6s) | Screenshots on VPS in `apps/web/test-results/` |
+| Playwright Phase 3 / 4 regression | **re-run pending** | E2E fixed: dialog create + `Создать проект` aria-label (`5534e29`) |
 | Runner | `infra/scripts/staging-playwright-e2e.sh` | Docker-based; no local runs |
 
 **Historical run (pre-dialog E2E fix):** 20/24 Playwright cases passed (Phase 3/4 regression on staging web `4a3896f` matrix documented in Phase 4E).
