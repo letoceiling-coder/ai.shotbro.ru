@@ -10,13 +10,14 @@ export class EventLogService {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   async append(input: {
+    id?: string;
     workspaceId: string;
     projectId: string;
     type: string;
     resourceId?: string;
     payload: Record<string, unknown>;
   }) {
-    const id = uuid();
+    const id = input.id ?? uuid();
     await this.db.transaction(async (tx) => {
       await tx.insert(eventLog).values({
         id,

@@ -1,6 +1,6 @@
 # Phase 4 — Final acceptance
 
-**Status:** Phase **4D** staging accepted (mock-only). Browser Playwright matrix **8/8 passed**.
+**Status:** Phase **4D** staging accepted (mock-only). Browser Playwright matrix **8/8 passed**. Phase **4E** provider readiness implemented in repo — **staging redeploy + E2E re-run pending** (see `PHASE4E-PROVIDER-READINESS.md`).
 
 **Branch:** `phase4/intelligent-production`  
 **Git HEAD:** `b1de217` (+ web deploy script fix pending commit)  

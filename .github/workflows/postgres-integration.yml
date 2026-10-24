@@ -1,0 +1,44 @@
+name: PostgreSQL integration
+
+on:
+  push:
+    branches: [main, phase4/intelligent-production]
+  pull_request:
+
+jobs:
+  db-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: shotbro
+          POSTGRES_PASSWORD: shotbro
+          POSTGRES_DB: shotbro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U shotbro -d shotbro_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      INTEGRATION_DATABASE_URL: postgresql://shotbro:shotbro@localhost:5432/shotbro_test
+      DATABASE_URL: postgresql://shotbro:shotbro@localhost:5432/shotbro_test
+      RUN_DB_INTEGRATION_TESTS: "1"
+      S3_ENDPOINT: https://s3.example.test
+      S3_REGION: us-east-1
+      S3_BUCKET: test-bucket
+      S3_ACCESS_KEY_ID: testaccesskey12345678
+      S3_SECRET_ACCESS_KEY: testsecretkey12345678
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @shotbro/db db:migrate
+      - run: pnpm --filter @shotbro/ai test
+      - run: pnpm --filter api test:integration

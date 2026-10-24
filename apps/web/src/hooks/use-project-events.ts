@@ -21,6 +21,7 @@ const SSE_EVENT_TYPES = [
   "production.delivery.ready",
   "delivery.ready",
   "provider.job.created",
+  "provider.job.status",
   "agent.runtime.rollout.changed",
 ] as const;
 
@@ -51,6 +52,10 @@ function handleEventPayload(
       data.type === "delivery.ready"
     ) {
       void qc.invalidateQueries({ queryKey: ["messages"] });
+      void qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
+    }
+    if (data.type === "provider.job.created" || data.type === "provider.job.status") {
+      void qc.invalidateQueries({ queryKey: ["provider-jobs", projectId] });
       void qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
     }
   } catch {

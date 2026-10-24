@@ -48,6 +48,35 @@ export class ProductionAssetIngestionService {
     return { ok: true, hostname: host };
   }
 
+  /** Safe download via injected fetch (contract tests / LIVE_APPROVED only). */
+  async ingestFromUrl(
+    req: IngestionRequest,
+    fetchBytes: (url: string) => Promise<{ bytes: Buffer; mimeType: string; finalUrl: string }>,
+  ): Promise<IngestionResult> {
+    const check = this.validateUrl(req.sourceUrl);
+    if (!check.ok) return { ok: false, reason: check.reason };
+    const safe = await this.resolveHostSafety(check.hostname);
+    if (!safe) return { ok: false, reason: "ssrf_dns_private" };
+    let payload: { bytes: Buffer; mimeType: string; finalUrl: string };
+    try {
+      payload = await fetchBytes(req.sourceUrl);
+    } catch {
+      return { ok: false, reason: "download_failed" };
+    }
+    const finalCheck = this.validateUrl(payload.finalUrl);
+    if (!finalCheck.ok) return { ok: false, reason: "redirect_blocked" };
+    if (payload.bytes.length > this.limits.maxBytes) return { ok: false, reason: "too_large" };
+    const allowed = this.limits.allowedMimePrefixes.some((p) => payload.mimeType.startsWith(p));
+    if (!allowed) return { ok: false, reason: "mime_not_allowed" };
+    const checksum = createHash("sha256").update(payload.bytes).digest("hex");
+    return {
+      ok: true,
+      checksum,
+      mimeType: payload.mimeType,
+      sizeBytes: payload.bytes.length,
+    };
+  }
+
   /** Mock/fixture ingestion — no network fetch in Phase 4B default. */
   async ingestFromFixture(req: IngestionRequest, fixture: { bytes: Buffer; mimeType: string }): Promise<IngestionResult> {
     const check = this.validateUrl(req.sourceUrl);
@@ -67,6 +96,8 @@ export class ProductionAssetIngestionService {
 
   /** Guard against DNS rebinding — resolve and reject private IPs (test hook). */
   async resolveHostSafety(hostname: string): Promise<boolean> {
+    const host = hostname.toLowerCase();
+    if (this.limits.allowedHostnames.includes(host)) return true;
     try {
       const records = await lookup(hostname, { all: true });
       const addrs = records.map((r) => r.address);

@@ -4,13 +4,17 @@
 |----------|---------|-------------|----------------|---------------|
 | mock LLM | LlmGateway fixtures | n/a | **TESTED** | **BLOCKED BY POLICY** |
 | openrouter LLM | `OpenRouterLlmAdapter` | n/a | **CONTRACT_TESTED** | **BLOCKED BY POLICY** |
-| mock-image | `Phase4MockImageProvider` | `provider_job` | unit | **BLOCKED BY POLICY** |
-| mock-video | `Phase4MockVideoProvider` | `provider_job` | unit | **BLOCKED BY POLICY** |
+| mock-image | `Phase4MockImageProvider` | `provider_job` | unit + PG | **BLOCKED BY POLICY** |
+| mock-video | `Phase4MockVideoProvider` | `provider_job` | unit + PG | **BLOCKED BY POLICY** |
 | mock-elevenlabs | `Phase4MockElevenLabsProvider` | `provider_job` | unit | **BLOCKED BY POLICY** |
-| vendor image (e.g. Flux) | **ADAPTER_PENDING** | — | — | **NOT IMPLEMENTED** |
-| vendor video | **ADAPTER_PENDING** | — | — | **NOT IMPLEMENTED** |
-| ElevenLabs live | **ADAPTER_PENDING** | — | — | **NOT IMPLEMENTED** |
+| Fal FLUX dev (`fal-ai/flux/dev`) | `FalFluxDevImageAdapter` | — | **CONTRACT_TESTED** (mock HTTP) | **LIVE_UNVERIFIED** · **BLOCKED BY POLICY** |
+| Fal MiniMax H3 video | `FalMinimaxH3VideoAdapter` | — | **CONTRACT_TESTED** (mock HTTP) | **LIVE_UNVERIFIED** · **BLOCKED BY POLICY** |
+| ElevenLabs TTS | `ElevenLabsTtsAdapter` | — | **CONTRACT_TESTED** (mock HTTP) | **LIVE_UNVERIFIED** · **BLOCKED BY POLICY** |
 
 HTTP default: `BlockedHttpTransport` / execution policy `MOCK_ONLY`.
 
+Tool execution path (Phase 4E): still **mock** image/video/TTS providers; typed vendor adapters are ready for gated wiring.
+
 Migration: **`0005_provider_jobs.sql`**
+
+See **`PHASE4E-PROVIDER-READINESS.md`** for SSE, CI, catalog, and acceptance details.

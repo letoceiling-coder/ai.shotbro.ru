@@ -44,6 +44,11 @@ export const envSchema = z
     OPENROUTER_DEFAULT_MODEL: emptyToUndefined,
     OPENROUTER_MAX_COST_USD: z.coerce.number().min(0).default(0),
 
+    /** Phase 4E: vendor keys (optional; live execution still blocked by policy flags) */
+    FAL_API_KEY: emptyToUndefined,
+    ELEVENLABS_API_KEY: emptyToUndefined,
+    ELEVENLABS_BASE_URL: z.string().url().default("https://api.elevenlabs.io"),
+
     /** Phase 3: force mock adapters and block external inference */
     AI_MOCK_MODE: boolFromEnv.default(true),
     /** Phase 3: when false, EXTERNAL_PAID tools still require explicit owner enable + approvals */

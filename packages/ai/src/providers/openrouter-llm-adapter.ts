@@ -33,7 +33,7 @@ export class OpenRouterLlmAdapter {
       method: "POST",
       url: `${cfg.baseUrl}/chat/completions`,
       headers: {
-        Authorization: cfg.hasApiKey ? "Bearer [REDACTED]" : "",
+        Authorization: cfg.hasApiKey && this.env.OPENROUTER_API_KEY ? `Bearer ${this.env.OPENROUTER_API_KEY}` : "",
         "Content-Type": "application/json",
       },
       body,

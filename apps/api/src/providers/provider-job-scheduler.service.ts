@@ -1,12 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { inArray } from "drizzle-orm";
-import { loadEnvFromProcess } from "@shotbro/config/env";
 import type { Db } from "@shotbro/db/client";
 import { providerJob } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { DrizzleProviderJobStore } from "./drizzle-provider-job.store";
 import { ProviderJobsService } from "./provider-jobs.service";
-import { ProviderJobManager } from "@shotbro/ai";
+import { ProviderJobRuntimeService } from "./provider-job-runtime.service";
 
 const POLL_MS = 15_000;
 const ACTIVE = ["SUBMITTED", "QUEUED", "RUNNING"] as const;
@@ -19,6 +18,7 @@ export class ProviderJobSchedulerService implements OnModuleInit, OnModuleDestro
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(ProviderJobsService) private readonly jobs: ProviderJobsService,
+    @Inject(ProviderJobRuntimeService) private readonly runtime: ProviderJobRuntimeService,
   ) {}
 
   onModuleInit() {
@@ -39,8 +39,7 @@ export class ProviderJobSchedulerService implements OnModuleInit, OnModuleDestro
       .where(inArray(providerJob.status, [...ACTIVE]))
       .limit(20);
     if (!rows.length) return;
-    const env = loadEnvFromProcess();
-    const manager = new ProviderJobManager(env, new DrizzleProviderJobStore(this.db));
+    const manager = this.runtime.createManager();
     for (const row of rows) {
       if (row.status === "SUBMITTED" || row.status === "QUEUED") {
         await manager.transition(row.id, "RUNNING");

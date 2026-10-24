@@ -1,12 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { v4 as uuid } from "uuid";
-import {
-  Phase4MockElevenLabsProvider,
-  Phase4MockImageProvider,
-  Phase4MockVideoProvider,
-  ProviderJobManager,
-} from "@shotbro/ai";
-import { loadEnvFromProcess } from "@shotbro/config/env";
+import { Phase4MockElevenLabsProvider, Phase4MockImageProvider, Phase4MockVideoProvider } from "@shotbro/ai";
 import type { Db } from "@shotbro/db/client";
 import { providerJob } from "@shotbro/db/schema";
 import { eq } from "drizzle-orm";
@@ -15,11 +9,11 @@ import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { ProductionAssetIngestionService } from "../production/production-asset-ingestion.service";
 import { DrizzleProviderJobStore } from "./drizzle-provider-job.store";
+import { ProviderJobRuntimeService } from "./provider-job-runtime.service";
 import { mockProviderOutputBytes } from "./provider-mock-output";
 
 @Injectable()
 export class ProviderJobsService {
-  private readonly env = loadEnvFromProcess();
   private readonly image = new Phase4MockImageProvider();
   private readonly video = new Phase4MockVideoProvider();
   private readonly audio = new Phase4MockElevenLabsProvider();
@@ -28,10 +22,11 @@ export class ProviderJobsService {
     @Inject(DB) private readonly db: Db,
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
     @Inject(ProductionAssetIngestionService) private readonly ingestion: ProductionAssetIngestionService,
+    @Inject(ProviderJobRuntimeService) private readonly runtime: ProviderJobRuntimeService,
   ) {}
 
   private manager() {
-    return new ProviderJobManager(this.env, new DrizzleProviderJobStore(this.db));
+    return this.runtime.createManager();
   }
 
   async listForProject(userId: string, projectId: string) {
@@ -89,7 +84,7 @@ export class ProviderJobsService {
       idempotencyKey: event.eventId,
     });
     if (!appended) return false;
-    const manager = this.manager();
+    const manager = this.runtime.createManager();
     if (event.status === "RUNNING") await manager.transition(job.id, "RUNNING");
     if (event.status === "COMPLETED") {
       if (job.status !== "COMPLETED") {

@@ -11,7 +11,8 @@
     "./smtp": "./src/smtp.ts",
     "./redact": "./src/redact.ts",
     "./mime-policy": "./src/mime-policy.ts",
-    "./ai-execution": "./src/ai-execution.ts"
+    "./ai-execution": "./src/ai-execution.ts",
+    "./vendor-providers": "./src/vendor-providers.ts"
   },
   "scripts": {
     "build": "tsc",

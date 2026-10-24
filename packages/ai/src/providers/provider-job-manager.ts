@@ -20,14 +20,27 @@ export type SubmitProviderJobInput = {
   userId: string;
 };
 
+export type ProviderJobLifecycleEvent = {
+  job: ProviderJobRow;
+  from?: ProviderJobStatus;
+  to: ProviderJobStatus;
+};
+
+export type ProviderJobLifecycleHook = (event: ProviderJobLifecycleEvent) => void | Promise<void>;
+
 export class ProviderJobManager {
   private readonly policy: ExecutionPolicyEngine;
 
   constructor(
     private readonly env: AppEnv,
     private readonly store: ProviderJobStore,
+    private readonly lifecycleHook?: ProviderJobLifecycleHook,
   ) {
     this.policy = new ExecutionPolicyEngine(env);
+  }
+
+  private async emitLifecycle(job: ProviderJobRow, from: ProviderJobStatus | undefined, to: ProviderJobStatus) {
+    await this.lifecycleHook?.({ job, from, to });
   }
 
   async submitWithAdapter(adapter: MediaProviderAdapter, input: SubmitProviderJobInput): Promise<ProviderJobRow> {
@@ -65,6 +78,7 @@ export class ProviderJobManager {
       eventType: "provider.job.created",
       idempotencyKey: `${input.id}:created`,
     });
+    await this.emitLifecycle(job, undefined, "CREATED");
 
     await this.transition(job.id, "AUTHORIZED");
     adapter.validateRequest(input.modelId, input.operation, input.input);
@@ -73,12 +87,24 @@ export class ProviderJobManager {
     adapter.validateRequest(input.modelId, input.operation, input.input);
 
     const mode = this.policy.resolveMode();
-    const result =
-      mode === "LIVE_APPROVED"
-        ? await adapter.submit(input.modelId, input.operation, input.input, {
-            idempotencyKey: input.idempotencyKey,
-          })
-        : await this.simulateMockSubmit(adapter, input);
+    let result: ProviderSubmitResult;
+    try {
+      result =
+        mode === "LIVE_APPROVED"
+          ? await adapter.submit(input.modelId, input.operation, input.input, {
+              idempotencyKey: input.idempotencyKey,
+            })
+          : await this.simulateMockSubmit(adapter, input);
+    } catch (err) {
+      if (mode === "LIVE_APPROVED") {
+        await this.transition(job.id, "NEEDS_RECONCILIATION", {
+          failureCode: "SUBMIT_UNKNOWN",
+          metadata: { ...job.metadata, submitError: err instanceof Error ? err.message : "submit_failed" },
+        });
+        return (await this.store.get(job.id))!;
+      }
+      throw err;
+    }
 
     return this.applySubmitResult(job.id, result);
   }
@@ -121,6 +147,7 @@ export class ProviderJobManager {
       payload: { from: current.status, to },
       idempotencyKey: `${jobId}:status:${to}:${updated.version}`,
     });
+    await this.emitLifecycle(updated, current.status, to);
     return updated;
   }
 
@@ -133,7 +160,11 @@ export class ProviderJobManager {
 
   private async applySubmitResult(jobId: string, result: ProviderSubmitResult): Promise<ProviderJobRow> {
     if (result.status === "SUBMITTED") {
-      await this.transition(jobId, "SUBMITTED", { providerJobId: result.providerJobId ?? undefined });
+      await this.transition(jobId, "SUBMITTED", {
+        providerJobId: result.providerJobId ?? undefined,
+        actualUsage: result.usage,
+      });
+      await this.transition(jobId, "QUEUED");
       return (await this.store.get(jobId))!;
     }
     await this.transition(jobId, "SUBMITTED", { providerJobId: result.providerJobId ?? undefined });

@@ -1,6 +1,6 @@
 # Phase 4 — Security report
 
-**Scope:** Phase 4A–4D, branch `phase4/intelligent-production`, staging **b1de217**.
+**Scope:** Phase 4A–4E, branch `phase4/intelligent-production`, staging **b1de217** (4E code not yet deployed).
 
 | Control | Status |
 |---------|--------|
@@ -12,7 +12,9 @@
 | SSE stream | **SessionGuard** + project access |
 | Tool duplicate-call policy | **TESTED** (mock LLM iteration fix) |
 | Webhook HMAC (mock provider) | **IMPLEMENTED** **DEPLOYED** |
-| Asset ingestion SSRF | **TESTED** |
+| Asset ingestion SSRF / redirect | **TESTED** (fixture allowlist + `ingestFromUrl`) |
+| Vendor adapters (Fal/ElevenLabs) | **CONTRACT_TESTED** · network **BLOCKED BY POLICY** |
+| Paid submit ambiguity | **NEEDS_RECONCILIATION** path (no auto-resubmit) |
 | Live OpenRouter / paid adapters | **BLOCKED BY POLICY** |
 
 ## 4D regression notes
