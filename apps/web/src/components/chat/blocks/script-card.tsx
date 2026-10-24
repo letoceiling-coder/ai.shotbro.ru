@@ -7,12 +7,17 @@ import { StudioBlockCard, StudioBlockCardBody, StudioBlockCardHeader } from "../
 
 type Block = z.infer<typeof ScriptBlockSchema>;
 
-export function ScriptCard({ block }: { block: Block }) {
+export function ScriptCard({ block }: { block: Block & { demo?: boolean } }) {
   return (
     <StudioBlockCard>
       <StudioBlockCardHeader
         title={block.title}
-        aside={<Badge variant="secondary">{block.durationLabel}</Badge>}
+        aside={
+          <div className="flex flex-wrap gap-1">
+            {block.demo ? <Badge variant="demo">DEMO</Badge> : <Badge variant="secondary">Script</Badge>}
+            <Badge variant="secondary">{block.durationLabel}</Badge>
+          </div>
+        }
       />
       <StudioBlockCardBody className="space-y-2">
         {block.scenes.map((scene) => (

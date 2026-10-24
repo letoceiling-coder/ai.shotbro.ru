@@ -34,6 +34,18 @@ Legend: **IMPLEMENTED** | **TESTED** | **INTEGRATED** | **DEPLOYED** | **BLOCKED
 
 Details: **`PHASE4E-PROVIDER-READINESS.md`**.
 
+## 4F — User-facing product integration (in progress)
+
+| Item | Status |
+|------|--------|
+| UI audit (DEMO vs REAL) | **DOCUMENTED** |
+| REAL context panel + agent strip | **IMPLEMENTED** |
+| Project templates dialog | **IMPLEMENTED** |
+| Model selector wired to catalog | **WIRED** |
+| VPS deploy + Playwright proof | **pending** |
+
+See **`PHASE4F-UI-AUDIT.md`**, **`PHASE4F-USER-FACING-ACCEPTANCE.md`**.
+
 ## Prior milestones (4A–4C)
 
 | Area | Status |

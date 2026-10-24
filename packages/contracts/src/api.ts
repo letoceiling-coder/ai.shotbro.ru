@@ -23,6 +23,7 @@ export const PaginatedProjectsSchema = z.object({
 export const CreateProjectBodySchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
+  settings: z.record(z.unknown()).optional(),
 });
 
 export const RealMessageSchema = ChatMessageSchema;

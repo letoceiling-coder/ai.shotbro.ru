@@ -35,7 +35,8 @@ export function useRealMessages(conversationId: string | undefined) {
 export function useCreateRealProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { title: string }) => api.projects.create(body),
+    mutationFn: (body: { title: string; description?: string; settings?: Record<string, unknown> }) =>
+      api.projects.create(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["real-projects"] }),
   });
 }

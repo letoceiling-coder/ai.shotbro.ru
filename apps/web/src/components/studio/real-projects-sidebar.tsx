@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCreateRealProject, useRealProjects } from "@/hooks/use-real-studio";
 import { useStudioStore } from "@/store/studio-store";
+import { NewProjectDialog } from "./new-project-dialog";
+import { api, apiFetch } from "@/lib/api-client";
 
 export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { data, isLoading } = useRealProjects();
   const create = useCreateRealProject();
   const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
   const setActiveRealProject = useStudioStore((s) => s.setActiveRealProject);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!activeRealProjectId && data?.items?.[0]) {
@@ -25,23 +28,56 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
         variant="secondary"
         size="sm"
         className="mb-2 justify-start gap-2"
-        aria-label="Создать REAL-проект"
-        disabled={create.isPending}
-        onClick={() => {
-          create.mutate(
-            { title: "Новый REAL-проект" },
-            {
-              onSuccess: (p: { id: string }) => {
-                setActiveRealProject(p.id);
-                onNavigate?.();
-              },
-            },
-          );
-        }}
+        aria-label="Создать проект"
+        onClick={() => setDialogOpen(true)}
       >
         <Plus className="size-4" />
         Новый проект
       </Button>
+      <NewProjectDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        pending={create.isPending}
+        onCreate={({ title, templateId, seedPrompt }) => {
+          create.mutate(
+            {
+              title,
+              settings: {
+                productionTemplateId: templateId,
+                qualityStrategy: "balance",
+              },
+            },
+            {
+              onSuccess: async (p: { id: string }) => {
+                setActiveRealProject(p.id);
+                setDialogOpen(false);
+                onNavigate?.();
+                if (seedPrompt) {
+                  const convs = (await apiFetch(`/api/v1/projects/${p.id}/conversations`)) as Array<{
+                    id: string;
+                  }>;
+                  const cid = convs[0]?.id;
+                  if (cid) {
+                    await apiFetch(`/api/v1/conversations/${cid}/messages`, {
+                      method: "POST",
+                      body: JSON.stringify({
+                        content: seedPrompt,
+                        role: "user",
+                        idempotencyKey: crypto.randomUUID(),
+                      }),
+                    });
+                    try {
+                      await api.agent.createRun(p.id, { userRequest: seedPrompt, conversationId: cid });
+                    } catch {
+                      /* may stop at approval */
+                    }
+                  }
+                }
+              },
+            },
+          );
+        }}
+      />
       {isLoading ? <p className="px-2 text-xs text-muted-foreground">Загрузка…</p> : null}
       {data?.items?.map((p: { id: string; title: string }) => (
         <button

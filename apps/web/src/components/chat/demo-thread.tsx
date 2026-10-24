@@ -16,8 +16,15 @@ export function DemoThread() {
   const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
   const project = useActiveProject();
 
-  if (mode === "REAL" && activeRealProjectId) {
-    return <RealThread projectId={activeRealProjectId} />;
+  if (mode === "REAL") {
+    if (activeRealProjectId) return <RealThread projectId={activeRealProjectId} />;
+    return (
+      <div className={`flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center ${CHAT_GUTTER}`}>
+        <p className="text-sm text-muted-foreground">
+          REAL-режим: создайте или выберите проект в боковой панели (нужен вход).
+        </p>
+      </div>
+    );
   }
 
   if (!project) {

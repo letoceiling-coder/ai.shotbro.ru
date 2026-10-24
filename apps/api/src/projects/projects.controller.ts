@@ -29,7 +29,7 @@ export class ProjectsController {
   @Post()
   create(@Req() req: AuthedRequest, @Body() body: unknown) {
     const parsed = CreateProjectBodySchema.parse(body);
-    return this.projectsService.create(req.user.id, parsed.title, parsed.description);
+    return this.projectsService.create(req.user.id, parsed.title, parsed.description, parsed.settings);
   }
 
   @Get(":id")
@@ -38,7 +38,11 @@ export class ProjectsController {
   }
 
   @Patch(":id")
-  rename(@Req() req: AuthedRequest, @Param("id") id: string, @Body() body: { title?: string; description?: string }) {
+  rename(
+    @Req() req: AuthedRequest,
+    @Param("id") id: string,
+    @Body() body: { title?: string; description?: string; settings?: Record<string, unknown> },
+  ) {
     return this.projectsService.patch(req.user.id, id, body);
   }
 

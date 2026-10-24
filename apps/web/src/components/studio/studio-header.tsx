@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useActiveProject, useStudioStore } from "@/store/studio-store";
+import { useStudioRuntimeMode } from "@/components/auth/studio-mode-provider";
+import { useRealProjects } from "@/hooks/use-real-studio";
 
 const panelActions = [
   { id: "files", label: "Файлы проекта" },
@@ -26,11 +28,18 @@ const panelActions = [
   { id: "simulator", label: "Симулятор статусов" },
 ] as const;
 
-export function StudioHeader() {
+export function StudioHeader({ onOpenContext }: { onOpenContext?: () => void }) {
+  const { mode } = useStudioRuntimeMode();
   const project = useActiveProject();
+  const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
   const setActivePanel = useStudioStore((s) => s.setActivePanel);
   const simulatorStatus = useStudioStore((s) => s.simulatorStatus);
+  const { data: realProjects } = useRealProjects();
   const [mobileNav, setMobileNav] = useState(false);
+
+  const realTitle =
+    realProjects?.items?.find((p: { id: string }) => p.id === activeRealProjectId)?.title ??
+    "REAL-проект";
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
@@ -45,33 +54,45 @@ export function StudioHeader() {
           <Menu className="size-4" />
         </Button>
         <Button variant="ghost" size="sm" className="gap-1 px-2 font-semibold">
-          SHOTBRO Agent
+          SHOTBRO Studio
           <ChevronDown className="size-4 opacity-60" />
         </Button>
+        <Badge variant={mode === "REAL" ? "default" : "demo"} className="hidden sm:inline-flex">
+          {mode}
+        </Badge>
         <span className="hidden text-muted-foreground sm:inline">·</span>
         <p className="hidden truncate text-sm text-muted-foreground sm:block">
-          {project?.title ?? "Проект"}
+          {mode === "REAL" ? realTitle : (project?.title ?? "Проект")}
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant="secondary" className="hidden md:inline-flex">
-          {simulatorStatus}
-        </Badge>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <SlidersHorizontal className="size-4" />
-              <span className="hidden sm:inline">Панели</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {panelActions.map((item) => (
-              <DropdownMenuItem key={item.id} onClick={() => setActivePanel(item.id)}>
-                {item.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {mode === "DEMO" ? (
+          <Badge variant="secondary" className="hidden md:inline-flex">
+            {simulatorStatus}
+          </Badge>
+        ) : null}
+        {mode === "REAL" ? (
+          <Button variant="outline" size="sm" className="gap-2 lg:hidden" onClick={() => onOpenContext?.()}>
+            <SlidersHorizontal className="size-4" />
+            Контекст
+          </Button>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <SlidersHorizontal className="size-4" />
+                <span className="hidden sm:inline">Панели</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {panelActions.map((item) => (
+                <DropdownMenuItem key={item.id} onClick={() => setActivePanel(item.id)}>
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <Button variant="ghost" size="icon" aria-label="Ещё">
           <MoreHorizontal className="size-4" />
         </Button>

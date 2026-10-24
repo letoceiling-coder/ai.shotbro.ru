@@ -10,7 +10,7 @@ export function AgentActivity({ block }: { block: Block }) {
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2 text-sm">
       <span className="font-medium">{block.label}</span>
-      <Badge variant="demo">{block.simulationLabel}</Badge>
+      {block.simulationLabel ? <Badge variant="demo">{block.simulationLabel}</Badge> : null}
       <Badge variant="success">{block.status}</Badge>
       {block.goal ? <span className="w-full text-muted-foreground">{block.goal}</span> : null}
       {block.activeTools?.length ? (

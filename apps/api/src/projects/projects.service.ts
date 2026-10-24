@@ -66,7 +66,7 @@ export class ProjectsService {
     };
   }
 
-  async create(userId: string, title: string, description?: string) {
+  async create(userId: string, title: string, description?: string, settings?: Record<string, unknown>) {
     const ws = await this.ensurePersonalWorkspace(userId, "Моё пространство");
     const id = uuid();
     const convId = uuid();
@@ -79,6 +79,7 @@ export class ProjectsService {
         description,
         status: "ACTIVE",
         mode: "REAL",
+        settings: settings ?? {},
       });
       await tx.insert(conversation).values({ id: convId, projectId: id, title: "Основной диалог" });
     });
@@ -93,13 +94,23 @@ export class ProjectsService {
     return row;
   }
 
-  async patch(userId: string, projectId: string, body: { title?: string; description?: string }) {
+  async patch(
+    userId: string,
+    projectId: string,
+    body: { title?: string; description?: string; settings?: Record<string, unknown> },
+  ) {
     await this.access.assertProjectAccess(this.db, userId, projectId);
+    const current = await this.get(userId, projectId);
+    const mergedSettings =
+      body.settings !== undefined
+        ? { ...((current.settings as Record<string, unknown>) ?? {}), ...body.settings }
+        : undefined;
     await this.db
       .update(project)
       .set({
         ...(body.title !== undefined ? { title: body.title } : {}),
         ...(body.description !== undefined ? { description: body.description } : {}),
+        ...(mergedSettings !== undefined ? { settings: mergedSettings } : {}),
         updatedAt: new Date(),
       })
       .where(eq(project.id, projectId));
