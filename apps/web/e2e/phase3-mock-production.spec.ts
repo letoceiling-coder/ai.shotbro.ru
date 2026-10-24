@@ -4,6 +4,7 @@ import {
   waitForAgentRunPersisted,
   waitForMockBriefVisible,
   waitForMockDeliveryVisible,
+  waitForProductionEnqueued,
 } from "./helpers/agent-waits";
 import { approvePendingApprovals } from "./helpers/approvals";
 
@@ -27,7 +28,8 @@ test.describe("Phase 3 mock production (REAL)", () => {
     await waitForAgentRunPersisted(page, projectId);
     await waitForMockBriefVisible(page);
 
-    await approvePendingApprovals(page, 6);
+    await approvePendingApprovals(page, projectId);
+    await waitForProductionEnqueued(page, projectId);
 
     await waitForMockDeliveryVisible(page, projectId);
 

@@ -5,6 +5,7 @@ import {
   waitForAgentRunPersisted,
   waitForMockDeliveryVisible,
   waitForPhase4AgentSignalVisible,
+  waitForProductionEnqueued,
 } from "./helpers/agent-waits";
 import { approvePendingApprovals } from "./helpers/approvals";
 
@@ -30,7 +31,8 @@ test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
     await waitForAgentRunPersisted(page, projectId);
     await waitForPhase4AgentSignalVisible(page);
 
-    await approvePendingApprovals(page, 6);
+    await approvePendingApprovals(page, projectId);
+    await waitForProductionEnqueued(page, projectId);
 
     await waitForMockDeliveryVisible(page, projectId);
 
