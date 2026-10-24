@@ -33,29 +33,31 @@ export async function switchToRealMode(page: Page) {
   await settings.click();
   await page.getByRole("button", { name: "REAL" }).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByText("REAL").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: /Новый проект/i }).first()).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 export async function openRealNewProject(page: Page): Promise<string> {
   await switchToRealMode(page);
-  const createReal = page.getByRole("button", { name: "Новый проект" });
-  await expect(createReal).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: /Новый проект/i }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
+  const projectTitle = `E2E ${Date.now().toString(36)}`;
+  await page.getByPlaceholder("Название проекта").fill(projectTitle);
   let projectId = "";
   await Promise.all([
     page
       .waitForResponse(
         (r) => r.url().includes("/api/v1/projects") && r.request().method() === "POST" && r.ok(),
-        { timeout: 45_000 },
+        { timeout: 60_000 },
       )
       .then(async (r) => {
         const body = (await r.json()) as { id?: string };
         if (body.id) projectId = body.id;
       }),
-    createReal.click(),
-  ]).catch(async () => {
-    await createReal.click();
-  });
-  await expect(page.getByRole("heading", { name: "REAL-проект" })).toBeVisible({ timeout: 30_000 });
+    page.getByRole("button", { name: "Создать" }).click(),
+  ]);
+  await expect(page.getByTestId("real-composer")).toBeVisible({ timeout: 60_000 });
   if (!projectId) throw new Error("Could not capture project id from create response");
   return projectId;
 }
