@@ -148,7 +148,7 @@ export class ProviderFallbackPlanner {
       operation,
       primary,
       fallbacks,
-      selected: primary ?? null,
+      selected: primary ?? undefined,
       status: primary ? "PRIMARY_SELECTED" : "NO_COMPATIBLE_FALLBACK",
       events,
       originalSettingsSnapshot: settings,

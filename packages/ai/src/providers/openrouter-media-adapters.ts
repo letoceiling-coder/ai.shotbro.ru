@@ -42,7 +42,7 @@ function authHeaders(env: AppEnv, cfg: ReturnType<typeof getOpenRouterConfig>) {
   };
 }
 
-abstract class OpenRouterMediaAdapterBase implements MediaProviderAdapter {
+abstract class OpenRouterMediaAdapterBase {
   readonly providerId = "openrouter";
   protected readonly policy: ExecutionPolicyEngine;
 
@@ -74,12 +74,19 @@ abstract class OpenRouterMediaAdapterBase implements MediaProviderAdapter {
   }
 
   mapError(err: unknown): NormalizedProviderError {
-    return mapTransportError(err) ?? normalizeHttpProviderError(err);
+    if (typeof err === "object" && err !== null && "code" in err) {
+      return err as NormalizedProviderError;
+    }
+    if (typeof err === "object" && err !== null && "status" in err && typeof (err as { status: unknown }).status === "number") {
+      const e = err as { status: number; body?: unknown };
+      return normalizeHttpProviderError({ status: e.status, body: e.body, providerId: this.providerId });
+    }
+    return mapTransportError(err, this.providerId);
   }
 }
 
 /** POST /images — OpenRouter multimodal image generation (docs 2026-10-25). */
-export class OpenRouterImageAdapter extends OpenRouterMediaAdapterBase {
+export class OpenRouterImageAdapter extends OpenRouterMediaAdapterBase implements MediaProviderAdapter {
   readonly modality = "image" as const;
   readonly defaultModelId = "openrouter/image/auto";
 
@@ -118,7 +125,7 @@ export class OpenRouterImageAdapter extends OpenRouterMediaAdapterBase {
 }
 
 /** POST /videos + GET /videos/{jobId} — async video jobs. */
-export class OpenRouterVideoAdapter extends OpenRouterMediaAdapterBase {
+export class OpenRouterVideoAdapter extends OpenRouterMediaAdapterBase implements MediaProviderAdapter {
   readonly modality = "video" as const;
   readonly defaultModelId = "openrouter/video/auto";
 
@@ -161,7 +168,7 @@ export class OpenRouterVideoAdapter extends OpenRouterMediaAdapterBase {
 }
 
 /** POST /audio/speech — TTS fallback. */
-export class OpenRouterTtsAdapter extends OpenRouterMediaAdapterBase {
+export class OpenRouterTtsAdapter extends OpenRouterMediaAdapterBase implements MediaProviderAdapter {
   readonly modality = "audio" as const;
   readonly defaultModelId = "openrouter/tts/auto";
 
