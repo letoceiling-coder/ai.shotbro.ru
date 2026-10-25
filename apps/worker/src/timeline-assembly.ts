@@ -60,8 +60,9 @@ async function scriptSceneOrder(db: Db, projectId: string): Promise<string[]> {
       and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "SCRIPT"), eq(productionDocument.status, "ACTIVE")),
     )
     .limit(1);
-  const scenes = (row?.payload as { scenes?: { id: string }[] } | undefined)?.scenes ?? [];
-  return scenes.map((s) => s.id);
+  const payload = row?.payload as { scenes?: { id?: string; sceneId?: string }[] } | undefined;
+  const scenes = payload?.scenes ?? [];
+  return scenes.map((s) => s.id ?? s.sceneId).filter((id): id is string => Boolean(id));
 }
 
 function mockColorForScene(sceneOrder: string[], sceneId: string | undefined, clipIndex: number) {
@@ -196,7 +197,7 @@ export async function assembleFromTimeline(input: {
       const seg = join(tmp, `seg-${i}.mp4`);
       const durSec = Math.max(0.5, clip.durationMs / 1000);
       const assetId = clip.assetId ?? (clip.sceneId ? sceneMap.get(clip.sceneId) : undefined);
-      if (mockColorSegments && clip.sceneId && sceneOrder.length) {
+      if (mockColorSegments) {
         await renderColorSegment(seg, mockColorForScene(sceneOrder, clip.sceneId, i), durSec);
       } else if (assetId) {
         const raw = join(tmp, `raw-${i}.mp4`);

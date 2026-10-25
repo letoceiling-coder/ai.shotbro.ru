@@ -427,12 +427,14 @@ export class AgentService {
   }
 
   private toRunDto(row: typeof agentRun.$inferSelect) {
+    const metadata = (row.metadata ?? {}) as Record<string, unknown>;
     return {
       id: row.id,
       projectId: row.projectId,
       conversationId: row.conversationId,
       status: row.status,
       productionState: row.productionState,
+      metadata,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
