@@ -1,7 +1,7 @@
 # Phase 5 — Multi-Provider Reliability Acceptance
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD:** (see deploy log)  
+**Git HEAD:** `68a09d7` (E2E) · web `015cbb7`  
 **Policy:** mock-only — no live paid provider execution  
 
 ## Delivered
@@ -19,15 +19,15 @@
 ## Verification (VPS)
 
 - [ ] PostgreSQL backup + restore smoke test before migration  
-- [ ] Apply migration `0006_provider_route_metadata`  
-- [ ] Deploy API/worker/web SHA  
-- [ ] Vitest: `provider-fallback.test.ts`, `financial-invariants.test.ts`  
-- [ ] Playwright: `phase5-providers` + `regression-strict` 8/8 retries=0  
+- [x] Apply migration `0006_provider_route_metadata` (staging)  
+- [x] Deploy API/worker/web SHA (web `015cbb7`; API/worker `ai-shotbro-staging-*:latest`)  
+- [ ] Vitest: `provider-fallback.test.ts`, `financial-invariants.test.ts` (host runner; not re-run this session)  
+- [x] Playwright: `phase5-providers` **16/16** + `regression-strict` **8/8** retries=0 — logs `phase5-providers-68a09d7.log`, `regression-strict-retry-68a09d7.log`  
 
 ## Remaining blockers (post-slice)
 
 - ApprovalService explicit re-approval workflow UI (status surfaced; approval gate not full Phase 4F parity)  
 - Production graph node linkage for every route attempt  
-- Storyboard / Characters / References user-facing sections (Phase 5D–5F)  
+- ~~Storyboard / Characters / References~~ — **ACCEPTED** 2026-10-25 (`PHASE5-UI-ACCEPTANCE.md`)  
 
 **Production cutover:** NOT PERFORMED  

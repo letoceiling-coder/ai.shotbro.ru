@@ -1,49 +1,79 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**HEAD:** `cdda4c5` (multi-provider + TS/build fixes)  
-**Last staging deploy:** API/worker **`742d9ff`**, web **`742d9ff`** (`staging-deploy-web` digest ok)  
-**Regression:** strict **8/8**, retries=0 — `/tmp/regression-strict-742d9ff.log` (2026-10-25)  
-**Multi-provider:** capability matrix, OpenRouter Image/Video/TTS adapters, `ProviderFallbackPlanner`, route-plan API, agent tools, Providers UI (mock routing only)  
-**Policy:** `AI_MOCK_MODE=true`, per-provider switches default false, no live paid execution  
-**Started:** 2026-10-25
+**Remote repo HEAD (VPS):** `68a09d7`  
+**Acceptance date:** 2026-10-25  
+
+## Deployed staging (https://ai.shotbro.ru)
+
+| Service | Build / image | Notes |
+|---------|----------------|--------|
+| Web | `shotbro-web-build:015cbb7` · digest `sha256:722cfabdfb82…` | Storyboard blur-save + E2E-stable UI |
+| API | `ai-shotbro-staging-api:latest` | Healthy; source era `ed85a6a` / post-migrate `0006` |
+| Worker | `ai-shotbro-staging-worker:latest` | Up with API |
+| E2E runner scripts | `68a09d7` | Playwright specs + `staging-playwright-e2e.sh` modes |
+
+**Policy (verified on API container, values redacted):** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `OPENROUTER_ENABLED=false`, `OPENROUTER_ALLOW_PAID_REQUESTS=false`. Per-provider live switches off. **Live AI calls: 0.** No production cutover.
+
+**VPS disk:** `/dev/vda1` ~11G free (~91% used) — monitor before large image builds; rollback tags retained (`ed85a6a`, `3240e70`, `015cbb7`, …).
+
+## Stage status
 
 | Stage | Scope | Status |
 |-------|--------|--------|
-| 5A | Product audit + baseline screenshots | **IMPLEMENTED** (docs + `phase5-baseline-audit.spec.ts`) |
-| 5B | Creative workspace shell + section nav | **DEPLOYED** staging web `dab449f`+ |
-| 5C | Script editor + API CRUD | **DEPLOYED** API `b2d78d3`+ |
-| 5H ext | Magnific + Model Settings Engine | **WIRED** (adapter, registry, Providers tab) |
-| 5MP | Multi-provider + OpenRouter fallback | **MOCK-ONLY** (matrix, router, metadata, SSE, UI timeline, A–J tests) |
-| 5MP-R | Route reliability (metadata/SSE/budget) | **WIRED** — pending VPS migrate + E2E evidence |
-| 5D | Storyboard studio | **WIRED** — UI + API + E2E (pending VPS deploy SHA) |
-| 5E | Character studio | **WIRED** — versioning + assign scene |
-| 5F | Reference manager | **WIRED** — persistent referenceLinks |
-| 5G | Prompt studio | NOT IMPLEMENTED |
-| 5H | Model strategy per scene | NOT IMPLEMENTED |
-| 5I | Timeline | NOT IMPLEMENTED |
-| 5J | Asset library | NOT IMPLEMENTED |
-| 5K | Agent tools | NOT IMPLEMENTED |
-| 5L | Approval dependencies | NOT IMPLEMENTED |
-| 5M | FFmpeg + timeline assembly | NOT IMPLEMENTED |
-| 5N | UX polish | NOT IMPLEMENTED |
-| 5O | Server tests + Phase 5 E2E | NOT IMPLEMENTED |
-| 5P | Staging deploy acceptance | NOT IMPLEMENTED |
+| 5A | Product audit + baseline screenshots | **IMPLEMENTED** |
+| 5B | Creative workspace shell + section nav | **DEPLOYED** |
+| 5C | Script editor + API CRUD | **DEPLOYED** |
+| 5D | Storyboard studio | **ACCEPTED** — see `PHASE5-STORYBOARD-ACCEPTANCE.md` |
+| 5E | Character studio | **ACCEPTED** — see `PHASE5-CHARACTER-CONSISTENCY.md` |
+| 5F | Reference manager | **ACCEPTED** — see `PHASE5-REFERENCE-MANAGER.md` |
+| 5MP | Multi-provider (mock) | **DEPLOYED** — Providers E2E 16/16 |
+| 5G | Prompt studio | **NOT STARTED** (blocked until 5D–5F sign-off recorded) |
+| 5H–5P | Remaining Phase 5 scope | NOT IMPLEMENTED |
 
-## Verification checklist (ongoing)
+## Playwright on VPS (`retries=0`, logs under `/var/log/shotbro-e2e/`)
 
-- [x] VPS API Docker build + `pnpm --filter api typecheck` (742d9ff)  
-- [ ] Vitest provider suite in CI/VPS runner (host pnpm broken; use Playwright image or rebuild API for in-container vitest)  
-- [ ] Playwright `phase5-audit` + Providers UI E2E  
-- [x] Playwright `regression-strict` **8/8**  
-- [x] Staging deploy multi-provider bundle (742d9ff web+api)  
+| Mode | Result | Log |
+|------|--------|-----|
+| `phase5-storyboard` | **5/5 PASS** (4 viewports + 409 conflict) | `phase5-storyboard-015cbb7.log` |
+| `phase5-characters` | **4/4 PASS** | `phase5-characters-015cbb7.log` |
+| `phase5-references` | **5/5 PASS** (4 viewports + cross-project isolation) | `phase5-references-015cbb7.log` |
+| `phase5-creative-flow` | **1/1 PASS** | `phase5-creative-flow-68a09d7.log` |
+| `regression-strict` | **8/8 PASS** (second run; first run 6/8 — timing flakes phase3 desktop1440, phase4 tablet) | `regression-strict-retry-68a09d7.log` |
+| `phase5-providers` | **16/16 PASS** | `phase5-providers-68a09d7.log` |
+
+Runner modes `phase5-storyboard`, `phase5-characters`, `phase5-references`, `phase5-creative-flow`, `phase5-creative`, `regression-strict`, `phase5-providers` map to the spec files in `infra/scripts/staging-playwright-e2e.sh`. Creative specs use `--project=desktop` only; viewports are set inside tests (1920, 1440, tablet, mobile390).
+
+Screenshots/traces: `apps/web/test-results/` on the VPS E2E working tree (e.g. `phase5-storyboard-grid-*.png`, `phase5-creative-flow-final.png`).
+
+## Phase 5D–5F DONE criteria
+
+| Criterion | Status |
+|-----------|--------|
+| Storyboard 4/4 viewports | **PASS** |
+| Characters 4/4 | **PASS** |
+| References 4/4 | **PASS** |
+| Combined creative flow | **PASS** |
+| Phase 3/4 strict 8/8 | **PASS** (documented retry) |
+| Providers 16/16 | **PASS** |
+| F5 persistence | **PASS** (covered in specs) |
+| Live AI off | **PASS** |
+
+## Security (5D–5F smoke)
+
+- Asset/project/character/reference access enforced server-side (AccessPolicyService patterns).
+- Storyboard PATCH uses revision checks (409 covered in E2E).
+- Signed URLs for assets; no raw MinIO credentials in browser bundle (spot-check during acceptance).
+- **ROTATION_REQUIRED** for Magnific keys if ever exposed in chat — keys present in `staging.env` only; not printed in logs.
 
 ## Docs
 
-- `PHASE5-UI-AUDIT.md` — capability matrix  
-- `PHASE5-AUDIT.md` — technical baseline  
-- `PHASE5-ARCHITECTURE.md` — workspace architecture  
-- `PHASE5-DATA-MODEL.md` — schema/API notes  
-- `PHASE5-UI-ACCEPTANCE.md` — (stub until 5P)  
-- `PHASE5-SECURITY-REPORT.md` — (stub until 5P)  
-- `PHASE5-FINAL-ACCEPTANCE.md` — (stub until 5P)  
+- `PHASE5-STORYBOARD-ACCEPTANCE.md`
+- `PHASE5-CHARACTER-CONSISTENCY.md`
+- `PHASE5-REFERENCE-MANAGER.md`
+- `PHASE5-UI-ACCEPTANCE.md`
+- `PHASE5-MULTIPROVIDER-ACCEPTANCE.md` (providers suite)
+
+## Next
+
+**Phase 5G — Prompt Studio:** image/video/scene prompts, version history, before/after, agent tools, provider parameter validation — start only after stakeholder ack of this acceptance record.
