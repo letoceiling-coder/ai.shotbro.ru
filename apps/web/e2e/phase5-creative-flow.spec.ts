@@ -36,7 +36,7 @@ test.describe("Phase 5 combined creative flow", () => {
     const projectId = await openRealNewProject(page);
 
     await gotoStudioSection(page, projectId, "script");
-    await addScriptScenesViaUI(page, 1);
+    await addScriptScenesViaUI(page, 1, projectId);
     await saveScriptSceneFields(page, { title: "Flow scene", durationSeconds: 4, description: "Flow script" });
     const script = (await (await page.request.get(`/api/v1/projects/${projectId}/script`)).json()) as {
       payload?: { scenes?: Array<{ id: string }> };

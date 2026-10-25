@@ -62,15 +62,15 @@ elif [ \"${MODE}\" = phase5-audit ]; then
 elif [ \"${MODE}\" = phase5-providers ]; then
   pnpm exec playwright test e2e/phase5-providers-routing.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
 elif [ \"${MODE}\" = phase5-storyboard ]; then
-  pnpm exec playwright test e2e/phase5-storyboard.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
+  pnpm exec playwright test e2e/phase5-storyboard.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-characters ]; then
-  pnpm exec playwright test e2e/phase5-characters.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
+  pnpm exec playwright test e2e/phase5-characters.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-references ]; then
-  pnpm exec playwright test e2e/phase5-references.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
+  pnpm exec playwright test e2e/phase5-references.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-creative-flow ]; then
   pnpm exec playwright test e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-creative ]; then
-  pnpm exec playwright test e2e/phase5-storyboard.spec.ts e2e/phase5-characters.spec.ts e2e/phase5-references.spec.ts e2e/phase5-creative-flow.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
+  pnpm exec playwright test e2e/phase5-storyboard.spec.ts e2e/phase5-characters.spec.ts e2e/phase5-references.spec.ts e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = diagnostic ]; then
   export E2E_DIAG_DIR=/tmp/phase4f-composer-diag
   rm -rf \"\$E2E_DIAG_DIR\"

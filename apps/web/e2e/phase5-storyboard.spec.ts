@@ -44,7 +44,7 @@ test.describe("Phase 5D storyboard studio", () => {
       const projectId = await openRealNewProject(page);
 
       await gotoStudioSection(page, projectId, "script");
-      await addScriptScenesViaUI(page, 2);
+      await addScriptScenesViaUI(page, 2, projectId);
       await saveScriptSceneFields(page, {
         title: `E2E SB ${vp.name}`,
         durationSeconds: 5,
@@ -109,7 +109,7 @@ test.describe("Phase 5D storyboard studio", () => {
     await page.goto("/studio", { waitUntil: "domcontentloaded" });
     const projectId = await openRealNewProject(page);
     await gotoStudioSection(page, projectId, "script");
-    await addScriptScenesViaUI(page, 1);
+    await addScriptScenesViaUI(page, 1, projectId);
     const script = (await (await page.request.get(`/api/v1/projects/${projectId}/script`)).json()) as {
       payload?: { scenes?: Array<{ id: string }> };
     };

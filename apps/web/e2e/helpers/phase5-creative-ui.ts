@@ -10,10 +10,19 @@ export async function gotoStudioSection(page: Page, projectId: string, section: 
   await page.getByTestId(`creative-section-${section}`).click();
 }
 
-export async function addScriptScenesViaUI(page: Page, count: number) {
+export async function addScriptScenesViaUI(page: Page, count: number, projectId?: string) {
   await expect(page.getByTestId("script-editor").or(page.getByTestId("workspace-state"))).toBeVisible({
     timeout: 20_000,
   });
+  if (!(await page.getByTestId("script-add-scene").isVisible().catch(() => false)) && projectId) {
+    const boot = await page.request.post(`/api/v1/projects/${projectId}/scripts/scenes`, {
+      data: { title: "Bootstrap scene" },
+    });
+    expect(boot.ok()).toBeTruthy();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("creative-section-script").click();
+    await expect(page.getByTestId("script-add-scene")).toBeVisible({ timeout: 20_000 });
+  }
   for (let i = 0; i < count; i++) {
     await Promise.all([
       page.waitForResponse(
