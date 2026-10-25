@@ -7,6 +7,7 @@ import {
   waitForProductionEnqueued,
 } from "./helpers/agent-waits";
 import { approvePendingApprovals } from "./helpers/approvals";
+import { pinRealProjectOnReload } from "./helpers/real-studio-state";
 
 test.describe("Phase 3 mock production (REAL)", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");

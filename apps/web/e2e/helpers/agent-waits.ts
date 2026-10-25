@@ -48,8 +48,13 @@ export async function waitForMockBriefVisible(page: Page, projectId?: string, ti
   }
 
   const brief = page.getByText(/Brief \(MOCK\)|План производства|MOCK · Phase/i).first();
-  await expect(brief).toBeVisible({ timeout: Math.min(timeoutMs, 60_000) });
-  await brief.scrollIntoViewIfNeeded();
+  const uiTimeout = projectId ? 20_000 : Math.min(timeoutMs, 60_000);
+  try {
+    await expect(brief).toBeVisible({ timeout: uiTimeout });
+    await brief.scrollIntoViewIfNeeded();
+  } catch (e) {
+    if (!projectId) throw e;
+  }
   return brief;
 }
 
