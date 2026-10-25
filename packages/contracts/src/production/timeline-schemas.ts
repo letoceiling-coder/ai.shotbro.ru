@@ -58,10 +58,6 @@ export function defaultTimelineTracks(): TimelineTrack[] {
   ];
 }
 
-export function computeTimelineHash(doc: TimelineDocument): string {
-  return createHash("sha256").update(JSON.stringify(doc)).digest("hex");
-}
-
 export function parseTimelineDocument(raw: unknown): TimelineDocument {
   const legacy = raw as { schemaVersion?: number; scenes?: unknown[] };
   if (legacy?.schemaVersion !== 2) {

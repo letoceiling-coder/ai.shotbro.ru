@@ -9,13 +9,22 @@ import {
   parseTimelineDocument,
   type TimelineDocument,
   type TimelineClip,
+  type TimelineTrack,
 } from "@shotbro/contracts";
+import type { Db } from "@shotbro/db/client";
+import { asset, productionDocument } from "@shotbro/db/schema";
+
+type TimelineDocRow = (typeof productionDocument)["$inferSelect"];
+export type TimelineActiveView = TimelineDocRow & { payload: TimelineDocument; timelineHash: string };
+export type TimelineSyncPreview = {
+  sceneCount: number;
+  proposedClips: TimelineClip[];
+  storyboardVersion: number;
+};
 
 function computeTimelineHash(doc: TimelineDocument): string {
   return createHash("sha256").update(JSON.stringify(doc)).digest("hex");
 }
-import type { Db } from "@shotbro/db/client";
-import { asset, productionDocument } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { ProductionDocumentService } from "./production-document.service";
@@ -42,7 +51,7 @@ export class TimelineDocumentService {
     @Inject(ProductionGraphService) private readonly graph: ProductionGraphService,
   ) {}
 
-  async getActive(userId: string, projectId: string) {
+  async getActive(userId: string, projectId: string): Promise<TimelineActiveView | null> {
     await this.access.assertProjectAccess(this.db, userId, projectId);
     try {
       const row = await this.documents.getActive(userId, projectId, "TIMELINE");
@@ -100,7 +109,7 @@ export class TimelineDocumentService {
     return row!;
   }
 
-  async ensureTimeline(userId: string, projectId: string) {
+  async ensureTimeline(userId: string, projectId: string): Promise<TimelineActiveView> {
     const hit = await this.getActive(userId, projectId);
     if (hit) return hit;
     await this.access.assertProjectAccess(this.db, userId, projectId);
@@ -112,8 +121,7 @@ export class TimelineDocumentService {
       )
       .limit(1);
     if (legacyRow && legacyRow.schemaVersion !== 2) {
-      const migrated = await this.syncFromStoryboard(userId, projectId, true);
-      return migrated;
+      return this.syncFromStoryboard(userId, projectId, true);
     }
     const payload = TimelineDocumentSchema.parse({
       schemaVersion: 2,
@@ -137,7 +145,9 @@ export class TimelineDocumentService {
       payload,
       createdBy: userId,
     });
-    return this.getActive(userId, projectId);
+    const created = await this.getActive(userId, projectId);
+    if (!created) throw new NotFoundException("Timeline missing after create");
+    return created;
   }
 
   async patchDocument(userId: string, projectId: string, body: { payload: TimelineDocument; expectedRevision?: number }) {
@@ -149,7 +159,7 @@ export class TimelineDocumentService {
     return this.publish(userId, projectId, current!, payload);
   }
 
-  async previewSyncFromStoryboard(userId: string, projectId: string) {
+  async previewSyncFromStoryboard(userId: string, projectId: string): Promise<TimelineSyncPreview> {
     const board = await this.storyboard.getActive(userId, projectId);
     if (!board?.payload?.scenes?.length) throw new BadRequestException("Storyboard empty");
     const scenes = board.payload.scenes.sort((a, b) => a.order - b.order);
@@ -168,7 +178,13 @@ export class TimelineDocumentService {
     return { sceneCount: scenes.length, proposedClips, storyboardVersion: board.version };
   }
 
-  async syncFromStoryboard(userId: string, projectId: string, apply = true) {
+  async syncFromStoryboard(userId: string, projectId: string, apply: true): Promise<TimelineActiveView>;
+  async syncFromStoryboard(userId: string, projectId: string, apply?: false): Promise<TimelineSyncPreview>;
+  async syncFromStoryboard(
+    userId: string,
+    projectId: string,
+    apply = true,
+  ): Promise<TimelineActiveView | TimelineSyncPreview> {
     const preview = await this.previewSyncFromStoryboard(userId, projectId);
     if (!apply) return preview;
     const current = await this.ensureTimeline(userId, projectId);
@@ -189,10 +205,10 @@ export class TimelineDocumentService {
     if (input.expectedRevision != null && input.expectedRevision !== current!.payload.revision) {
       throw new ConflictException({ code: "timeline_revision_conflict", currentRevision: current!.payload.revision });
     }
-    const tracks = current!.payload.tracks.map((t) => {
+    const tracks: TimelineTrack[] = current!.payload.tracks.map((t) => {
       if (t.id !== input.trackId) return t;
-      const byId = new Map(t.clips.map((c) => [c.clipId, c]));
-      const clips = input.clipIds.map((id, order) => {
+      const byId = new Map(t.clips.map((c: TimelineClip) => [c.clipId, c]));
+      const clips: TimelineClip[] = input.clipIds.map((id, order) => {
         const c = byId.get(id);
         if (!c) throw new BadRequestException(`Unknown clip ${id}`);
         return { ...c, order };
@@ -216,10 +232,11 @@ export class TimelineDocumentService {
     if (rev != null && rev !== current!.payload.revision) {
       throw new ConflictException({ code: "timeline_revision_conflict", currentRevision: current!.payload.revision });
     }
-    const tracks = current!.payload.tracks.map((t) => {
+    const tracks: TimelineTrack[] = current!.payload.tracks.map((t) => {
       if (t.id !== parsed.trackId) return t;
-      const idx = t.clips.findIndex((c) => c.clipId === parsed.clipId);
-      const clips = idx >= 0 ? t.clips.map((c, i) => (i === idx ? parsed : c)) : [...t.clips, parsed];
+      const idx = t.clips.findIndex((c: TimelineClip) => c.clipId === parsed.clipId);
+      const clips =
+        idx >= 0 ? t.clips.map((c: TimelineClip, i: number) => (i === idx ? parsed : c)) : [...t.clips, parsed];
       return { ...t, clips };
     });
     return this.publish(userId, projectId, current!, { ...current!.payload, tracks });
@@ -230,9 +247,9 @@ export class TimelineDocumentService {
     if (expectedRevision != null && expectedRevision !== current!.payload.revision) {
       throw new ConflictException({ code: "timeline_revision_conflict", currentRevision: current!.payload.revision });
     }
-    const tracks = current!.payload.tracks.map((t) => ({
+    const tracks: TimelineTrack[] = current!.payload.tracks.map((t) => ({
       ...t,
-      clips: t.clips.filter((c) => c.clipId !== clipId),
+      clips: t.clips.filter((c: TimelineClip) => c.clipId !== clipId),
     }));
     return this.publish(userId, projectId, current!, { ...current!.payload, tracks });
   }
