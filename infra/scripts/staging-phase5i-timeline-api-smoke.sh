@@ -55,7 +55,7 @@ function fail(name, detail) {
 
 try {
   let cookies = "";
-  const sign = await json("/api/v1/auth/sign-in/email", {
+  const sign = await json("/api/auth/sign-in/email", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
