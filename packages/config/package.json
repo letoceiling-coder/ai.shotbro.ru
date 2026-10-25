@@ -12,7 +12,8 @@
     "./redact": "./src/redact.ts",
     "./mime-policy": "./src/mime-policy.ts",
     "./ai-execution": "./src/ai-execution.ts",
-    "./vendor-providers": "./src/vendor-providers.ts"
+    "./vendor-providers": "./src/vendor-providers.ts",
+    "./provider-policy": "./src/provider-policy.ts"
   },
   "scripts": {
     "build": "tsc",
