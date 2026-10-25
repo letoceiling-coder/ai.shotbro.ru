@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { Logger } from "pino";
+import { parseStoryboardDocument } from "@shotbro/contracts";
 import {
   TimelineDocumentSchema,
   type TimelineDocument,
@@ -52,34 +53,40 @@ const execFileAsync = promisify(execFile);
 const SCENE_MOCK_COLORS = ["0xff0000", "0x00ff00", "0x0000ff", "0xff8800", "0x8800ff"];
 const COLORS = ["0x112233", "0x223311", "0x331122", "0x113322", "0x221133"];
 
-/** Timeline clips use storyboard `sceneId`; script `id` may differ (e.g. scene-1 vs UUID). */
+function sceneIdFromClip(clip: TimelineClip): string | undefined {
+  if (clip.sceneId) return clip.sceneId;
+  const prefix = "scene-";
+  if (clip.clipId.startsWith(prefix)) return clip.clipId.slice(prefix.length);
+  return undefined;
+}
+
+async function latestProductionDoc(db: Db, projectId: string, docType: "STORYBOARD" | "SCRIPT") {
+  const [row] = await db
+    .select()
+    .from(productionDocument)
+    .where(and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, docType)))
+    .orderBy(desc(productionDocument.version))
+    .limit(1);
+  return row;
+}
+
+/** Timeline clips use storyboard `sceneId` (matches script `id` when synced). */
 async function mockSceneIdOrder(db: Db, projectId: string): Promise<string[]> {
-  const [boardRow] = await db
-    .select()
-    .from(productionDocument)
-    .where(
-      and(
-        eq(productionDocument.projectId, projectId),
-        eq(productionDocument.docType, "STORYBOARD"),
-        eq(productionDocument.status, "ACTIVE"),
-      ),
-    )
-    .limit(1);
-  const boardScenes =
-    (boardRow?.payload as { scenes?: { sceneId?: string; order?: number }[] } | undefined)?.scenes ?? [];
-  if (boardScenes.length) {
-    return [...boardScenes]
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-      .map((s) => s.sceneId)
-      .filter((id): id is string => Boolean(id));
+  const boardRow = await latestProductionDoc(db, projectId, "STORYBOARD");
+  if (boardRow?.payload) {
+    try {
+      const parsed = parseStoryboardDocument(boardRow.payload);
+      if (parsed.scenes?.length) {
+        return [...parsed.scenes]
+          .sort((a, b) => a.order - b.order)
+          .map((s) => s.sceneId)
+          .filter(Boolean);
+      }
+    } catch {
+      /* fall through */
+    }
   }
-  const [scriptRow] = await db
-    .select()
-    .from(productionDocument)
-    .where(
-      and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "SCRIPT"), eq(productionDocument.status, "ACTIVE")),
-    )
-    .limit(1);
+  const scriptRow = await latestProductionDoc(db, projectId, "SCRIPT");
   const scriptScenes =
     (scriptRow?.payload as { scenes?: { id?: string; sceneId?: string; sequence?: number }[] } | undefined)?.scenes ?? [];
   return [...scriptScenes]
@@ -88,7 +95,8 @@ async function mockSceneIdOrder(db: Db, projectId: string): Promise<string[]> {
     .filter((id): id is string => Boolean(id));
 }
 
-function mockColorForScene(sceneOrder: string[], sceneId: string | undefined, clipIndex: number) {
+function mockColorForScene(sceneOrder: string[], clip: TimelineClip, clipIndex: number) {
+  const sceneId = sceneIdFromClip(clip);
   if (sceneId) {
     const idx = sceneOrder.indexOf(sceneId);
     if (idx >= 0) return SCENE_MOCK_COLORS[idx % SCENE_MOCK_COLORS.length]!;
@@ -221,7 +229,7 @@ export async function assembleFromTimeline(input: {
       const durSec = Math.max(0.5, clip.durationMs / 1000);
       const assetId = clip.assetId ?? (clip.sceneId ? sceneMap.get(clip.sceneId) : undefined);
       if (mockColorSegments) {
-        await renderColorSegment(seg, mockColorForScene(sceneOrder, clip.sceneId, i), durSec);
+        await renderColorSegment(seg, mockColorForScene(sceneOrder, clip, i), durSec);
       } else if (assetId) {
         const raw = join(tmp, `raw-${i}.mp4`);
         await downloadAssetToFile(s3, bucket, db, assetId, raw, log);
