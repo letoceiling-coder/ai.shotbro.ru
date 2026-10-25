@@ -9,10 +9,11 @@ import { ProviderJobEventBridgeService } from "./provider-job-event-bridge.servi
 import { ProviderJobRuntimeService } from "./provider-job-runtime.service";
 import { ProviderWebhookController } from "./provider-webhook.controller";
 import { ProviderCatalogController } from "./provider-catalog.controller";
+import { ProviderRouterController } from "./provider-router.controller";
 
 @Module({
   imports: [ProductionModule, EventsModule],
-  controllers: [ProviderJobsController, ProviderWebhookController, ProviderCatalogController],
+  controllers: [ProviderJobsController, ProviderWebhookController, ProviderCatalogController, ProviderRouterController],
   providers: [
     ProviderJobsService,
     ProviderJobSchedulerService,

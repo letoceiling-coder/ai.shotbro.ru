@@ -55,6 +55,13 @@ export const envSchema = z
     /** Phase 3: when false, EXTERNAL_PAID tools still require explicit owner enable + approvals */
     PROVIDER_LIVE_EXECUTION_ENABLED: boolFromEnv.default(false),
 
+    /** Phase 5 multi-provider: per-vendor switches (ignored unless PROVIDER_LIVE_EXECUTION_ENABLED and !AI_MOCK_MODE) */
+    FAL_PROVIDER_ENABLED: boolFromEnv.default(false),
+    ELEVENLABS_PROVIDER_ENABLED: boolFromEnv.default(false),
+    MAGNIFIC_PROVIDER_ENABLED: boolFromEnv.default(false),
+    /** Allow OpenRouter as simulated fallback target in routing (not live calls) */
+    OPENROUTER_FALLBACK_ROUTING_ENABLED: boolFromEnv.default(true),
+
     /** Phase 4: run AgentRuntime before ProductionOrchestrator (mock-only; default off for Phase 3 parity) */
     PHASE4_AGENT_RUNTIME_ENABLED: boolFromEnv.default(false),
     /** Phase 4D: allow per-project AgentRuntime when project.settings.agentRuntimeV4 is set */

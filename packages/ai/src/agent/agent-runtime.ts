@@ -6,6 +6,7 @@ import { ToolExecutor, type ToolExecutionDelegates } from "../tool-executor.js";
 import { ContextBuilder } from "./context-builder.js";
 import { ToolPolicyEngine } from "./tool-policy-engine.js";
 import { registerPhase4ToolHandlers } from "./tool-handlers/register.js";
+import { registerMultiproviderTools } from "./tool-handlers/multiprovider-tools.js";
 
 export type AgentRuntimeLimits = {
   maxIterations: number;
@@ -37,6 +38,7 @@ export class AgentRuntime {
     this.llm = new LlmGateway(env);
     this.executor = new ToolExecutor(env);
     registerPhase4ToolHandlers(this.executor);
+    registerMultiproviderTools(this.executor, env);
   }
 
   async runTurn(input: {

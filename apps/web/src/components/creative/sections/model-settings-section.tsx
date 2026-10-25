@@ -30,6 +30,9 @@ export function ModelSettingsSection({ projectId }: { projectId: string }) {
   const selectedSceneId = sceneId ?? scenes[0]?.id ?? null;
   const { data: catalog } = useModelCatalog();
   const [modelId, setModelId] = useState("mock/image");
+  const [fallbackMode, setFallbackMode] = useState<"disabled" | "automatic_compatible" | "ask_before_switch">(
+    "automatic_compatible",
+  );
   const qc = useQueryClient();
 
   const { data: paramDef } = useQuery({
@@ -39,6 +42,24 @@ export function ModelSettingsSection({ projectId }: { projectId: string }) {
         found: boolean;
         definition?: { parameterSchema: ParamDef[]; presets: Array<{ id: string; label: string; parameters: Record<string, unknown> }> };
       }>,
+  });
+
+  const operation =
+    modelId.includes("upscaler") || modelId.includes("magnific") ? "IMAGE_UPSCALE" : "IMAGE_GENERATION";
+
+  const { data: routePlan } = useQuery({
+    queryKey: ["route-plan", selectedSceneId, modelId, fallbackMode],
+    enabled: Boolean(selectedSceneId),
+    queryFn: () =>
+      apiFetch("/api/v1/providers/route-plan", {
+        method: "POST",
+        body: JSON.stringify({
+          sceneId: selectedSceneId,
+          operation,
+          fallbackMode,
+          aspectRatio: "9:16",
+        }),
+      }) as Promise<{ plan: { status: string; primary?: { providerId: string; modelId: string }; selected?: { providerId: string; modelId: string }; fallbacks?: unknown[] }; mockRoutingOnly?: boolean }>,
   });
 
   const { data: sceneSettings } = useQuery({
@@ -81,8 +102,34 @@ export function ModelSettingsSection({ projectId }: { projectId: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col p-4" data-testid="model-settings-section">
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold">Model Settings</h2>
-        <Badge variant="demo">MOCK POLICY</Badge>
+        <h2 className="text-lg font-semibold">Providers &amp; Models</h2>
+        <Badge variant="demo">MOCK ROUTING</Badge>
+      </div>
+      {routePlan?.plan ? (
+        <div className="mb-4 rounded-lg border border-border bg-muted/30 p-3 text-xs" data-testid="provider-route-plan">
+          <p>
+            Primary: {routePlan.plan.primary?.providerId ?? "—"} / {routePlan.plan.primary?.modelId ?? "—"}
+          </p>
+          <p>
+            Selected: {routePlan.plan.selected?.providerId ?? "—"} · {routePlan.plan.status}
+          </p>
+          <p className="text-muted-foreground">
+            Fallback: OpenRouter when compatible · Live I/O blocked · {routePlan.mockRoutingOnly ? "simulation only" : ""}
+          </p>
+        </div>
+      ) : null}
+      <div className="mb-4">
+        <Label>Fallback mode</Label>
+        <Select value={fallbackMode} onValueChange={(v) => setFallbackMode(v as typeof fallbackMode)}>
+          <SelectTrigger className="mt-1 max-w-md">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="disabled">Disabled</SelectItem>
+            <SelectItem value="automatic_compatible">Automatic (compatible only)</SelectItem>
+            <SelectItem value="ask_before_switch">Ask before switching</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
         <div>
@@ -174,6 +221,7 @@ export function ModelSettingsSection({ projectId }: { projectId: string }) {
               expectedVersion: sceneSettings?.version,
               parameters: { [modelId]: merged },
               imageModelId: modelId,
+              fallbackMode,
             })
           }
         >

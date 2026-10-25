@@ -1,6 +1,7 @@
 export * from "./env.js";
 export * from "./openrouter.js";
 export * from "./ai-execution.js";
+export * from "./provider-policy.js";
 export * from "./redact.js";
 export * from "./s3.js";
 export * from "./smtp.js";

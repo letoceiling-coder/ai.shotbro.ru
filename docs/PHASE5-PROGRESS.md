@@ -1,9 +1,9 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**HEAD:** `341e6da`  
-**Staging web/API:** `341e6da` (compose `infra-web-1` + `ai-shotbro-staging-api-1`)  
-**Strict regression:** `/tmp/regression-strict-341e6da.log` — **8/8 PASS**, retries=0 (~5.2m)  
+**HEAD:** pending push (multi-provider slice)  
+**Last staging deploy:** `341e6da` — strict **8/8** at `/tmp/regression-strict-341e6da.log`  
+**Multi-provider:** capability matrix, OpenRouter media adapters, `ProviderFallbackPlanner`, route-plan API, agent tools, Providers UI (mock routing)  
 **Started:** 2026-10-25
 
 | Stage | Scope | Status |
