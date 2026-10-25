@@ -44,10 +44,17 @@ test.describe("Phase 5 providers routing (REAL UI)", () => {
       const sceneId = sceneBody.scene?.id;
       expect(sceneId).toBeTruthy();
 
+      await page.reload({ waitUntil: "domcontentloaded" });
       await page.getByTestId("creative-section-models").click();
       await expect(page.getByTestId("model-settings-section")).toBeVisible({ timeout: 15_000 });
 
-      await page.getByTestId("provider-route-save-plan").click();
+      await Promise.all([
+        page.waitForResponse(
+          (r) => r.url().includes("/provider-route/plan") && r.request().method() === "POST" && r.ok(),
+          { timeout: 60_000 },
+        ),
+        page.getByTestId("provider-route-save-plan").click(),
+      ]);
       await expect
         .poll(async () => {
           const r = await page.request.get(`/api/v1/projects/${projectId}/scenes/${sceneId}/provider-route`);
