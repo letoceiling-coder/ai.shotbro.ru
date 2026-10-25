@@ -119,13 +119,14 @@ shotbro_record_deploy() {
   local sha="$2"
   local image_ref="$3"
   shotbro_ensure_deploy_dir
-  local id
+  local id upper
+  upper=$(echo "$service" | tr '[:lower:]' '[:upper:]')
   id=$(shotbro_image_id "$image_ref")
   {
-    echo "DEPLOYED_${service^^}_SHA=${sha}"
-    echo "DEPLOYED_${service^^}_AT=$(date -Is)"
-    echo "DEPLOYED_${service^^}_IMAGE=${image_ref}"
-    echo "DEPLOYED_${service^^}_ID=${id}"
+    echo "DEPLOYED_${upper}_SHA=${sha}"
+    echo "DEPLOYED_${upper}_AT=$(date -Is)"
+    echo "DEPLOYED_${upper}_IMAGE=${image_ref}"
+    echo "DEPLOYED_${upper}_ID=${id}"
   } >> "$SHOTBRO_STATE_FILE"
   echo "${service}_sha=${sha} ${service}_image=${id}" >> "${SHOTBRO_SRC}/DEPLOYED.txt"
 }
