@@ -301,20 +301,6 @@ export class ProductionOrchestrator {
           amountUsd,
           estimateVersion: String(costDoc?.version ?? 1),
         });
-        const scriptDoc = await ports.storage.getActiveDocument(run.projectId, "SCRIPT");
-        const scenes = (scriptDoc?.payload as { scenes?: { id: string; title?: string }[] })?.scenes ?? [];
-        await ports.storage.saveDocument({
-          projectId: run.projectId,
-          docType: "TIMELINE",
-          payload: {
-            mock: true,
-            runId: run.id,
-            sceneCount: scenes.length,
-            scenes: scenes.map((s) => ({ id: s.id, title: s.title ?? s.id })),
-            note: "Граф производства будет выполнен локально (mock fixtures + FFmpeg)",
-          },
-          userId,
-        });
         await this.requestApproval(
           run,
           ports,

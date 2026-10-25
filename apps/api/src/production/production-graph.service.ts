@@ -182,10 +182,15 @@ export class ProductionGraphService {
       .select()
       .from(productionDocument)
       .where(
-        and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "TIMELINE"), eq(productionDocument.status, "ACTIVE")),
+        and(
+          eq(productionDocument.projectId, projectId),
+          eq(productionDocument.docType, "TIMELINE"),
+          eq(productionDocument.schemaVersion, 2),
+        ),
       )
+      .orderBy(desc(productionDocument.version))
       .limit(1);
-    if (!row || row.schemaVersion !== 2) return {};
+    if (!row) return {};
     const payload = row.payload as Record<string, unknown>;
     const hash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
     return {
@@ -200,10 +205,15 @@ export class ProductionGraphService {
       .select()
       .from(productionDocument)
       .where(
-        and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "TIMELINE"), eq(productionDocument.status, "ACTIVE")),
+        and(
+          eq(productionDocument.projectId, projectId),
+          eq(productionDocument.docType, "TIMELINE"),
+          eq(productionDocument.schemaVersion, 2),
+        ),
       )
+      .orderBy(desc(productionDocument.version))
       .limit(1);
-    if (!row || row.schemaVersion !== 2) return null;
+    if (!row) return null;
     const payload = row.payload as { tracks?: Array<{ type: string; clips?: Array<{ order: number; sceneId?: string }> }> };
     const video = payload.tracks?.find((t) => t.type === "VIDEO");
     if (!video?.clips?.length) return null;

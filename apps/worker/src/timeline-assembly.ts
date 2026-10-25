@@ -1,5 +1,5 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
@@ -14,14 +14,33 @@ import {
   type TimelineTrack,
 } from "../../../packages/contracts/src/production/timeline-schemas.ts";
 
-function parseTimelinePayload(raw: unknown): TimelineDocument | null {
+function parseTimelinePayload(raw: unknown, rowSchemaVersion?: number): TimelineDocument | null {
   try {
-    const legacy = raw as { schemaVersion?: number };
-    if (legacy?.schemaVersion !== 2) return null;
-    return TimelineDocumentSchema.parse(raw);
+    const base =
+      raw && typeof raw === "object" ? { ...(raw as Record<string, unknown>) } : (raw as Record<string, unknown>);
+    if (base && base.schemaVersion !== 2 && rowSchemaVersion === 2) {
+      base.schemaVersion = 2;
+    }
+    if (base?.schemaVersion !== 2) return null;
+    return TimelineDocumentSchema.parse(base);
   } catch {
     return null;
   }
+}
+
+export async function projectHasTimelineV2(db: Db, projectId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: productionDocument.id })
+    .from(productionDocument)
+    .where(
+      and(
+        eq(productionDocument.projectId, projectId),
+        eq(productionDocument.docType, "TIMELINE"),
+        eq(productionDocument.schemaVersion, 2),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
 }
 import type { Db } from "@shotbro/db/client";
 import { asset, productionDocument, productionGraphNode } from "@shotbro/db/schema";
@@ -67,21 +86,38 @@ export async function loadTimelineForAssembly(
           eq(productionDocument.projectId, projectId),
           eq(productionDocument.docType, "TIMELINE"),
           eq(productionDocument.version, runMeta.timelineVersion),
+          eq(productionDocument.schemaVersion, 2),
         ),
       )
       .limit(1);
-    const parsed = row ? parseTimelinePayload(row.payload) : null;
+    const parsed = row ? parseTimelinePayload(row.payload, row.schemaVersion) : null;
     if (parsed) return parsed;
   }
-  const [active] = await db
+  if (runMeta.timelineDocumentId) {
+    const [row] = await db
+      .select()
+      .from(productionDocument)
+      .where(
+        and(eq(productionDocument.id, runMeta.timelineDocumentId), eq(productionDocument.schemaVersion, 2)),
+      )
+      .limit(1);
+    const parsed = row ? parseTimelinePayload(row.payload, row.schemaVersion) : null;
+    if (parsed) return parsed;
+  }
+  const [latestV2] = await db
     .select()
     .from(productionDocument)
     .where(
-      and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "TIMELINE"), eq(productionDocument.status, "ACTIVE")),
+      and(
+        eq(productionDocument.projectId, projectId),
+        eq(productionDocument.docType, "TIMELINE"),
+        eq(productionDocument.schemaVersion, 2),
+      ),
     )
+    .orderBy(desc(productionDocument.version))
     .limit(1);
-  if (!active) return null;
-  return parseTimelinePayload(active.payload);
+  if (!latestV2) return null;
+  return parseTimelinePayload(latestV2.payload, latestV2.schemaVersion);
 }
 
 async function sceneVideoMap(db: Db, projectId: string, runId: string) {

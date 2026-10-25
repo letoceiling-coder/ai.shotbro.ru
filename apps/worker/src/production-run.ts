@@ -11,7 +11,18 @@ import { agentRun, asset, message, messageBlock, productionGraphNode, production
 import { getWorkerDb } from "./db.js";
 import { ensureMockFixtures, readFixture } from "./mock-fixtures.js";
 import { orderGraphNodes } from "./graph-order.js";
-import { assembleFromTimeline, loadTimelineForAssembly } from "./timeline-assembly.js";
+import { mergeTimelineAssemblyContext } from "../../../packages/contracts/src/production/timeline-assembly-context.ts";
+import { assembleFromTimeline, loadTimelineForAssembly, projectHasTimelineV2 } from "./timeline-assembly.js";
+
+export class TimelineAssemblyError extends Error {
+  constructor(
+    readonly code: "TIMELINE_SNAPSHOT_MISSING" | "TIMELINE_SNAPSHOT_INVALID",
+    message: string,
+  ) {
+    super(message);
+    this.name = "TimelineAssemblyError";
+  }
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -122,19 +133,40 @@ export async function executeProductionRun(
           timelineDocumentId?: string;
           timelineHash?: string;
         };
-        const runMeta = {
-          timelineDocumentId: data.timelineDocumentId ?? stored.timelineDocumentId,
-          timelineVersion: data.timelineVersion ?? stored.timelineVersion,
-          timelineHash: data.timelineHash ?? stored.timelineHash,
+        const assemblyCtx = mergeTimelineAssemblyContext(
+          {
+            timelineDocumentId: data.timelineDocumentId,
+            timelineVersion: data.timelineVersion,
+            timelineHash: data.timelineHash,
+          },
+          stored,
+        );
+        const runMeta = assemblyCtx ?? {
+          timelineDocumentId: stored.timelineDocumentId,
+          timelineVersion: stored.timelineVersion,
+          timelineHash: stored.timelineHash,
         };
+        const expectsTimeline =
+          Boolean(assemblyCtx) || (await projectHasTimelineV2(db, data.projectId));
         let timeline = await loadTimelineForAssembly(db, data.projectId, runMeta);
-        if (!timeline && process.env.AI_MOCK_MODE === "true") {
-          timeline = await loadTimelineForAssembly(db, data.projectId, {});
+        if (!timeline && expectsTimeline) {
+          const code = assemblyCtx ? "TIMELINE_SNAPSHOT_INVALID" : "TIMELINE_SNAPSHOT_MISSING";
+          log.error({ runMeta, assemblyCtx, projectId: data.projectId }, code);
+          throw new TimelineAssemblyError(
+            code,
+            `${code}: project has timeline v2 but assembly could not load snapshot`,
+          );
         }
-        if (!timeline) {
-          log.warn({ runMeta, projectId: data.projectId, jobTimelineVersion: data.timelineVersion }, "timeline_assembly_fallback_legacy");
+        if (timeline) {
+          log.info(
+            {
+              clipCount: timeline.tracks.find((t) => t.type === "VIDEO")?.clips?.length,
+              runMeta: assemblyCtx ?? runMeta,
+            },
+            "timeline_assembly_start",
+          );
         } else {
-          log.info({ clipCount: timeline.tracks.find((t) => t.type === "VIDEO")?.clips?.length, runMeta }, "timeline_assembly_start");
+          log.info({ projectId: data.projectId }, "timeline_assembly_legacy_no_v2");
         }
         let out: { buffer: Buffer; path: string; timelineHash?: string; clipCount?: number };
         let assemblyMeta: Record<string, unknown> = { legacy: true };
@@ -150,9 +182,10 @@ export async function executeProductionRun(
             log,
           });
           assemblyMeta = {
-            timelineVersion: runMeta.timelineVersion,
-            timelineHash: runMeta.timelineHash ?? out.timelineHash,
+            timelineVersion: assemblyCtx?.timelineVersion ?? runMeta.timelineVersion,
+            timelineHash: assemblyCtx?.timelineHash ?? runMeta.timelineHash ?? out.timelineHash,
             clipCount: out.clipCount,
+            legacy: false,
           };
         } else {
           out = await assembleMp4(fixtures, sceneVideoAssets, log);

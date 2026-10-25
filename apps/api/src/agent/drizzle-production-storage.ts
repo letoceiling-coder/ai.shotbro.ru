@@ -51,6 +51,28 @@ export class DrizzleProductionStorage implements ProductionStoragePort {
     userId: string;
     supersedePrevious?: boolean;
   }): Promise<StoredDocument> {
+    if (input.docType === "TIMELINE" && (input.payload as { schemaVersion?: number }).schemaVersion !== 2) {
+      const [activeV2] = await this.db
+        .select()
+        .from(productionDocument)
+        .where(
+          and(
+            eq(productionDocument.projectId, input.projectId),
+            eq(productionDocument.docType, "TIMELINE"),
+            eq(productionDocument.schemaVersion, 2),
+            eq(productionDocument.status, "ACTIVE"),
+          ),
+        )
+        .limit(1);
+      if (activeV2) {
+        return {
+          id: activeV2.id,
+          docType: activeV2.docType,
+          version: activeV2.version,
+          payload: activeV2.payload as Record<string, unknown>,
+        };
+      }
+    }
     if (input.supersedePrevious !== false) {
       const existing = await this.db
         .select()
