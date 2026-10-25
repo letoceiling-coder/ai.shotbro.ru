@@ -41,6 +41,7 @@ export function StoryboardStudio({ projectId }: { projectId: string }) {
   const [picker, setPicker] = useState<"first" | "last" | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [videoModelId, setVideoModelId] = useState("mock/video");
+  const [descDraft, setDescDraft] = useState("");
 
   const scenes = data?.payload.scenes ?? [];
   const selected = useMemo(
@@ -58,6 +59,10 @@ export function StoryboardStudio({ projectId }: { projectId: string }) {
       void sync.mutateAsync().catch(() => null);
     }
   }, [data, isLoading, sync]);
+
+  useEffect(() => {
+    if (selected) setDescDraft(selected.description ?? "");
+  }, [selected?.sceneId, selected?.revision, selected?.description]);
 
   const { data: catalog } = useModelCatalog();
   const { data: paramDef } = useQuery({
@@ -217,8 +222,9 @@ export function StoryboardStudio({ projectId }: { projectId: string }) {
               <Textarea
                 rows={4}
                 data-testid="storyboard-scene-description"
-                defaultValue={selected.description}
-                onBlur={(e) => void persistScene({ description: e.target.value })}
+                value={descDraft}
+                onChange={(e) => setDescDraft(e.target.value)}
+                onBlur={() => void persistScene({ description: descDraft })}
               />
             </div>
             <div>

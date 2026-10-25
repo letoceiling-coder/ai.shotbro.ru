@@ -20,6 +20,8 @@ export async function addScriptScenesViaUI(page: Page, count: number, projectId?
     });
     expect(boot.ok()).toBeTruthy();
     await page.reload({ waitUntil: "domcontentloaded" });
+    await pinRealProjectOnReload(page, projectId, "script");
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
     await page.getByTestId("creative-section-script").click();
     await expect(page.getByTestId("script-add-scene")).toBeVisible({ timeout: 20_000 });
   }
