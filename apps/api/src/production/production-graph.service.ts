@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { invalidateSceneDependents, planProductionGraph, type SceneVersionRefs } from "@shotbro/ai";
 import type { Db } from "@shotbro/db/client";
@@ -43,14 +44,25 @@ export class ProductionGraphService {
       }
     }
 
+    const timelineSnap = await this.loadTimelineSnapshot(projectId);
+    const priorMeta = (run.metadata ?? {}) as Record<string, unknown>;
+    await this.db
+      .update(agentRun)
+      .set({
+        metadata: { ...priorMeta, ...timelineSnap, mock: true },
+        updatedAt: new Date(),
+      })
+      .where(eq(agentRun.id, runId));
+
     const enqueued = await this.queue.enqueueProductionRun({
       runId,
       projectId,
       ownerId: userId,
       workspaceId,
+      ...timelineSnap,
     });
 
-    return { runId, nodeCount: graph.length, sceneCount: scenes.length, enqueued };
+    return { runId, nodeCount: graph.length, sceneCount: scenes.length, enqueued, timeline: timelineSnap };
   }
 
   async listGraph(userId: string, projectId: string, runId?: string) {
@@ -109,6 +121,28 @@ export class ProductionGraphService {
     return { runId, invalidatedNodeIds: staleIds };
   }
 
+  async invalidateAssemblyForTimelineChange(userId: string, projectId: string) {
+    await this.access.assertProjectAccess(this.db, userId, projectId);
+    const runs = await this.db.select().from(agentRun).where(eq(agentRun.projectId, projectId));
+    const touched: string[] = [];
+    for (const run of runs) {
+      if (run.status === "COMPLETED" && run.productionState === "COMPLETED") continue;
+      const nodes = await this.db
+        .select()
+        .from(productionGraphNode)
+        .where(and(eq(productionGraphNode.projectId, projectId), eq(productionGraphNode.agentRunId, run.id)));
+      for (const node of nodes) {
+        if (node.nodeType !== "ASSEMBLY" && node.nodeType !== "TIMELINE") continue;
+        await this.db
+          .update(productionGraphNode)
+          .set({ status: "QUEUED", outputAssetIds: [], updatedAt: new Date() })
+          .where(eq(productionGraphNode.id, node.id));
+        touched.push(node.id);
+      }
+    }
+    return { invalidatedNodeIds: touched };
+  }
+
   private async buildGraphPlan(projectId: string, runId: string) {
     const scriptDoc = await this.db
       .select()
@@ -129,11 +163,9 @@ export class ProductionGraphService {
       )
       .limit(1);
 
-    const scenes = (scriptDoc[0]?.payload as { scenes?: { id: string }[] })?.scenes?.map((s) => s.id) ?? [
-      "scene-1",
-      "scene-2",
-      "scene-3",
-    ];
+    const timelineOrder = await this.timelineSceneOrder(projectId);
+    const scriptScenes = (scriptDoc[0]?.payload as { scenes?: { id: string }[] })?.scenes?.map((s) => s.id) ?? [];
+    const scenes = timelineOrder?.length ? timelineOrder : scriptScenes.length ? scriptScenes : ["scene-1", "scene-2", "scene-3"];
     const sceneVersions = await this.loadSceneVersionRefs(projectId, scenes, scriptDoc[0]?.version ?? 1);
     const graph = planProductionGraph({
       runId,
@@ -143,6 +175,42 @@ export class ProductionGraphService {
       sceneVersions,
     });
     return { graph, scenes, sceneVersions };
+  }
+
+  private async loadTimelineSnapshot(projectId: string) {
+    const [row] = await this.db
+      .select()
+      .from(productionDocument)
+      .where(
+        and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "TIMELINE"), eq(productionDocument.status, "ACTIVE")),
+      )
+      .limit(1);
+    if (!row || row.schemaVersion !== 2) return {};
+    const payload = row.payload as Record<string, unknown>;
+    const hash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    return {
+      timelineDocumentId: row.id,
+      timelineVersion: row.version,
+      timelineHash: hash,
+    };
+  }
+
+  private async timelineSceneOrder(projectId: string): Promise<string[] | null> {
+    const [row] = await this.db
+      .select()
+      .from(productionDocument)
+      .where(
+        and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "TIMELINE"), eq(productionDocument.status, "ACTIVE")),
+      )
+      .limit(1);
+    if (!row || row.schemaVersion !== 2) return null;
+    const payload = row.payload as { tracks?: Array<{ type: string; clips?: Array<{ order: number; sceneId?: string }> }> };
+    const video = payload.tracks?.find((t) => t.type === "VIDEO");
+    if (!video?.clips?.length) return null;
+    return [...video.clips]
+      .sort((a, b) => a.order - b.order)
+      .map((c) => c.sceneId)
+      .filter((id): id is string => Boolean(id));
   }
 
   private async loadSceneVersionRefs(

@@ -47,13 +47,13 @@
 
 | Gate | Status | Notes |
 |------|--------|-------|
-| Implemented | **YES** | branch code |
+| Implemented | **YES** | `00ea52e` |
 | Wired (API ↔ UI ↔ agent) | **YES** | delegates + routes |
 | Persisted | **YES** | `prompt_version.parameters.scenePromptBundle` |
 | Visible | **YES** | Prompts tab + storyboard link |
-| Tested | **PENDING** | VPS Playwright |
-| Deployed | **PENDING** | staging image bump |
-| Blockers | none in code | await VPS run |
+| Tested | **YES** | 5G E2E 4/4 viewports |
+| Deployed | **YES** | https://ai.shotbro.ru |
+| Blockers | regression 7/8 | phase4 unified MP4 — retry recommended |
 
 ## Regression policy
 

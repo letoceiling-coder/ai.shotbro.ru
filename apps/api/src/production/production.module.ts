@@ -10,6 +10,7 @@ import { CharacterContinuityService } from "./character-continuity.service";
 import { PromptVersionService } from "./prompt-version.service";
 import { ProductionAssetIngestionService } from "./production-asset-ingestion.service";
 import { StoryboardDocumentService } from "./storyboard-document.service";
+import { TimelineDocumentService } from "./timeline-document.service";
 import { ReferenceService } from "./reference.service";
 import { AssetsModule } from "../assets/assets.module";
 
@@ -22,6 +23,7 @@ import { AssetsModule } from "../assets/assets.module";
     CostReservationService,
     ProductionDocumentService,
     StoryboardDocumentService,
+    TimelineDocumentService,
     ReferenceService,
     CharacterContinuityService,
     PromptVersionService,
@@ -34,6 +36,7 @@ import { AssetsModule } from "../assets/assets.module";
     CostReservationService,
     ProductionDocumentService,
     StoryboardDocumentService,
+    TimelineDocumentService,
     ReferenceService,
     CharacterContinuityService,
     PromptVersionService,

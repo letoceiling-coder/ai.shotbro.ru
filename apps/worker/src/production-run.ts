@@ -11,6 +11,7 @@ import { agentRun, asset, message, messageBlock, productionGraphNode, production
 import { getWorkerDb } from "./db.js";
 import { ensureMockFixtures, readFixture } from "./mock-fixtures.js";
 import { orderGraphNodes } from "./graph-order.js";
+import { assembleFromTimeline, loadTimelineForAssembly } from "./timeline-assembly.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -107,9 +108,35 @@ export async function executeProductionRun(
             .where(eq(productionGraphNode.id, node.id));
           continue;
         }
-        const out = await assembleMp4(fixtures, sceneVideoAssets, log);
+        const runMeta = (runRow?.metadata ?? {}) as {
+          timelineVersion?: number;
+          timelineDocumentId?: string;
+          timelineHash?: string;
+        };
+        const timeline = await loadTimelineForAssembly(db, data.projectId, runMeta);
+        let out: { buffer: Buffer; path: string; timelineHash?: string; clipCount?: number };
+        let assemblyMeta: Record<string, unknown> = { legacy: true };
+        if (timeline) {
+          out = await assembleFromTimeline({
+            db,
+            s3,
+            bucket,
+            projectId: data.projectId,
+            runId: data.runId,
+            timeline,
+            tmpRoot: fixtures.root,
+            log,
+          });
+          assemblyMeta = {
+            timelineVersion: runMeta.timelineVersion,
+            timelineHash: runMeta.timelineHash ?? out.timelineHash,
+            clipCount: out.clipCount,
+          };
+        } else {
+          out = await assembleMp4(fixtures, sceneVideoAssets, log);
+        }
         const assetId = randomUUID();
-        const key = `workspaces/${data.workspaceId}/projects/${data.projectId}/assets/${assetId}/mock/final.mp4`;
+        const key = `workspaces/${data.workspaceId}/projects/${data.projectId}/assets/${assetId}/mock/final-${assetId.slice(0, 8)}.mp4`;
         const body = out.buffer;
         await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: "video/mp4" }));
         await db.insert(asset).values({
@@ -138,6 +165,7 @@ export async function executeProductionRun(
             voiceAssetId,
             sceneVideoAssets,
             aspectRatio: "9:16",
+            ...assemblyMeta,
           },
           createdBy: data.ownerId,
         });
@@ -255,6 +283,4 @@ async function assembleMp4(
     const buffer = await readFixture("scene.mp4");
     return { buffer, path: fixtures.videoPath };
   } finally {
-    await rm(tmp, { recursive: true, force: true }).catch(() => undefined);
-  }
-}
+    await rm(tmp, { recursive: true, fo

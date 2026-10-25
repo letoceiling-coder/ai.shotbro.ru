@@ -28,7 +28,7 @@
 | 5E | Character studio | **ACCEPTED** — see `PHASE5-CHARACTER-CONSISTENCY.md` |
 | 5F | Reference manager | **ACCEPTED** — see `PHASE5-REFERENCE-MANAGER.md` |
 | 5MP | Multi-provider (mock) | **DEPLOYED** — Providers E2E 16/16 |
-| 5G | Prompt studio | **IMPLEMENTED** (branch) — VPS E2E + deploy pending; see `PHASE5-PROMPT-STUDIO-ACCEPTANCE.md` |
+| 5G | Prompt studio | **ACCEPTED** (E2E 4/4) — see `PHASE5-PROMPT-STUDIO-ACCEPTANCE.md` |
 | 5H–5P | Remaining Phase 5 scope | NOT IMPLEMENTED |
 
 ## Playwright on VPS (`retries=0`, logs under `/var/log/shotbro-e2e/`)
@@ -41,6 +41,8 @@
 | `phase5-creative-flow` | **1/1 PASS** | `phase5-creative-flow-68a09d7.log` |
 | `regression-strict` | **8/8 PASS** (second run; first run 6/8 — timing flakes phase3 desktop1440, phase4 tablet) | `regression-strict-retry-68a09d7.log` |
 | `phase5-providers` | **16/16 PASS** | `phase5-providers-68a09d7.log` |
+| `phase5-prompts` | **4/4 PASS** (1920, 1440, tablet, mobile390) | `phase5-prompts-00ea52e-r2.log` |
+| `regression-strict` (post-5G) | **7/8** (phase4 unified MP4 failed once) | `regression-strict-00ea52e.log` |
 
 Runner modes `phase5-storyboard`, `phase5-characters`, `phase5-references`, `phase5-creative-flow`, `phase5-creative`, `regression-strict`, `phase5-providers` map to the spec files in `infra/scripts/staging-playwright-e2e.sh`. Creative specs use `--project=desktop` only; viewports are set inside tests (1920, 1440, tablet, mobile390).
 

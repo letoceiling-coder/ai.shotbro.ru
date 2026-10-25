@@ -10,6 +10,7 @@ import { CharacterContinuityService } from "./character-continuity.service";
 import { PromptVersionService } from "./prompt-version.service";
 import { StoryboardDocumentService } from "./storyboard-document.service";
 import { ReferenceService } from "./reference.service";
+import { TimelineDocumentService } from "./timeline-document.service";
 import { ModelParameterValidator, SceneModelSettingsSchema } from "@shotbro/ai";
 import { ReferenceRoleSchema } from "@shotbro/contracts";
 
@@ -26,7 +27,74 @@ export class ProductionController {
     @Inject(PromptVersionService) private readonly prompts: PromptVersionService,
     @Inject(StoryboardDocumentService) private readonly storyboard: StoryboardDocumentService,
     @Inject(ReferenceService) private readonly references: ReferenceService,
+    @Inject(TimelineDocumentService) private readonly timeline: TimelineDocumentService,
   ) {}
+
+  @Get("timeline")
+  getTimeline(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    return this.timeline.ensureTimeline(req.user.id, projectId);
+  }
+
+  @Patch("timeline")
+  patchTimeline(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: Record<string, unknown>) {
+    return this.timeline.patchDocument(req.user.id, projectId, body as { payload: never; expectedRevision?: number });
+  }
+
+  @Post("timeline/sync-from-storyboard")
+  syncTimeline(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: { preview?: boolean }) {
+    if (body.preview) return this.timeline.previewSyncFromStoryboard(req.user.id, projectId);
+    return this.timeline.syncFromStoryboard(req.user.id, projectId, true);
+  }
+
+  @Post("timeline/reorder")
+  reorderTimeline(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Body() body: { trackId: string; clipIds: string[]; expectedRevision?: number },
+  ) {
+    return this.timeline.reorderClips(req.user.id, projectId, body);
+  }
+
+  @Post("timeline/clips")
+  upsertTimelineClip(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: Record<string, unknown>) {
+    const expectedRevision = body.expectedRevision as number | undefined;
+    return this.timeline.upsertClip(req.user.id, projectId, body as never, expectedRevision);
+  }
+
+  @Patch("timeline/clips/:clipId")
+  patchTimelineClip(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("clipId") clipId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.timeline.upsertClip(
+      req.user.id,
+      projectId,
+      { ...body, clipId } as never,
+      body.expectedRevision as number | undefined,
+    );
+  }
+
+  @Post("timeline/clips/:clipId/delete")
+  deleteTimelineClip(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("clipId") clipId: string,
+    @Body() body: { expectedRevision?: number },
+  ) {
+    return this.timeline.deleteClip(req.user.id, projectId, clipId, body.expectedRevision);
+  }
+
+  @Post("timeline/validate")
+  validateTimeline(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    return this.timeline.validate(req.user.id, projectId);
+  }
+
+  @Post("timeline/prepare-assembly")
+  prepareTimelineAssembly(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    return this.timeline.prepareAssembly(req.user.id, projectId);
+  }
 
   @Get("brief")
   getBrief(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {

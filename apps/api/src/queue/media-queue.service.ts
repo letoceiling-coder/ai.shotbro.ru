@@ -40,6 +40,9 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
     projectId: string;
     ownerId: string;
     workspaceId: string;
+    timelineDocumentId?: string;
+    timelineVersion?: number;
+    timelineHash?: string;
   }): Promise<boolean> {
     const jobId = `production-run-${input.runId}`;
     const existing = await this.productionRun.getJob(jobId);

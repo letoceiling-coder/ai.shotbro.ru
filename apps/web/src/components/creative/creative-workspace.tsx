@@ -11,6 +11,7 @@ import { StoryboardStudio } from "./sections/storyboard-studio";
 import { CharacterStudio } from "./sections/character-studio";
 import { ReferenceManager } from "./sections/reference-manager";
 import { PromptStudio } from "./sections/prompt-studio";
+import { TimelineStudio } from "./sections/timeline-studio";
 
 export function CreativeWorkspace({ projectId }: { projectId: string }) {
   const section = useStudioStore((s) => s.creativeSection);
@@ -30,9 +31,7 @@ export function CreativeWorkspace({ projectId }: { projectId: string }) {
         {section === "production" ? (
           <PlaceholderSection title="Production" phase="5H" hint="Граф, jobs и approvals — см. правую панель и чат." />
         ) : null}
-        {section === "timeline" ? (
-          <PlaceholderSection title="Timeline" phase="5I" hint="Версионируемый монтажный JSON + FFmpeg assembly." />
-        ) : null}
+        {section === "timeline" ? <TimelineStudio projectId={projectId} /> : null}
         {section === "assets" ? (
           <PlaceholderSection title="Asset Library" phase="5J" hint="Расширенная медиатека проекта." />
         ) : null}
