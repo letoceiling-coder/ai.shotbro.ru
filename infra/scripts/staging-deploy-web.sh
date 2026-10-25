@@ -42,6 +42,7 @@ shotbro_promote_image "shotbro/web" "$BUILD_REF"
 
 docker tag "$CURRENT" infra-web:deployed 2>/dev/null || true
 docker tag shotbro/web:rollback infra-web:rollback 2>/dev/null || true
+# compat aliases only — retention policy uses shotbro/web:* IDs
 
 export WEB_IMAGE="$CURRENT"
 docker compose up -d --no-build --force-recreate web

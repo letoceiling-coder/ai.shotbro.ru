@@ -23,7 +23,7 @@ Deploy preflight requires:
 | `infra-web:deployed` / `infra-web:rollback` | Aliases to web current/rollback (compat) |
 | `standalone.bak-*` | **Removed** — no new copies on deploy |
 | Dangling `<none>` images | Remove after each web deploy + weekly cleanup |
-| BuildKit cache | `docker builder prune --keep-storage 12GB` (configurable) |
+| BuildKit cache | `docker builder prune --keep-storage 8GB` after deploy/GC (see `VPS-SHARED-STORAGE-RECOVERY.md`) |
 | `standalone.bak-*` | Keep **2** newest (`STANDALONE_BAK_KEEP`) |
 | `/var/log/shotbro-e2e/*.log` | **14 days** |
 | Playwright `test-results` on host | Files older than **7d** except recent traces (cleanup script) |

@@ -109,7 +109,7 @@ shotbro_gc_images() {
     fi
   done < <(docker images shotbro-web-build --format '{{.Repository}} {{.Tag}}' 2>/dev/null || true)
 
-  local keep_bytes=$(( ${BUILD_CACHE_KEEP_GB:-12} * 1024 * 1024 * 1024 ))
+  local keep_bytes=$(( ${BUILD_CACHE_KEEP_GB:-8} * 1024 * 1024 * 1024 ))
   docker builder prune -f --keep-storage "$keep_bytes" >/dev/null 2>&1 || true
   shotbro_log "gc_done"
 }
