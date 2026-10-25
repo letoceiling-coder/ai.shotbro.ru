@@ -52,17 +52,40 @@ const execFileAsync = promisify(execFile);
 const SCENE_MOCK_COLORS = ["0xff0000", "0x00ff00", "0x0000ff", "0xff8800", "0x8800ff"];
 const COLORS = ["0x112233", "0x223311", "0x331122", "0x113322", "0x221133"];
 
-async function scriptSceneOrder(db: Db, projectId: string): Promise<string[]> {
-  const [row] = await db
+/** Timeline clips use storyboard `sceneId`; script `id` may differ (e.g. scene-1 vs UUID). */
+async function mockSceneIdOrder(db: Db, projectId: string): Promise<string[]> {
+  const [boardRow] = await db
+    .select()
+    .from(productionDocument)
+    .where(
+      and(
+        eq(productionDocument.projectId, projectId),
+        eq(productionDocument.docType, "STORYBOARD"),
+        eq(productionDocument.status, "ACTIVE"),
+      ),
+    )
+    .limit(1);
+  const boardScenes =
+    (boardRow?.payload as { scenes?: { sceneId?: string; order?: number }[] } | undefined)?.scenes ?? [];
+  if (boardScenes.length) {
+    return [...boardScenes]
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map((s) => s.sceneId)
+      .filter((id): id is string => Boolean(id));
+  }
+  const [scriptRow] = await db
     .select()
     .from(productionDocument)
     .where(
       and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "SCRIPT"), eq(productionDocument.status, "ACTIVE")),
     )
     .limit(1);
-  const payload = row?.payload as { scenes?: { id?: string; sceneId?: string }[] } | undefined;
-  const scenes = payload?.scenes ?? [];
-  return scenes.map((s) => s.id ?? s.sceneId).filter((id): id is string => Boolean(id));
+  const scriptScenes =
+    (scriptRow?.payload as { scenes?: { id?: string; sceneId?: string; sequence?: number }[] } | undefined)?.scenes ?? [];
+  return [...scriptScenes]
+    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+    .map((s) => s.id ?? s.sceneId)
+    .filter((id): id is string => Boolean(id));
 }
 
 function mockColorForScene(sceneOrder: string[], sceneId: string | undefined, clipIndex: number) {
@@ -182,7 +205,7 @@ export async function assembleFromTimeline(input: {
   const { db, s3, bucket, projectId, runId, timeline, tmpRoot, log } = input;
   const sceneMap = await sceneVideoMap(db, projectId, runId);
   const mockColorSegments = process.env.AI_MOCK_MODE === "true";
-  const sceneOrder = mockColorSegments ? await scriptSceneOrder(db, projectId) : [];
+  const sceneOrder = mockColorSegments ? await mockSceneIdOrder(db, projectId) : [];
   const videoTrack = timeline.tracks.find((t: TimelineTrack) => t.type === "VIDEO");
   const clips = [...(videoTrack?.clips ?? [])].sort((a, b) => a.order - b.order);
   if (!clips.length) throw new Error("timeline_no_video_clips");
