@@ -31,6 +31,7 @@ import { ProviderJobsService } from "../providers/provider-jobs.service";
 import { StoryboardDocumentService } from "../production/storyboard-document.service";
 import { ReferenceService } from "../production/reference.service";
 import { CharacterContinuityService } from "../production/character-continuity.service";
+import { PromptVersionService } from "../production/prompt-version.service";
 
 @Injectable()
 export class AgentService {
@@ -51,6 +52,7 @@ export class AgentService {
     @Inject(StoryboardDocumentService) private readonly storyboard: StoryboardDocumentService,
     @Inject(ReferenceService) private readonly references: ReferenceService,
     @Inject(CharacterContinuityService) private readonly characters: CharacterContinuityService,
+    @Inject(PromptVersionService) private readonly prompts: PromptVersionService,
   ) {}
 
   async resumeAfterApproval(projectId: string, userId: string, targetType: string) {
@@ -198,6 +200,7 @@ export class AgentService {
         references: this.references,
         storyboard: this.storyboard,
         characters: this.characters,
+        prompts: this.prompts,
         conversationId,
       });
       await this.postAssistantBlocks(conversationId, projectId, [

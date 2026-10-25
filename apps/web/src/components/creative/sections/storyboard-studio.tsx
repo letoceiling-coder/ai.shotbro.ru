@@ -26,6 +26,7 @@ import { AssetPickerDialog } from "./asset-picker-dialog";
 import { WorkspaceState } from "./workspace-state";
 import type { StoryboardScene } from "@shotbro/contracts";
 import type { ReactNode } from "react";
+import { useStudioStore } from "@/store/studio-store";
 
 type ViewMode = "grid" | "list" | "detail";
 
@@ -180,8 +181,9 @@ export function StoryboardStudio({ projectId }: { projectId: string }) {
               <Badge>#{selected.order}</Badge>
               <Input
                 className="max-w-md"
-                value={selected.title}
-                onChange={(e) => void persistScene({ title: e.target.value })}
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={() => void persistScene({ title: titleDraft })}
                 data-testid="storyboard-scene-title"
               />
               <Badge variant="outline">rev {selected.revision}</Badge>
@@ -251,6 +253,7 @@ export function StoryboardStudio({ projectId }: { projectId: string }) {
               <Label>Референсы сцены</Label>
               <p className="text-xs text-muted-foreground">{sceneRefs?.items.length ?? 0} связей</p>
             </div>
+            <StoryboardPromptLink sceneId={selected.sceneId} />
             <p className="text-xs text-muted-foreground">
               Сохранение: {saveState === "saving" ? "…" : saveState === "saved" ? "OK" : saveState === "error" ? "ошибка" : "—"}
             </p>
@@ -352,6 +355,25 @@ function ViewToggle({ view, setView }: { view: ViewMode; setView: (v: ViewMode) 
       {btn("list", <List className="h-4 w-4" />, "storyboard-view-list")}
       {btn("detail", <PanelRightOpen className="h-4 w-4" />, "storyboard-view-detail")}
     </div>
+  );
+}
+
+function StoryboardPromptLink({ sceneId }: { sceneId: string }) {
+  const setSection = useStudioStore((s) => s.setCreativeSection);
+  const setPromptScene = useStudioStore((s) => s.setCreativePromptSceneId);
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      data-testid="storyboard-open-prompts"
+      onClick={() => {
+        setPromptScene(sceneId);
+        setSection("prompts");
+      }}
+    >
+      Open Prompt Studio
+    </Button>
   );
 }
 

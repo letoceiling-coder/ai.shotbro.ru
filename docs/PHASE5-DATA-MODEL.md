@@ -24,12 +24,35 @@ Script document metadata fields: `concept`, `format`, `style`, `targetAudience`,
 | POST | `/api/v1/projects/:id/scripts/scenes/:sceneId/duplicate` | Duplicate |
 | POST | `/api/v1/projects/:id/scripts/scenes/reorder` | Reorder |
 
+## Prompt version (5G)
+
+Table `prompt_version` stores one row per save. Structured fields live in JSON:
+
+- `parameters.scenePromptBundle` — `ScenePromptBundle` (`packages/contracts/src/production/prompt-schemas.ts`): image + video structs, `imageModelId`, `videoModelId`, optional `modelParameters`, optional `restoredFromVersion`.  
+- `parameters.settingsSnapshot` — copy of `project_memory.preferences.sceneModelSettings[sceneId]` at save time.  
+- `parameters.changeNote` — optional author note (including `restore:vN`).  
+- `renderedPrompt` — denormalized primary image prompt text (legacy consumers).  
+- `createdBy` — user id; versions are append-only (no hard delete).
+
+API (project-scoped):
+
+| Method | Path |
+|--------|------|
+| GET | `/scenes/:sceneId/prompts` |
+| GET | `/scenes/:sceneId/prompts/latest` |
+| GET | `/scenes/:sceneId/prompts/versions/:version` |
+| GET | `/scenes/:sceneId/prompts/compare?a=&b=` |
+| POST | `/scenes/:sceneId/prompts` (`{ bundle, changeNote? }` or legacy `{ renderedPrompt }`) |
+| POST | `/scenes/:sceneId/prompts/restore` |
+| POST | `/scenes/:sceneId/prompts/validate` |
+
+Graph invalidation runs on each new version (same as storyboard scene edits).
+
 ## Not yet modeled in UI
 
-- Storyboard frame → asset refs for first/last frame (5D).  
-- Reference roles (`first_frame`, `style`, …) — 5F.  
 - Timeline JSON schema validation — 5I.  
-- Per-scene model selection document — 5H.
+- Unified Production tab graph (5H+).  
+- Prompt-linked asset thumbnails (preview notes only in 5G).
 
 ## Character record (existing)
 

@@ -52,7 +52,7 @@ flowchart LR
 | Brief | `production_document` BRIEF |
 | Script | `production_document` SCRIPT (version chain) |
 | Storyboard | `production_document` STORYBOARD |
-| Prompts | `prompt_version` |
+| Prompts (5G) | `prompt_version` + Creative **Prompts** tab (`PromptStudio`) |
 | Characters | `project_memory.characters` |
 | References | assets + memory links (5F) |
 | Timeline | `production_document` TIMELINE (5I) |
@@ -62,6 +62,8 @@ flowchart LR
 
 Edits call existing graph invalidation hooks on scene/character/prompt changes. Production approval remains bound to payload hash; material changes require re-approval.
 
-## Agent tools (5K)
+## Agent tools (5K + 5G)
 
-Extend ToolExecutor handlers to call the same services as HTTP controllers (no SQL from LLM). ContextBuilder loads active document versions after UI saves.
+Phase 5G adds prompt CRUD delegates mirroring HTTP: `get_scene_prompt`, `save_scene_prompt`, `list_prompt_versions`, `compare_prompt_versions`, `restore_prompt_version`, `get_scene_model_settings`, `validate_prompt_for_model`, `prepare_scene_prompt`. Handlers registered in `phase5-prompt-tools.ts`; catalog entries in `phase4-tool-catalog.ts`.
+
+Extend ToolExecutor handlers to call the same services as HTTP controllers (no SQL from LLM). ContextBuilder loads active document versions after UI saves (prompt bundle parity — 5K follow-up).

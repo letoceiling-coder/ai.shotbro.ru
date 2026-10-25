@@ -2,7 +2,7 @@ import { expect, type Page } from "@playwright/test";
 import { pinRealProjectOnReload } from "./real-studio-state";
 import { tinyPngBuffer } from "./phase5-creative-seed";
 
-export type CreativeSection = "script" | "storyboard" | "characters" | "references" | "models";
+export type CreativeSection = "script" | "storyboard" | "characters" | "references" | "prompts" | "models";
 
 export async function gotoStudioSection(page: Page, projectId: string, section: CreativeSection) {
   await pinRealProjectOnReload(page, projectId, section === "models" ? "models" : section);

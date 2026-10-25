@@ -28,7 +28,7 @@
 | 5E | Character studio | **ACCEPTED** — see `PHASE5-CHARACTER-CONSISTENCY.md` |
 | 5F | Reference manager | **ACCEPTED** — see `PHASE5-REFERENCE-MANAGER.md` |
 | 5MP | Multi-provider (mock) | **DEPLOYED** — Providers E2E 16/16 |
-| 5G | Prompt studio | **NOT STARTED** (blocked until 5D–5F sign-off recorded) |
+| 5G | Prompt studio | **IMPLEMENTED** (branch) — VPS E2E + deploy pending; see `PHASE5-PROMPT-STUDIO-ACCEPTANCE.md` |
 | 5H–5P | Remaining Phase 5 scope | NOT IMPLEMENTED |
 
 ## Playwright on VPS (`retries=0`, logs under `/var/log/shotbro-e2e/`)
@@ -76,4 +76,6 @@ Screenshots/traces: `apps/web/test-results/` on the VPS E2E working tree (e.g. `
 
 ## Next
 
-**Phase 5G — Prompt Studio:** image/video/scene prompts, version history, before/after, agent tools, provider parameter validation — start only after stakeholder ack of this acceptance record.
+1. VPS: deploy web+api, run `phase5-prompts` + regression suites (`retries=0`).  
+2. Close `PHASE5-PROMPT-STUDIO-ACCEPTANCE.md` Table B.  
+3. **Phase 5I Timeline** — versioned montage JSON + FFmpeg sync (see `PHASE5-REMAINING-WORK.md`).

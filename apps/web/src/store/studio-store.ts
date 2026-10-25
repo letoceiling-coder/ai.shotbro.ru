@@ -21,6 +21,7 @@ export type CreativeSection =
   | "storyboard"
   | "characters"
   | "references"
+  | "prompts"
   | "models"
   | "production"
   | "timeline"
@@ -36,6 +37,8 @@ interface StudioState {
   setActiveRealProject: (id: string | null) => void;
   creativeSection: CreativeSection;
   setCreativeSection: (section: CreativeSection) => void;
+  creativePromptSceneId: string | null;
+  setCreativePromptSceneId: (id: string | null) => void;
   sidebarCollapsed: boolean;
   qualityStrategy: QualityStrategy;
   adStages: AdStageMap;
@@ -90,6 +93,8 @@ export const useStudioStore = create<StudioState>()(
       setActiveRealProject: (id) => set({ activeRealProjectId: id }),
       creativeSection: "chat",
       setCreativeSection: (creativeSection) => set({ creativeSection }),
+      creativePromptSceneId: null,
+      setCreativePromptSceneId: (creativePromptSceneId) => set({ creativePromptSceneId }),
       sidebarCollapsed: false,
       qualityStrategy: "balance",
       adStages: { "demo-ad": "initial" },

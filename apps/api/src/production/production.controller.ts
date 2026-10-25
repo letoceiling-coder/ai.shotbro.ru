@@ -111,6 +111,32 @@ export class ProductionController {
     return this.prompts.listForScene(req.user.id, projectId, sceneId);
   }
 
+  @Get("scenes/:sceneId/prompts/latest")
+  latestPrompt(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("sceneId") sceneId: string) {
+    return this.prompts.getLatest(req.user.id, projectId, sceneId);
+  }
+
+  @Get("scenes/:sceneId/prompts/compare")
+  comparePrompts(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Query("a") a: string,
+    @Query("b") b: string,
+  ) {
+    return this.prompts.compareVersions(req.user.id, projectId, sceneId, Number(a), Number(b));
+  }
+
+  @Get("scenes/:sceneId/prompts/versions/:version")
+  getPromptVersion(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Param("version") version: string,
+  ) {
+    return this.prompts.getByVersion(req.user.id, projectId, sceneId, Number(version));
+  }
+
   @Get("scenes/:sceneId/model-settings")
   async getSceneModelSettings(
     @Req() req: AuthedRequest,
@@ -161,9 +187,36 @@ export class ProductionController {
     @Req() req: AuthedRequest,
     @Param("projectId") projectId: string,
     @Param("sceneId") sceneId: string,
-    @Body() body: { modelId?: string; renderedPrompt: string; parameters?: Record<string, unknown> },
+    @Body()
+    body:
+      | { bundle: Record<string, unknown>; changeNote?: string }
+      | { modelId?: string; renderedPrompt: string; parameters?: Record<string, unknown> },
   ) {
-    return this.prompts.create(req.user.id, projectId, { sceneId, ...body });
+    if ("bundle" in body && body.bundle) {
+      return this.prompts.saveScenePrompt(req.user.id, projectId, sceneId, body);
+    }
+    const legacy = body as { modelId?: string; renderedPrompt: string; parameters?: Record<string, unknown> };
+    return this.prompts.create(req.user.id, projectId, { sceneId, ...legacy });
+  }
+
+  @Post("scenes/:sceneId/prompts/restore")
+  restorePrompt(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Body() body: { version: number },
+  ) {
+    return this.prompts.restoreVersion(req.user.id, projectId, sceneId, body.version);
+  }
+
+  @Post("scenes/:sceneId/prompts/validate")
+  validatePrompt(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Body() body: { modelId: string; operation: string; parameters?: Record<string, unknown> },
+  ) {
+    return this.prompts.validateForModel(req.user.id, projectId, sceneId, body);
   }
 
   @Get("storyboard")

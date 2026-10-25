@@ -7,6 +7,8 @@ import type { ProductionGraphService } from "../production/production-graph.serv
 import type { ProviderJobsService } from "../providers/provider-jobs.service";
 import type { ReferenceService } from "../production/reference.service";
 import type { StoryboardDocumentService } from "../production/storyboard-document.service";
+import type { PromptVersionService } from "../production/prompt-version.service";
+import type { ScenePromptBundle } from "@shotbro/contracts";
 
 export function buildAgentToolDelegates(deps: {
   assets: AssetsService;
@@ -16,6 +18,7 @@ export function buildAgentToolDelegates(deps: {
   references: ReferenceService;
   storyboard: StoryboardDocumentService;
   characters: CharacterContinuityService;
+  prompts: PromptVersionService;
   conversationId: string;
 }): ToolExecutionDelegates {
   return {
@@ -85,5 +88,83 @@ export function buildAgentToolDelegates(deps: {
       return { enqueued: true };
     },
     submitMockProviderJob: async (input) => deps.providerJobs.submitMockFromTool(input),
+    getScenePrompt: async ({ projectId, userId, sceneId }) => {
+      try {
+        const latest = await deps.prompts.getLatest(userId, projectId, sceneId);
+        return { sceneId, version: latest.version, bundle: latest.bundle, modelId: latest.modelId, mock: true };
+      } catch {
+        return { sceneId, version: null, bundle: null, mock: true };
+      }
+    },
+    saveScenePrompt: async ({ projectId, userId, sceneId, bundle, changeNote }) => {
+      const res = await deps.prompts.saveScenePrompt(userId, projectId, sceneId, { bundle, changeNote });
+      return { sceneId, version: res.version, bundle: res.bundle, invalidation: res.invalidation, mock: true };
+    },
+    listPromptVersions: async ({ projectId, userId, sceneId }) => {
+      const list = await deps.prompts.listForScene(userId, projectId, sceneId);
+      return {
+        sceneId,
+        items: list.items.map((i) => ({
+          version: i.version,
+          modelId: i.modelId,
+          createdAt: i.createdAt,
+          createdBy: i.createdBy,
+          approvalState: i.approvalState,
+        })),
+        mock: true,
+      };
+    },
+    comparePromptVersions: async ({ projectId, userId, sceneId, versionA, versionB }) => {
+      const cmp = await deps.prompts.compareVersions(userId, projectId, sceneId, versionA, versionB);
+      return { ...cmp, mock: true };
+    },
+    restorePromptVersion: async ({ projectId, userId, sceneId, version }) => {
+      const res = await deps.prompts.restoreVersion(userId, projectId, sceneId, version);
+      return { sceneId, version: res.version, restoredFrom: version, bundle: res.bundle, mock: true };
+    },
+    getSceneModelSettings: async ({ projectId, userId, sceneId }) => {
+      const settings = await deps.prompts.getSceneModelSettingsSnapshot(userId, projectId, sceneId);
+      return { sceneId, settings, mock: true };
+    },
+    validatePromptForModel: async ({ projectId, userId, sceneId, modelId, operation, parameters }) => {
+      const check = await deps.prompts.validateForModel(userId, projectId, sceneId, {
+        modelId,
+        operation,
+        parameters,
+      });
+      return { ...check, mock: true };
+    },
+    prepareScenePrompt: async ({ projectId, userId, sceneId, focus }) => {
+      const board = await deps.storyboard.getActive(userId, projectId);
+      const scene = board?.payload?.scenes?.find((s) => s.sceneId === sceneId);
+      let bundle: ScenePromptBundle | null = null;
+      let version: number | null = null;
+      try {
+        const latest = await deps.prompts.getLatest(userId, projectId, sceneId);
+        bundle = latest.bundle;
+        version = latest.version;
+      } catch {
+        bundle = {
+          image: { prompt: scene?.description?.trim() || scene?.title || "Scene still" },
+          video: { sceneAction: scene?.description ?? "", durationSeconds: scene?.durationSeconds },
+          imageModelId: "mock/image",
+          videoModelId: "mock/video",
+        };
+      }
+      const settings = await deps.prompts.getSceneModelSettingsSnapshot(userId, projectId, sceneId);
+      return {
+        sceneId,
+        focus,
+        version,
+        bundle,
+        settingsSnapshot: settings,
+        storyboardTitle: scene?.title,
+        mockOnly: true,
+        notes: [
+          "Live provider execution disabled — prompts are persisted only.",
+          bundle?.imageModelId ? `Image model: ${bundle.imageModelId}` : null,
+        ].filter(Boolean),
+      };
+    },
   };
 }

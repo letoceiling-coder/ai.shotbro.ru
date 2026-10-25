@@ -10,6 +10,7 @@ import { ModelSettingsSection } from "./sections/model-settings-section";
 import { StoryboardStudio } from "./sections/storyboard-studio";
 import { CharacterStudio } from "./sections/character-studio";
 import { ReferenceManager } from "./sections/reference-manager";
+import { PromptStudio } from "./sections/prompt-studio";
 
 export function CreativeWorkspace({ projectId }: { projectId: string }) {
   const section = useStudioStore((s) => s.creativeSection);
@@ -24,6 +25,7 @@ export function CreativeWorkspace({ projectId }: { projectId: string }) {
         {section === "storyboard" ? <StoryboardStudio projectId={projectId} /> : null}
         {section === "characters" ? <CharacterStudio projectId={projectId} /> : null}
         {section === "references" ? <ReferenceManager projectId={projectId} /> : null}
+        {section === "prompts" ? <PromptStudio projectId={projectId} /> : null}
         {section === "models" ? <ModelSettingsSection projectId={projectId} /> : null}
         {section === "production" ? (
           <PlaceholderSection title="Production" phase="5H" hint="Граф, jobs и approvals — см. правую панель и чат." />
