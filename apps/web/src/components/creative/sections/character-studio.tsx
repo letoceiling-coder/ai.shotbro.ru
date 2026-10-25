@@ -34,7 +34,11 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
   const [assignSceneId, setAssignSceneId] = useState<string>("");
 
   const selected = useMemo(() => items.find((c) => c.id === selectedId) ?? items[0], [items, selectedId]);
-  const scenes = script?.payload.scenes ?? storyboard?.payload.scenes ?? [];
+  const scriptScenes = script?.payload.scenes ?? [];
+  const storyboardScenes = storyboard?.payload.scenes ?? [];
+  const sceneOptions = scriptScenes.length
+    ? scriptScenes.map((s) => ({ id: s.id, title: s.title }))
+    : storyboardScenes.map((s) => ({ id: s.sceneId, title: s.title }));
 
   useEffect(() => {
     if (selected && selectedId !== selected.id) setSelectedId(selected.id);

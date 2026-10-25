@@ -1,7 +1,11 @@
 import type { Page } from "@playwright/test";
 
 /** Keep REAL mode + active project after full page reload (Playwright does not restore Zustand). */
-export async function pinRealProjectOnReload(page: Page, projectId: string, section: "models" | "chat" = "models") {
+export async function pinRealProjectOnReload(
+  page: Page,
+  projectId: string,
+  section: "models" | "chat" | "storyboard" | "characters" | "references" | "script" = "models",
+) {
   await page.evaluate(
     ([pid, sec]) => {
       localStorage.setItem("shotbro-studio-mode-v1", "REAL");
