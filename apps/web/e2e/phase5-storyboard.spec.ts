@@ -64,7 +64,6 @@ test.describe("Phase 5D storyboard studio", () => {
       await page.getByTestId("storyboard-view-detail").click();
       await expect(page.getByTestId("storyboard-scene-detail")).toBeVisible();
 
-      await page.getByTestId("storyboard-scene-title").fill(`Board title ${vp.name}`);
       await page.getByTestId("storyboard-scene-description").fill(`Board desc ${vp.name}`);
       await Promise.all([
         page.waitForResponse(
