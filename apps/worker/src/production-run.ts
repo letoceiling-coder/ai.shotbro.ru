@@ -283,4 +283,6 @@ async function assembleMp4(
     const buffer = await readFixture("scene.mp4");
     return { buffer, path: fixtures.videoPath };
   } finally {
-    await rm(tmp, { recursive: true, fo
+    await rm(tmp, { recursive: true, force: true }).catch(() => undefined);
+  }
+}

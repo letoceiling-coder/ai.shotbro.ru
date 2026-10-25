@@ -29,7 +29,8 @@
 | 5F | Reference manager | **ACCEPTED** — see `PHASE5-REFERENCE-MANAGER.md` |
 | 5MP | Multi-provider (mock) | **DEPLOYED** — Providers E2E 16/16 |
 | 5G | Prompt studio | **ACCEPTED** (E2E 4/4) — see `PHASE5-PROMPT-STUDIO-ACCEPTANCE.md` |
-| 5H–5P | Remaining Phase 5 scope | NOT IMPLEMENTED |
+| 5I | Timeline + FFmpeg from timeline JSON | **IMPLEMENTED** (VPS acceptance pending) |
+| 5H, 5J–5P | Remaining Phase 5 scope | NOT IMPLEMENTED |
 
 ## Playwright on VPS (`retries=0`, logs under `/var/log/shotbro-e2e/`)
 

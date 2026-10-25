@@ -1,15 +1,19 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import {
   TimelineDocumentSchema,
   TimelineClipSchema,
   defaultTimelineTracks,
-  computeTimelineHash,
   parseTimelineDocument,
   type TimelineDocument,
   type TimelineClip,
 } from "@shotbro/contracts";
+
+function computeTimelineHash(doc: TimelineDocument): string {
+  return createHash("sha256").update(JSON.stringify(doc)).digest("hex");
+}
 import type { Db } from "@shotbro/db/client";
 import { asset, productionDocument } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
