@@ -52,7 +52,7 @@ test.describe("Phase 5I timeline-driven assembly", () => {
       "Собери финальный ролик по текущему timeline, mock без live провайдеров",
     );
     await waitForAgentRunPersisted(page, projectId);
-    await waitForPhase4AgentSignalVisible(page);
+    await waitForPhase4AgentSignalVisible(page, projectId);
     await approvePendingApprovals(page, projectId);
     await waitForProductionEnqueued(page, projectId);
     await waitForMockDeliveryVisible(page, projectId);

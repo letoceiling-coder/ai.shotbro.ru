@@ -1,4 +1,9 @@
 import { expect, type Page } from "@playwright/test";
+import {
+  resyncRealThreadFromApi,
+  scrollRealThreadToBottom,
+  waitForAssistantBlockInApi,
+} from "./real-ui-sync";
 
 /** Waits until project has at least one persisted agent run (API truth, not SSE-only). */
 export async function waitForAgentRunPersisted(page: Page, projectId: string, timeoutMs = 120_000) {
@@ -16,53 +21,47 @@ export async function waitForAgentRunPersisted(page: Page, projectId: string, ti
     .toBeGreaterThan(0);
 }
 
-export async function waitForMockBriefVisible(page: Page, projectId?: string, timeoutMs = 180_000) {
-  if (projectId) {
-    await expect
-      .poll(
-        async () => {
-          const runs = await page.request.get(`/api/v1/projects/${projectId}/agent/runs`);
-          if (runs.ok()) {
-            const body = (await runs.json()) as {
-              items?: Array<{ productionState?: string; status?: string }>;
-            };
-            const run = body.items?.[0];
-            const st = run?.productionState ?? "";
-            if (st.includes("WAITING") || st === "COMPLETED" || run?.status === "COMPLETED") return true;
-          }
-          const appr = await page.request.get(`/api/v1/projects/${projectId}/approvals`);
-          if (appr.ok()) {
-            const body = (await appr.json()) as { items?: Array<{ targetType?: string; status?: string }> };
-            if (body.items?.some((a) => a.targetType === "PLAN")) return true;
-          }
-          return false;
-        },
-        { timeout: timeoutMs, intervals: [1000, 2000, 3000] },
-      )
-      .toBe(true);
-  }
+export async function waitForMockBriefVisible(page: Page, projectId: string, timeoutMs = 180_000) {
+  await waitForAssistantBlockInApi(
+    page,
+    projectId,
+    (blocks) =>
+      blocks.some((b) => b.type === "generation_plan") ||
+      blocks.some((b) => b.type === "text" && /Brief|MOCK|План производства/i.test(String(b.markdown ?? b.title ?? ""))),
+    timeoutMs,
+  );
 
-  const thread = page.getByTestId("real-thread");
-  if (await thread.isVisible().catch(() => false)) {
-    await thread.evaluate((el) => el.scrollTo(0, el.scrollHeight)).catch(() => undefined);
-  }
+  await resyncRealThreadFromApi(page, projectId);
 
-  const brief = page.getByText(/Brief \(MOCK\)|План производства|MOCK · Phase/i).first();
-  const uiTimeout = projectId ? 20_000 : Math.min(timeoutMs, 60_000);
-  try {
-    await expect(brief).toBeVisible({ timeout: uiTimeout });
-    await brief.scrollIntoViewIfNeeded();
-  } catch (e) {
-    if (!projectId) throw e;
-  }
-  return brief;
+  const plan = page.getByTestId("generation-plan-card").first();
+  const briefText = page.getByText(/Brief \(MOCK\)|План производства|MOCK · Phase/i).first();
+  await expect(plan.or(briefText)).toBeVisible({ timeout: 60_000 });
+  const visible = (await plan.isVisible()) ? plan : briefText;
+  await visible.scrollIntoViewIfNeeded();
+  return visible;
 }
 
-export async function waitForPhase4AgentSignalVisible(page: Page, timeoutMs = 180_000) {
+export async function waitForPhase4AgentSignalVisible(page: Page, projectId: string, timeoutMs = 180_000) {
+  await waitForAssistantBlockInApi(
+    page,
+    projectId,
+    (blocks) =>
+      blocks.some(
+        (b) =>
+          b.type === "generation_plan" ||
+          b.type === "tool_execution" ||
+          (b.type === "text" && /AgentRuntime|MOCK · Phase 4|Brief \(MOCK\)|План производства/i.test(String(b.markdown ?? ""))),
+      ),
+    timeoutMs,
+  );
+
+  await resyncRealThreadFromApi(page, projectId);
+
   const signal = page
-    .getByText(/AgentRuntime|MOCK · Phase 4|Brief \(MOCK\)|План производства/i)
+    .getByTestId("generation-plan-card")
+    .or(page.getByText(/AgentRuntime|MOCK · Phase 4|Brief \(MOCK\)|План производства/i))
     .first();
-  await expect(signal).toBeVisible({ timeout: timeoutMs });
+  await expect(signal).toBeVisible({ timeout: 60_000 });
   await signal.scrollIntoViewIfNeeded();
   return signal;
 }
@@ -75,7 +74,6 @@ function runItems(body: unknown): unknown[] {
   return [];
 }
 
-/** Persisted mock MP4 in project assets (MinIO path), independent of SSE timing. */
 /** After all approvals, orchestrator should enqueue mock production (metadata flag or state). */
 export async function waitForProductionEnqueued(page: Page, projectId: string, timeoutMs = 180_000) {
   await expect
@@ -120,6 +118,7 @@ export async function waitForMockMp4Asset(page: Page, projectId: string, timeout
 
 export async function waitForMockDeliveryVisible(page: Page, projectId: string, timeoutMs = 600_000) {
   await waitForMockMp4Asset(page, projectId, timeoutMs);
+  await resyncRealThreadFromApi(page, projectId);
   const delivery = page
     .getByText(/Финальный ролик|Mock-производство|Production board|Готово: mock|mock-delivery/i)
     .first();

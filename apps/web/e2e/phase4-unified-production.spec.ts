@@ -30,7 +30,7 @@ test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
       "Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo",
     );
     await waitForAgentRunPersisted(page, projectId);
-    await waitForPhase4AgentSignalVisible(page);
+    await waitForPhase4AgentSignalVisible(page, projectId);
 
     await approvePendingApprovals(page, projectId);
     await waitForProductionEnqueued(page, projectId);

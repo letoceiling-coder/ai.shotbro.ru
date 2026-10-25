@@ -83,7 +83,12 @@ export function useProjectEvents(projectId: string | undefined) {
       }`;
       es = new EventSource(url, { withCredentials: true });
 
-      es.onopen = () => setConnected(true);
+      es.onopen = () => {
+        setConnected(true);
+        void qc.invalidateQueries({ queryKey: ["messages"] });
+        void qc.invalidateQueries({ queryKey: ["approvals", projectId] });
+        void qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
+      };
 
       const onNamed = (ev: Event) => {
         const msg = ev as MessageEvent<string>;

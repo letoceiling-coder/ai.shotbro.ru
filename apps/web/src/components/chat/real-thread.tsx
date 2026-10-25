@@ -12,12 +12,13 @@ import {
 } from "@/hooks/use-real-studio";
 import { useRealUpload } from "@/hooks/use-real-upload";
 import { useProjectEvents } from "@/hooks/use-project-events";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { ChatMessage } from "./chat-message";
 import Link from "next/link";
 import { RealComposer } from "./real-composer";
 export function RealThread({ projectId }: { projectId: string }) {
+  const qc = useQueryClient();
   const { data: convs, isPending: convsPending } = useRealProjectConversations(projectId);
   const ensureConversation = useEnsureDefaultConversation(projectId);
   const conversationId = convs?.[0]?.id as string | undefined;
@@ -28,6 +29,12 @@ export function RealThread({ projectId }: { projectId: string }) {
     if (convsPending || ensuringConv) return;
     if (Array.isArray(convs) && convs.length === 0) ensureConv();
   }, [convs, convsPending, ensuringConv, ensureConv]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    void qc.invalidateQueries({ queryKey: ["messages", conversationId] });
+    void qc.invalidateQueries({ queryKey: ["approvals", projectId] });
+  }, [conversationId, projectId, qc]);
   const { data: msgPage, isPending: messagesPending, isFetching: messagesFetching } =
     useRealMessages(conversationId);
   const send = useSendRealMessage(conversationId, projectId);

@@ -19,7 +19,29 @@ import { readFixture } from "./mock-fixtures.js";
 
 const execFileAsync = promisify(execFile);
 
+/** Mock assembly: scene script order → red, green, blue (proof-friendly). Fallback palette otherwise. */
+const SCENE_MOCK_COLORS = ["0xff0000", "0x00ff00", "0x0000ff", "0xff8800", "0x8800ff"];
 const COLORS = ["0x112233", "0x223311", "0x331122", "0x113322", "0x221133"];
+
+async function scriptSceneOrder(db: Db, projectId: string): Promise<string[]> {
+  const [row] = await db
+    .select()
+    .from(productionDocument)
+    .where(
+      and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "SCRIPT"), eq(productionDocument.status, "ACTIVE")),
+    )
+    .limit(1);
+  const scenes = (row?.payload as { scenes?: { id: string }[] } | undefined)?.scenes ?? [];
+  return scenes.map((s) => s.id);
+}
+
+function mockColorForScene(sceneOrder: string[], sceneId: string | undefined, clipIndex: number) {
+  if (sceneId) {
+    const idx = sceneOrder.indexOf(sceneId);
+    if (idx >= 0) return SCENE_MOCK_COLORS[idx % SCENE_MOCK_COLORS.length]!;
+  }
+  return COLORS[clipIndex % COLORS.length]!;
+}
 
 export async function loadTimelineForAssembly(
   db: Db,
@@ -121,6 +143,8 @@ export async function assembleFromTimeline(input: {
 }) {
   const { db, s3, bucket, projectId, runId, timeline, tmpRoot, log } = input;
   const sceneMap = await sceneVideoMap(db, projectId, runId);
+  const mockColorSegments = process.env.AI_MOCK_MODE === "true";
+  const sceneOrder = mockColorSegments ? await scriptSceneOrder(db, projectId) : [];
   const videoTrack = timeline.tracks.find((t: TimelineTrack) => t.type === "VIDEO");
   const clips = [...(videoTrack?.clips ?? [])].sort((a, b) => a.order - b.order);
   if (!clips.length) throw new Error("timeline_no_video_clips");
@@ -135,7 +159,9 @@ export async function assembleFromTimeline(input: {
       const seg = join(tmp, `seg-${i}.mp4`);
       const durSec = Math.max(0.5, clip.durationMs / 1000);
       const assetId = clip.assetId ?? (clip.sceneId ? sceneMap.get(clip.sceneId) : undefined);
-      if (assetId) {
+      if (mockColorSegments && clip.sceneId && sceneOrder.length) {
+        await renderColorSegment(seg, mockColorForScene(sceneOrder, clip.sceneId, i), durSec);
+      } else if (assetId) {
         const raw = join(tmp, `raw-${i}.mp4`);
         await downloadAssetToFile(s3, bucket, db, assetId, raw, log);
         const trimStart = (clip.sourceInMs / 1000).toFixed(3);

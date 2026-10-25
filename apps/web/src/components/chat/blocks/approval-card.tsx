@@ -59,6 +59,7 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
   const displayStatus = status;
 
   return (
+    <div data-testid="approval-card" data-approval-status={displayStatus}>
     <StudioBlockCard accent>
       <StudioBlockCardHeader title={block.title} />
       <StudioBlockCardBody className="space-y-3">
@@ -104,5 +105,6 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
         </div>
       </StudioBlockCardBody>
     </StudioBlockCard>
+    </div>
   );
 }

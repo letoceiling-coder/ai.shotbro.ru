@@ -34,8 +34,25 @@ test.describe("Phase 3 mock production (REAL)", () => {
 
     await waitForMockDeliveryVisible(page, projectId);
 
-    await page.reload();
-    await expect(page.getByText(/Brief \(MOCK\)|Финальный ролик|Утверждено/i).first()).toBeVisible({
+    await pinRealProjectOnReload(page, projectId, "chat");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`/api/v1/projects/${projectId}/assets`);
+        if (!res.ok()) return false;
+        const assets = (await res.json()) as Array<{ mimeType?: string; originalName?: string }> | { items?: unknown[] };
+        const list = Array.isArray(assets) ? assets : (assets.items ?? []);
+        return list.some(
+          (a) =>
+            typeof a === "object" &&
+            a !== null &&
+            (a as { mimeType?: string }).mimeType === "video/mp4" &&
+            String((a as { originalName?: string }).originalName ?? "").includes("mock-delivery"),
+        );
+      }, { timeout: 60_000 })
+      .toBe(true);
+    await expect(page.getByText(/Финальный ролик|mock-delivery|Brief \(MOCK\)|Утверждено/i).first()).toBeVisible({
       timeout: 60_000,
     });
   });

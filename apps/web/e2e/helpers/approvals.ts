@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { scrollRealThreadToBottom } from "./real-ui-sync";
 
 type ApprovalRow = { id: string; status: string; targetType: string };
 
@@ -17,19 +18,37 @@ function pendingCount(items: ApprovalRow[]) {
   return items.filter((a) => a.status === "PENDING").length;
 }
 
+async function waitForPendingApprovalApi(page: Page, projectId: string, timeoutMs = 120_000) {
+  await expect
+    .poll(async () => pendingCount(await listApprovals(page, projectId)), {
+      timeout: timeoutMs,
+      intervals: [500, 1000, 2000],
+    })
+    .toBeGreaterThan(0);
+}
+
 /**
  * Clicks «Утвердить» in UI until API reports zero PENDING approvals.
  * Waits for APPROVED count to increase after each click (SCRIPT may appear while PLAN is decided).
  */
 export async function approvePendingApprovals(page: Page, projectId: string, maxRounds = 12) {
   for (let round = 0; round < maxRounds; round++) {
-    let items = await listApprovals(page, projectId);
+    const items = await listApprovals(page, projectId);
     if (pendingCount(items) === 0) return;
 
     const approvedBefore = approvedCount(items);
 
-    const btn = page.getByRole("button", { name: /^Утвердить$/, disabled: false }).first();
-    await expect(btn).toBeVisible({ timeout: 90_000 });
+    await waitForPendingApprovalApi(page, projectId);
+    await scrollRealThreadToBottom(page);
+
+    const pendingCard = page
+      .getByTestId("approval-card")
+      .filter({ has: page.getByRole("button", { name: /^Утвердить$/, disabled: false }) })
+      .first();
+    const btn = pendingCard.getByRole("button", { name: /^Утвердить$/, disabled: false });
+    await expect(pendingCard).toBeVisible({ timeout: 90_000 });
+    await pendingCard.scrollIntoViewIfNeeded();
+    await expect(btn).toBeVisible({ timeout: 30_000 });
     await btn.click();
     await page
       .waitForResponse(
@@ -46,7 +65,7 @@ export async function approvePendingApprovals(page: Page, projectId: string, max
       .toBeGreaterThan(approvedBefore);
 
     await expect
-      .poll(async () => page.getByRole("button", { name: /^Утвердить$/, disabled: false }).count(), {
+      .poll(async () => pendingCount(await listApprovals(page, projectId)), {
         timeout: 60_000,
         intervals: [300, 500, 1000, 2000],
       })

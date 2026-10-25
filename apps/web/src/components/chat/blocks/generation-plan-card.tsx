@@ -18,6 +18,7 @@ const statusIcon = {
 
 export function GenerationPlanCard({ block }: { block: Block }) {
   return (
+    <div data-testid="generation-plan-card">
     <StudioBlockCard>
       <StudioBlockCardHeader title={block.title} />
       <StudioBlockCardBody className="py-2.5">
@@ -47,5 +48,6 @@ export function GenerationPlanCard({ block }: { block: Block }) {
         </ol>
       </StudioBlockCardBody>
     </StudioBlockCard>
+    </div>
   );
 }
