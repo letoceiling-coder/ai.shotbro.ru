@@ -70,27 +70,15 @@ try {
   const projectId = proj.body.id;
   pass("create_project", projectId);
 
-  await json(`/api/v1/projects/${projectId}/script/scenes`, {
+  await json(`/api/v1/projects/${projectId}/scripts/scenes`, {
     method: "POST",
-    body: JSON.stringify({
-      sceneId: "smoke-a",
-      title: "A",
-      description: "Scene A",
-      durationSeconds: 2,
-      order: 0,
-    }),
+    body: JSON.stringify({ title: "Smoke A" }),
   }, cookies);
-  await json(`/api/v1/projects/${projectId}/script/scenes`, {
+  await json(`/api/v1/projects/${projectId}/scripts/scenes`, {
     method: "POST",
-    body: JSON.stringify({
-      sceneId: "smoke-b",
-      title: "B",
-      description: "Scene B",
-      durationSeconds: 2,
-      order: 1,
-    }),
+    body: JSON.stringify({ title: "Smoke B" }),
   }, cookies);
-  await json(`/api/v1/projects/${projectId}/storyboard/sync-from-script`, { method: "POST", body: "{}" }, cookies);
+  await json(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, cookies);
   pass("storyboard_seed", "2 scenes");
 
   const sync = await json(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, cookies);
