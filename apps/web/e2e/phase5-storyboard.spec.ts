@@ -66,7 +66,14 @@ test.describe("Phase 5D storyboard studio", () => {
 
       await page.getByTestId("storyboard-scene-title").fill(`Board title ${vp.name}`);
       await page.getByTestId("storyboard-scene-description").fill(`Board desc ${vp.name}`);
-      await page.getByTestId("storyboard-scene-description").blur();
+      await Promise.all([
+        page.waitForResponse(
+          (r) =>
+            r.url().includes("/storyboard/scenes/") && r.request().method() === "PATCH" && r.ok(),
+          { timeout: 90_000 },
+        ),
+        page.getByTestId("storyboard-scene-description").blur(),
+      ]);
 
       await expect
         .poll(async () => (await getStoryboardScene(page, projectId, sceneId!))?.description ?? "", {
