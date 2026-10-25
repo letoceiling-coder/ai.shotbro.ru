@@ -4,8 +4,8 @@ import { and, eq } from "drizzle-orm";
 import {
   parseStoryboardDocument,
   ScriptDocumentSchema,
-  StoryboardDocumentSchema,
-  StoryboardSceneSchema,
+  ProductionStoryboardDocumentSchema,
+  ProductionStoryboardSceneSchema,
   type StoryboardScene,
 } from "@shotbro/contracts";
 import type { Db } from "@shotbro/db/client";
@@ -25,7 +25,7 @@ export class StoryboardDocumentService {
   ) {}
 
   private sceneFromScript(s: { id: string; sequence: number; title: string; description: string; durationSeconds: number; camera?: string; lighting?: string; transition?: string; characters?: string[] }): StoryboardScene {
-    return StoryboardSceneSchema.parse({
+    return ProductionStoryboardSceneSchema.parse({
       sceneId: s.id,
       order: s.sequence,
       title: s.title,
@@ -45,7 +45,7 @@ export class StoryboardDocumentService {
     return scriptScenes.map((s) => {
       const hit = byId.get(s.id);
       if (hit) {
-        return StoryboardSceneSchema.parse({
+        return ProductionStoryboardSceneSchema.parse({
           ...hit,
           order: s.sequence,
           title: s.title,
@@ -108,7 +108,7 @@ export class StoryboardDocumentService {
       .where(eq(productionDocument.id, doc.id));
     const newId = uuid();
     const newVersion = doc.version + 1;
-    StoryboardDocumentSchema.parse(nextPayload);
+    ProductionStoryboardDocumentSchema.parse(nextPayload);
     await this.db.insert(productionDocument).values({
       id: newId,
       projectId,
@@ -145,7 +145,7 @@ export class StoryboardDocumentService {
       throw new ConflictException({ code: "storyboard_scene_conflict", currentRevision: current.revision });
     }
     const { expectedRevision: _e, ...rest } = patch;
-    const nextScene = StoryboardSceneSchema.parse({
+    const nextScene = ProductionStoryboardSceneSchema.parse({
       ...current,
       ...rest,
       sceneId,

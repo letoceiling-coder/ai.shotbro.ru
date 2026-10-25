@@ -91,7 +91,7 @@ export const StoryboardFrameSchema = z.object({
 
 export const StoryboardSceneStatusSchema = z.enum(["draft", "review", "approved", "locked"]);
 
-export const StoryboardSceneSchema = z.object({
+export const ProductionStoryboardSceneSchema = z.object({
   sceneId: z.string(),
   order: z.number().int(),
   title: z.string(),
@@ -117,12 +117,12 @@ export const StoryboardSceneSchema = z.object({
   narration: z.string().optional(),
 });
 
-export const StoryboardDocumentSchema = z.object({
+export const ProductionStoryboardDocumentSchema = z.object({
   schemaVersion: z.union([z.literal(1), z.literal(2)]).default(2),
   title: z.string(),
   scriptDocumentVersion: z.number().int().positive().optional(),
   frames: z.array(StoryboardFrameSchema).optional(),
-  scenes: z.array(StoryboardSceneSchema).optional(),
+  scenes: z.array(ProductionStoryboardSceneSchema).optional(),
   mock: z.literal(true).optional(),
 });
 
@@ -166,13 +166,13 @@ export const CharacterProfileSchema = z.object({
 
 /** Normalize v1 frames → v2 scenes for API consumers. */
 export function parseStoryboardDocument(raw: unknown) {
-  const base = StoryboardDocumentSchema.parse(raw);
+  const base = ProductionStoryboardDocumentSchema.parse(raw);
   if (base.scenes?.length) {
     return { ...base, schemaVersion: 2 as const, scenes: base.scenes };
   }
   const frames = base.frames ?? [];
   const scenes = frames.map((f) =>
-    StoryboardSceneSchema.parse({
+    ProductionStoryboardSceneSchema.parse({
       sceneId: f.sceneId,
       order: f.sequence,
       title: f.visualDescription.slice(0, 120) || `Scene ${f.sequence}`,
@@ -233,8 +233,9 @@ export const AgentRunResponseSchema = z.object({
 export type ProductionBrief = z.infer<typeof ProductionBriefSchema>;
 export type ProductionPlan = z.infer<typeof ProductionPlanSchema>;
 export type ScriptDocument = z.infer<typeof ScriptDocumentSchema>;
-export type StoryboardDocument = z.infer<typeof StoryboardDocumentSchema>;
-export type StoryboardScene = z.infer<typeof StoryboardSceneSchema>;
+export type StoryboardScene = z.infer<typeof ProductionStoryboardSceneSchema>;
+export type StoryboardDocument = z.infer<typeof ProductionStoryboardDocumentSchema>;
+export type ReferenceRole = z.infer<typeof ReferenceRoleSchema>;
 export type ReferenceLink = z.infer<typeof ReferenceLinkSchema>;
 export type CharacterProfile = z.infer<typeof CharacterProfileSchema>;
 export type AgentProductionState = z.infer<typeof AgentProductionStateSchema>;

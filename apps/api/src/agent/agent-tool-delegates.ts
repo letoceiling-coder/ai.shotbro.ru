@@ -42,7 +42,7 @@ export function buildAgentToolDelegates(deps: {
     },
     syncStoryboard: async ({ projectId, userId }) => {
       const board = await deps.storyboard.syncFromScript(userId, projectId);
-      return { synced: true, version: board?.version, sceneCount: board?.payload.scenes.length ?? 0 };
+      return { synced: true, version: board?.version, sceneCount: board?.payload?.scenes?.length ?? 0 };
     },
     updateStoryboardScene: async ({ projectId, userId, sceneId, patch }) => {
       const res = await deps.storyboard.patchScene(userId, projectId, sceneId, patch);

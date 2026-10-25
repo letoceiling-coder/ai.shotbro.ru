@@ -3,7 +3,7 @@ import {
   ProductionBriefSchema,
   ProductionPlanSchema,
   ScriptDocumentSchema,
-  StoryboardDocumentSchema,
+  ProductionStoryboardDocumentSchema,
 } from "../../../../contracts/src/production/schemas.js";
 import { BriefBuilder, CreativeDirector, ProductionPlanner, Screenwriter, StoryboardDirector } from "../../creative/pipeline.js";
 import { estimateMockProductionCost } from "../../cost/cost-engine.js";
@@ -127,7 +127,7 @@ export function registerPhase4ToolHandlers(executor: ToolExecutor) {
     }
     const script = ScriptDocumentSchema.parse(scriptDoc.payload);
     const board = StoryboardDirector.storyboard(script);
-    const payload = StoryboardDocumentSchema.parse({ ...board, mock: true });
+    const payload = ProductionStoryboardDocumentSchema.parse({ ...board, mock: true });
     const doc = await ctx.storage.saveDocument({
       projectId: ctx.projectId,
       docType: "STORYBOARD",
@@ -135,12 +135,12 @@ export function registerPhase4ToolHandlers(executor: ToolExecutor) {
       userId: ctx.userId,
       supersedePrevious: true,
     });
-    return { documentId: doc.id, version: doc.version, frameCount: payload.frames.length, mock: true };
+    return { documentId: doc.id, version: doc.version, frameCount: payload.frames?.length ?? 0, mock: true };
   });
 
-  executor.register("update_storyboard", StoryboardDocumentSchema.partial(), async (input, ctx) => {
+  executor.register("update_storyboard", ProductionStoryboardDocumentSchema.partial(), async (input, ctx) => {
     const existing = await ctx.storage.getActiveDocument(ctx.projectId, "STORYBOARD");
-    const payload = StoryboardDocumentSchema.parse({ ...(existing?.payload ?? {}), ...input, mock: true });
+    const payload = ProductionStoryboardDocumentSchema.parse({ ...(existing?.payload ?? {}), ...input, mock: true });
     const doc = await ctx.storage.saveDocument({
       projectId: ctx.projectId,
       docType: "STORYBOARD",
