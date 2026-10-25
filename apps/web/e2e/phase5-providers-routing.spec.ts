@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext } from "@playwright/test";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
+import { pinRealProjectOnReload } from "./helpers/real-studio-state";
 
 const viewports = [
   { name: "desktop1920", width: 1920, height: 1080 },
@@ -42,12 +43,14 @@ test.describe("Phase 5 providers routing (REAL UI)", () => {
       expect(sceneRes.ok()).toBeTruthy();
 
       await page.reload({ waitUntil: "domcontentloaded" });
+      await pinRealProjectOnReload(page, projectId, "models");
+      await page.goto("/studio", { waitUntil: "domcontentloaded" });
       const scriptRes = await page.request.get(`/api/v1/projects/${projectId}/script`);
       expect(scriptRes.ok()).toBeTruthy();
       const script = (await scriptRes.json()) as { payload?: { scenes?: Array<{ id: string }> } };
       const sceneId = script.payload?.scenes?.[0]?.id;
       expect(sceneId).toBeTruthy();
-      await page.getByTestId("creative-section-models").click();
+      await expect(page.getByTestId("creative-section-nav")).toBeVisible({ timeout: 15_000 });
       await expect(page.getByTestId("model-settings-section")).toBeVisible({ timeout: 15_000 });
 
       await Promise.all([
@@ -71,7 +74,8 @@ test.describe("Phase 5 providers routing (REAL UI)", () => {
       await expect(page.getByTestId("provider-route-timeline")).toBeVisible({ timeout: 30_000 });
 
       await page.reload({ waitUntil: "domcontentloaded" });
-      await page.getByTestId("creative-section-models").click();
+      await pinRealProjectOnReload(page, projectId, "models");
+      await page.goto("/studio", { waitUntil: "domcontentloaded" });
       await expect(page.getByTestId("provider-route-status")).toBeVisible({ timeout: 20_000 });
       await expect(page.getByTestId("provider-route-timeline")).toBeVisible({ timeout: 20_000 });
     });
