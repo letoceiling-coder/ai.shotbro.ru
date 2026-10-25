@@ -92,7 +92,9 @@ test.describe("Phase 5F reference manager", () => {
     const list = (await assetsAfter.json()) as Array<{ id: string }>;
     expect(list.some((a) => a.id === assetId)).toBe(true);
 
-    const projectB = await openRealNewProject(page);
+    const createB = await page.request.post("/api/v1/projects", { data: { title: `E2E iso B ${Date.now()}` } });
+    expect(createB.ok()).toBeTruthy();
+    const projectB = ((await createB.json()) as { id: string }).id;
     const refsB = await page.request.get(`/api/v1/projects/${projectB}/references`);
     const jB = (await refsB.json()) as { items?: unknown[] };
     expect(jB.items?.length ?? 0).toBe(0);
