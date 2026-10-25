@@ -8,7 +8,9 @@ import type { ProviderJobsService } from "../providers/provider-jobs.service";
 import type { ReferenceService } from "../production/reference.service";
 import type { StoryboardDocumentService } from "../production/storyboard-document.service";
 import type { PromptVersionService } from "../production/prompt-version.service";
-import type { ScenePromptBundle } from "@shotbro/contracts";
+import type { TimelineDocumentService } from "../production/timeline-document.service";
+import type { ScenePromptBundle, TimelineClip } from "@shotbro/contracts";
+import { randomUUID } from "node:crypto";
 
 export function buildAgentToolDelegates(deps: {
   assets: AssetsService;
@@ -19,8 +21,17 @@ export function buildAgentToolDelegates(deps: {
   storyboard: StoryboardDocumentService;
   characters: CharacterContinuityService;
   prompts: PromptVersionService;
+  timeline: TimelineDocumentService;
   conversationId: string;
 }): ToolExecutionDelegates {
+  const findClip = (tracks: { clips: TimelineClip[] }[], clipId: string) => {
+    for (const t of tracks) {
+      const hit = t.clips.find((c) => c.clipId === clipId);
+      if (hit) return hit;
+    }
+    return null;
+  };
+
   return {
     listAssets: async (projectId, userId) => {
       const list = await deps.assets.listForProject(userId, projectId);
@@ -165,6 +176,90 @@ export function buildAgentToolDelegates(deps: {
           bundle?.imageModelId ? `Image model: ${bundle.imageModelId}` : null,
         ].filter(Boolean),
       };
+    },
+    getTimeline: async ({ projectId, userId }) => {
+      const row = await deps.timeline.ensureTimeline(userId, projectId);
+      return {
+        documentId: row.id,
+        version: row.version,
+        revision: row.payload.revision,
+        totalDurationMs: row.payload.totalDurationMs,
+        tracks: row.payload.tracks,
+        timelineHash: row.timelineHash,
+        mock: true,
+      };
+    },
+    createTimelineFromStoryboard: async ({ projectId, userId, preview }) => {
+      if (preview) {
+        const p = await deps.timeline.previewSyncFromStoryboard(userId, projectId);
+        return { preview: true, ...p, mock: true };
+      }
+      const row = await deps.timeline.syncFromStoryboard(userId, projectId, true);
+      return {
+        documentId: row.id,
+        version: row.version,
+        revision: row.payload.revision,
+        clipCount: row.payload.tracks.find((t) => t.type === "VIDEO")?.clips.length ?? 0,
+        mock: true,
+      };
+    },
+    updateTimelineClip: async ({ projectId, userId, clip, expectedRevision }) => {
+      const parsed = clip as TimelineClip;
+      const row = await deps.timeline.upsertClip(userId, projectId, parsed, expectedRevision);
+      return { clipId: parsed.clipId, revision: row.payload.revision, version: row.version, mock: true };
+    },
+    reorderTimelineClips: async ({ projectId, userId, trackId, clipIds, expectedRevision }) => {
+      const row = await deps.timeline.reorderClips(userId, projectId, { trackId, clipIds, expectedRevision });
+      return { trackId, clipIds, revision: row.payload.revision, version: row.version, mock: true };
+    },
+    setClipDuration: async ({ projectId, userId, clipId, durationMs, expectedRevision }) => {
+      const current = await deps.timeline.ensureTimeline(userId, projectId);
+      const target = findClip(current.payload.tracks, clipId);
+      if (!target) throw new Error(`clip ${clipId} not found`);
+      const row = await deps.timeline.upsertClip(userId, projectId, { ...target, durationMs }, expectedRevision);
+      return { clipId, durationMs, revision: row.payload.revision, version: row.version, mock: true };
+    },
+    attachAudioTrack: async ({
+      projectId,
+      userId,
+      assetId,
+      trackType,
+      startTimeMs,
+      durationMs,
+      volume,
+      expectedRevision,
+    }) => {
+      const trackId =
+        trackType === "VOICEOVER" ? "track-voice" : trackType === "MUSIC" ? "track-music" : "track-sfx";
+      const current = await deps.timeline.ensureTimeline(userId, projectId);
+      const track = current.payload.tracks.find((t) => t.id === trackId);
+      const order = track?.clips.length ?? 0;
+      const row = await deps.timeline.upsertClip(
+        userId,
+        projectId,
+        {
+          clipId: randomUUID(),
+          trackId,
+          assetId,
+          startTimeMs,
+          durationMs,
+          order,
+          volume: volume ?? 1,
+          muted: false,
+          status: "ready",
+          sourceInMs: 0,
+        },
+        expectedRevision,
+      );
+      return { trackId, assetId, revision: row.payload.revision, version: row.version, mock: true };
+    },
+    validateTimeline: async ({ projectId, userId }) => {
+      const check = await deps.timeline.validate(userId, projectId);
+      return { ...check, mock: true };
+    },
+    prepareTimelineAssembly: async ({ projectId, userId }) => {
+      const prep = await deps.timeline.prepareAssembly(userId, projectId);
+      return { ...prep, mock: true };
     },
   };
 }

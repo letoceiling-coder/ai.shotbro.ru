@@ -250,8 +250,11 @@ export function registerPhase4ToolHandlers(executor: ToolExecutor) {
   });
 
   executor.register("prepare_timeline", z.object({}).strict(), async (_in, ctx) => {
+    if (ctx.delegates?.getTimeline) {
+      return ctx.delegates.getTimeline({ projectId: ctx.projectId, userId: ctx.userId });
+    }
     const script = await ctx.storage.getActiveDocument(ctx.projectId, "SCRIPT");
-    return { scenes: script?.payload?.scenes ?? [], mock: true };
+    return { scenes: script?.payload?.scenes ?? [], mock: true, legacy: true };
   });
 
   executor.register("validate_media", z.object({ assetId: z.string().min(1) }), async (input, ctx) => {

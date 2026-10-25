@@ -111,6 +111,44 @@ export type ToolExecutionDelegates = {
     sceneId: string;
     focus: "image" | "video" | "both";
   }) => Promise<Record<string, unknown>>;
+  getTimeline?: (input: { projectId: string; userId: string }) => Promise<Record<string, unknown>>;
+  createTimelineFromStoryboard?: (input: {
+    projectId: string;
+    userId: string;
+    preview: boolean;
+  }) => Promise<Record<string, unknown>>;
+  updateTimelineClip?: (input: {
+    projectId: string;
+    userId: string;
+    clip: Record<string, unknown>;
+    expectedRevision?: number;
+  }) => Promise<Record<string, unknown>>;
+  reorderTimelineClips?: (input: {
+    projectId: string;
+    userId: string;
+    trackId: string;
+    clipIds: string[];
+    expectedRevision?: number;
+  }) => Promise<Record<string, unknown>>;
+  setClipDuration?: (input: {
+    projectId: string;
+    userId: string;
+    clipId: string;
+    durationMs: number;
+    expectedRevision?: number;
+  }) => Promise<Record<string, unknown>>;
+  attachAudioTrack?: (input: {
+    projectId: string;
+    userId: string;
+    assetId: string;
+    trackType: "VOICEOVER" | "MUSIC" | "SFX";
+    startTimeMs: number;
+    durationMs: number;
+    volume?: number;
+    expectedRevision?: number;
+  }) => Promise<Record<string, unknown>>;
+  validateTimeline?: (input: { projectId: string; userId: string }) => Promise<Record<string, unknown>>;
+  prepareTimelineAssembly?: (input: { projectId: string; userId: string }) => Promise<Record<string, unknown>>;
 };
 
 export type ToolRunContext = {
