@@ -12,7 +12,7 @@ import {
   type TimelineDocument,
   type TimelineClip,
   type TimelineTrack,
-} from "@shotbro/contracts/production";
+} from "../../../packages/contracts/src/production/timeline-schemas.ts";
 import type { Db } from "@shotbro/db/client";
 import { asset, productionDocument, productionGraphNode } from "@shotbro/db/schema";
 import { readFixture } from "./mock-fixtures.js";
