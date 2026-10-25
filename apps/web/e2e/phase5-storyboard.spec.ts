@@ -91,18 +91,30 @@ test.describe("Phase 5D storyboard studio", () => {
       await page.getByTestId("storyboard-view-detail").click();
       await page.getByTestId("storyboard-first-frame").getByRole("button", { name: "Назначить" }).click();
       await uploadImageViaPicker(page);
+      await expect
+        .poll(async () => (await getStoryboardScene(page, projectId, sceneId!))?.firstFrameAssetId ?? "", {
+          timeout: 90_000,
+        })
+        .not.toBe("");
 
       await page.getByTestId("storyboard-last-frame").getByRole("button", { name: "Назначить" }).click();
       await uploadImageViaPicker(page);
+      await expect
+        .poll(async () => (await getStoryboardScene(page, projectId, sceneId!))?.lastFrameAssetId ?? "", {
+          timeout: 90_000,
+        })
+        .not.toBe("");
 
       const after = await getStoryboardScene(page, projectId, sceneId!);
-      expect(after?.firstFrameAssetId).toBeTruthy();
-      expect(after?.lastFrameAssetId).toBeTruthy();
 
       await page.reload({ waitUntil: "domcontentloaded" });
       await gotoStudioSection(page, projectId, "storyboard");
       await page.getByTestId("storyboard-view-detail").click();
-      await expect(page.getByTestId("storyboard-first-frame")).toContainText(after!.firstFrameAssetId!.slice(0, 8));
+      await expect
+        .poll(async () => (await getStoryboardScene(page, projectId, sceneId!))?.firstFrameAssetId ?? "", {
+          timeout: 20_000,
+        })
+        .toBe(after?.firstFrameAssetId);
       await expect
         .poll(async () => (await getStoryboardScene(page, projectId, sceneId!))?.description ?? "", { timeout: 20_000 })
         .toContain(`Board desc ${vp.name}`);

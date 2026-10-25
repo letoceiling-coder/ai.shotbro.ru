@@ -42,6 +42,7 @@ export function StoryboardStudio({ projectId }: { projectId: string }) {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [videoModelId, setVideoModelId] = useState("mock/video");
   const [descDraft, setDescDraft] = useState("");
+  const [titleDraft, setTitleDraft] = useState("");
 
   const scenes = data?.payload.scenes ?? [];
   const selected = useMemo(
@@ -61,8 +62,11 @@ export function StoryboardStudio({ projectId }: { projectId: string }) {
   }, [data, isLoading, sync]);
 
   useEffect(() => {
-    if (selected) setDescDraft(selected.description ?? "");
-  }, [selected?.sceneId, selected?.revision, selected?.description]);
+    if (selected) {
+      setDescDraft(selected.description ?? "");
+      setTitleDraft(selected.title ?? "");
+    }
+  }, [selected?.sceneId, selected?.revision, selected?.description, selected?.title]);
 
   const { data: catalog } = useModelCatalog();
   const { data: paramDef } = useQuery({
