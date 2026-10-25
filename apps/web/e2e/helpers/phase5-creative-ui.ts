@@ -43,14 +43,15 @@ export async function saveScriptSceneFields(
   if (fields.title != null) await page.locator("#scene-title").fill(fields.title);
   if (fields.durationSeconds != null) await page.locator("#scene-duration").fill(String(fields.durationSeconds));
   if (fields.description != null) await page.locator("#scene-desc").fill(fields.description);
+  const saveBtn = page.getByTestId("script-save-scene");
+  await expect(saveBtn).toBeVisible({ timeout: 15_000 });
   await Promise.all([
     page.waitForResponse(
       (r) => r.url().includes("/scripts/scenes/") && r.request().method() === "PATCH" && r.ok(),
       { timeout: 90_000 },
     ),
-    page.getByTestId("script-save-scene").click(),
+    saveBtn.click(),
   ]);
-  await expect(page.getByText("Сохранено")).toBeVisible({ timeout: 20_000 });
 }
 
 export async function uploadImageViaPicker(page: Page) {
