@@ -1,6 +1,9 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
+**HEAD:** `341e6da`  
+**Staging web/API:** `341e6da` (compose `infra-web-1` + `ai-shotbro-staging-api-1`)  
+**Strict regression:** `/tmp/regression-strict-341e6da.log` — **8/8 PASS**, retries=0 (~5.2m)  
 **Started:** 2026-10-25
 
 | Stage | Scope | Status |
