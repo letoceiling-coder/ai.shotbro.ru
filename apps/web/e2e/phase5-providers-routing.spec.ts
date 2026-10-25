@@ -40,11 +40,13 @@ test.describe("Phase 5 providers routing (REAL UI)", () => {
         data: { title: "E2E scene" },
       });
       expect(sceneRes.ok()).toBeTruthy();
-      const sceneBody = (await sceneRes.json()) as { scene?: { id: string } };
-      const sceneId = sceneBody.scene?.id;
-      expect(sceneId).toBeTruthy();
 
       await page.reload({ waitUntil: "domcontentloaded" });
+      const scriptRes = await page.request.get(`/api/v1/projects/${projectId}/script`);
+      expect(scriptRes.ok()).toBeTruthy();
+      const script = (await scriptRes.json()) as { payload?: { scenes?: Array<{ id: string }> } };
+      const sceneId = script.payload?.scenes?.[0]?.id;
+      expect(sceneId).toBeTruthy();
       await page.getByTestId("creative-section-models").click();
       await expect(page.getByTestId("model-settings-section")).toBeVisible({ timeout: 15_000 });
 
