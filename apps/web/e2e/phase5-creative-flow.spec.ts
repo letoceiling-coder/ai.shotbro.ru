@@ -62,9 +62,7 @@ test.describe("Phase 5 combined creative flow", () => {
     await uploadImageViaPicker(page);
 
     await gotoStudioSection(page, projectId, "models");
-    await expect(page.getByTestId("model-settings-section").or(page.getByTestId("creative-section-nav"))).toBeVisible({
-      timeout: 20_000,
-    });
+    await expect(page.getByTestId("model-settings-section")).toBeVisible({ timeout: 20_000 });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await gotoStudioSection(page, projectId, "storyboard");
