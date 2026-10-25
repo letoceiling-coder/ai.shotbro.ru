@@ -37,7 +37,9 @@ export function buildRouteCandidate(
   const translation = translateCanonicalToProvider(settings, providerId, modelId);
   const reasons: string[] = [...translation.rejected];
   if (!cap) reasons.push("unknown_capability");
-  if (!isProviderConfigured(env, providerId as never)) reasons.push("provider_not_configured");
+  if (!env.AI_MOCK_MODE && !isProviderConfigured(env, providerId as never)) {
+    reasons.push("provider_not_configured");
+  }
   if (!providerSupportsResolution(providerId, operation, settings.resolution)) {
     reasons.push("resolution_not_supported");
   }
