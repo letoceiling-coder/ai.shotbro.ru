@@ -73,6 +73,16 @@ function sleep(ms) {
       body: JSON.stringify({ title }),
     }, cookies);
   }
+  const scriptAfterAdd = await json(`/api/v1/projects/${projectId}/scripts`, {}, cookies);
+  const bootstrap = (scriptAfterAdd.body?.payload?.scenes ?? []).find(
+    (s) => s.title === "Scene 1" && (scriptAfterAdd.body?.payload?.scenes?.length ?? 0) > 3,
+  );
+  if (bootstrap?.id) {
+    await json(`/api/v1/projects/${projectId}/scripts/scenes/${bootstrap.id}/delete`, {
+      method: "POST",
+      body: "{}",
+    }, cookies);
+  }
   await json(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, cookies);
   await json(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, cookies);
 

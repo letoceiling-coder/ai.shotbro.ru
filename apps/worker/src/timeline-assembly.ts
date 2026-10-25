@@ -7,7 +7,6 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { Logger } from "pino";
-import { parseStoryboardDocument } from "@shotbro/contracts";
 import {
   TimelineDocumentSchema,
   type TimelineDocument,
@@ -70,36 +69,53 @@ async function latestProductionDoc(db: Db, projectId: string, docType: "STORYBOA
   return row;
 }
 
-/** Timeline clips use storyboard `sceneId` (matches script `id` when synced). */
-async function mockSceneIdOrder(db: Db, projectId: string): Promise<string[]> {
-  const boardRow = await latestProductionDoc(db, projectId, "STORYBOARD");
-  if (boardRow?.payload) {
-    try {
-      const parsed = parseStoryboardDocument(boardRow.payload);
-      if (parsed.scenes?.length) {
-        return [...parsed.scenes]
-          .sort((a, b) => a.order - b.order)
-          .map((s) => s.sceneId)
-          .filter(Boolean);
-      }
-    } catch {
-      /* fall through */
-    }
+function storyboardSceneIdsFromPayload(raw: unknown): string[] {
+  const payload = raw as {
+    scenes?: { sceneId?: string; order?: number }[];
+    frames?: { sceneId?: string; sequence?: number }[];
+  };
+  if (payload.scenes?.length) {
+    return [...payload.scenes]
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map((s) => s.sceneId)
+      .filter((id): id is string => Boolean(id));
   }
-  const scriptRow = await latestProductionDoc(db, projectId, "SCRIPT");
-  const scriptScenes =
-    (scriptRow?.payload as { scenes?: { id?: string; sceneId?: string; sequence?: number }[] } | undefined)?.scenes ?? [];
-  return [...scriptScenes]
-    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-    .map((s) => s.id ?? s.sceneId)
-    .filter((id): id is string => Boolean(id));
+  if (payload.frames?.length) {
+    return [...payload.frames]
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+      .map((f) => f.sceneId)
+      .filter((id): id is string => Boolean(id));
+  }
+  return [];
 }
 
-function mockColorForScene(sceneOrder: string[], clip: TimelineClip, clipIndex: number) {
-  const sceneId = sceneIdFromClip(clip);
-  if (sceneId) {
-    const idx = sceneOrder.indexOf(sceneId);
-    if (idx >= 0) return SCENE_MOCK_COLORS[idx % SCENE_MOCK_COLORS.length]!;
+/** Script order (newest revision first) — mock agent may clobber ACTIVE script after timeline sync. */
+async function mockSceneColorIndex(db: Db, projectId: string, sceneId: string | undefined): Promise<number | null> {
+  if (!sceneId) return null;
+  const boardRow = await latestProductionDoc(db, projectId, "STORYBOARD");
+  if (boardRow?.payload) {
+    const boardOrder = storyboardSceneIdsFromPayload(boardRow.payload);
+    const hit = boardOrder.indexOf(sceneId);
+    if (hit >= 0) return hit;
+  }
+  const scriptRows = await db
+    .select()
+    .from(productionDocument)
+    .where(and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "SCRIPT")))
+    .orderBy(desc(productionDocument.version));
+  for (const row of scriptRows) {
+    const scenes =
+      (row.payload as { scenes?: { id?: string; sceneId?: string; sequence?: number }[] } | undefined)?.scenes ?? [];
+    const sorted = [...scenes].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+    const idx = sorted.findIndex((s) => s.id === sceneId || s.sceneId === sceneId);
+    if (idx >= 0) return idx;
+  }
+  return null;
+}
+
+function mockColorForScene(colorIndex: number | null, clipIndex: number) {
+  if (colorIndex != null && colorIndex >= 0) {
+    return SCENE_MOCK_COLORS[colorIndex % SCENE_MOCK_COLORS.length]!;
   }
   return COLORS[clipIndex % COLORS.length]!;
 }
@@ -213,7 +229,6 @@ export async function assembleFromTimeline(input: {
   const { db, s3, bucket, projectId, runId, timeline, tmpRoot, log } = input;
   const sceneMap = await sceneVideoMap(db, projectId, runId);
   const mockColorSegments = process.env.AI_MOCK_MODE === "true";
-  const sceneOrder = mockColorSegments ? await mockSceneIdOrder(db, projectId) : [];
   const videoTrack = timeline.tracks.find((t: TimelineTrack) => t.type === "VIDEO");
   const clips = [...(videoTrack?.clips ?? [])].sort((a, b) => a.order - b.order);
   if (!clips.length) throw new Error("timeline_no_video_clips");
@@ -229,7 +244,8 @@ export async function assembleFromTimeline(input: {
       const durSec = Math.max(0.5, clip.durationMs / 1000);
       const assetId = clip.assetId ?? (clip.sceneId ? sceneMap.get(clip.sceneId) : undefined);
       if (mockColorSegments) {
-        await renderColorSegment(seg, mockColorForScene(sceneOrder, clip, i), durSec);
+        const colorIdx = await mockSceneColorIndex(db, projectId, sceneIdFromClip(clip));
+        await renderColorSegment(seg, mockColorForScene(colorIdx, i), durSec);
       } else if (assetId) {
         const raw = join(tmp, `raw-${i}.mp4`);
         await downloadAssetToFile(s3, bucket, db, assetId, raw, log);
