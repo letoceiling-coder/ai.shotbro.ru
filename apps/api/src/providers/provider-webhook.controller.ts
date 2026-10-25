@@ -32,7 +32,10 @@ export class ProviderWebhookController {
     @Headers("x-shotbro-timestamp") timestamp: string | undefined,
     @Body() body: unknown,
   ) {
-    const secret = process.env.MOCK_PROVIDER_WEBHOOK_SECRET;
+    const secret =
+      providerId === "magnific"
+        ? process.env.MAGNIFIC_WEBHOOK_SECRET
+        : process.env.MOCK_PROVIDER_WEBHOOK_SECRET;
     if (!secret) throw new UnauthorizedException("Webhook disabled");
     if (!signature || !timestamp) throw new UnauthorizedException("Missing signature");
     const ts = Number(timestamp);

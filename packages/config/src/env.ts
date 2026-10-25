@@ -47,6 +47,8 @@ export const envSchema = z
     /** Phase 4E: vendor keys (optional; live execution still blocked by policy flags) */
     FAL_API_KEY: emptyToUndefined,
     MAGNIFIC_API_KEY: emptyToUndefined,
+    /** Magnific inbound webhook HMAC (VPS staging.env only; never commit) */
+    MAGNIFIC_WEBHOOK_SECRET: emptyToUndefined,
     ELEVENLABS_API_KEY: emptyToUndefined,
     ELEVENLABS_BASE_URL: z.string().url().default("https://api.elevenlabs.io"),
 
