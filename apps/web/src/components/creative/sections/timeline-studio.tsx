@@ -135,7 +135,11 @@ export function TimelineStudio({ projectId }: { projectId: string }) {
         <h2 className="text-sm font-semibold">Timeline</h2>
         <Badge variant="outline">rev {doc.revision}</Badge>
         <Badge variant="secondary">{totalSec}s</Badge>
-        {dirty ? <Badge variant="destructive">unsaved</Badge> : null}
+        {dirty ? (
+          <Badge variant="outline" className="border-amber-500/60 text-amber-700 dark:text-amber-400">
+            unsaved
+          </Badge>
+        ) : null}
         <div className="ml-auto flex flex-wrap gap-2">
           <Button type="button" size="sm" variant="outline" data-testid="timeline-sync-storyboard" onClick={() => sync.mutate()}>
             Sync Storyboard
