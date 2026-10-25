@@ -16,7 +16,15 @@ import { assembleFromTimeline, loadTimelineForAssembly } from "./timeline-assemb
 const execFileAsync = promisify(execFile);
 
 export async function executeProductionRun(
-  data: { runId: string; projectId: string; ownerId: string; workspaceId: string },
+  data: {
+    runId: string;
+    projectId: string;
+    ownerId: string;
+    workspaceId: string;
+    timelineDocumentId?: string;
+    timelineVersion?: number;
+    timelineHash?: string;
+  },
   log: Logger,
 ) {
   const db = getWorkerDb();
@@ -108,12 +116,21 @@ export async function executeProductionRun(
             .where(eq(productionGraphNode.id, node.id));
           continue;
         }
-        const runMeta = (runRow?.metadata ?? {}) as {
+        const [freshRun] = await db.select().from(agentRun).where(eq(agentRun.id, data.runId)).limit(1);
+        const stored = (freshRun?.metadata ?? runRow?.metadata ?? {}) as {
           timelineVersion?: number;
           timelineDocumentId?: string;
           timelineHash?: string;
         };
+        const runMeta = {
+          timelineDocumentId: data.timelineDocumentId ?? stored.timelineDocumentId,
+          timelineVersion: data.timelineVersion ?? stored.timelineVersion,
+          timelineHash: data.timelineHash ?? stored.timelineHash,
+        };
         const timeline = await loadTimelineForAssembly(db, data.projectId, runMeta);
+        if (!timeline) {
+          log.warn({ runMeta }, "timeline_assembly_fallback_legacy");
+        }
         let out: { buffer: Buffer; path: string; timelineHash?: string; clipCount?: number };
         let assemblyMeta: Record<string, unknown> = { legacy: true };
         if (timeline) {

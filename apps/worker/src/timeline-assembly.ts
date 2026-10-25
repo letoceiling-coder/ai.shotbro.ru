@@ -64,7 +64,7 @@ export async function loadTimelineForAssembly(
       try {
         return parseTimelineDocument(row.payload);
       } catch {
-        return null;
+        /* fall through to ACTIVE timeline */
       }
     }
   }
