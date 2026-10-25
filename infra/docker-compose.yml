@@ -1,6 +1,13 @@
+x-web-logging: &web-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   web:
     image: ${WEB_IMAGE:-infra-web:latest}
+    logging: *web-logging
     build:
       context: ..
       dockerfile: infra/Dockerfile.web

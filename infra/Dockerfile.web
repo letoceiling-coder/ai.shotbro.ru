@@ -1,13 +1,30 @@
 ARG BUILD_SHA=unknown
+FROM node:22-alpine AS deps
+ARG BUILD_SHA
+RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/
+COPY packages/agent-core/package.json packages/agent-core/
+COPY packages/ai/package.json packages/ai/
+COPY packages/config/package.json packages/config/
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/db/package.json packages/db/
+COPY packages/email/package.json packages/email/
+COPY packages/provider-sdk/package.json packages/provider-sdk/
+COPY packages/ui/package.json packages/ui/
+RUN pnpm config set verify-deps-before-run false \
+  && pnpm config set strict-dep-builds false \
+  && pnpm install --frozen-lockfile --filter web...
+
 FROM node:22-alpine AS builder
 ARG BUILD_SHA
 RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
 WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY . .
-RUN pnpm config set verify-deps-before-run false \
-  && pnpm config set strict-dep-builds false \
-  && pnpm install \
-  && pnpm rebuild sharp esbuild 2>/dev/null || true \
+RUN pnpm rebuild sharp esbuild 2>/dev/null || true \
   && pnpm --filter web build
 
 FROM node:22-alpine AS runner

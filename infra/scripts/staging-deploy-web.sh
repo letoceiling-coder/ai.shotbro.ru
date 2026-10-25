@@ -10,9 +10,40 @@ IMAGE="shotbro-web-build:${SHA}"
 PREV_TAG_FILE="${SRC}/.deployed-web-image"
 ROLLBACK_TAG="infra-web:rollback"
 MIN_FREE_GB="${MIN_FREE_GB:-8}"
+WEB_BUILD_PEAK_GB="${WEB_BUILD_PEAK_GB:-10}"
+DISK_BLOCK_USED_PCT="${DISK_BLOCK_USED_PCT:-90}"
+STANDALONE_BAK_KEEP="${STANDALONE_BAK_KEEP:-2}"
 
 log() { echo "[staging-deploy-web] $*"; }
 fail() { log "ERROR: $*"; exit 1; }
+
+disk_preflight() {
+  local avail_kb avail_gb used_pct need_gb
+  avail_kb=$(df -Pk / | awk 'NR==2 {print $4}')
+  avail_gb=$((avail_kb / 1024 / 1024))
+  used_pct=$(df -P / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+  need_gb=$((MIN_FREE_GB + WEB_BUILD_PEAK_GB))
+
+  if [ "$used_pct" -ge "$DISK_BLOCK_USED_PCT" ]; then
+    fail "BLOCKED_DISK_CAPACITY used=${used_pct}% (>=${DISK_BLOCK_USED_PCT}%). Run: ${SRC}/infra/scripts/staging-disk-audit.sh"
+  fi
+  if [ "$avail_gb" -lt "$need_gb" ]; then
+    fail "BLOCKED_DISK_CAPACITY free=${avail_gb}GB need>=${need_gb}GB (min_free=${MIN_FREE_GB} + build_peak=${WEB_BUILD_PEAK_GB}). Run staging-disk-audit.sh and staging-safe-cleanup.sh"
+  fi
+  log "disk_ok free_gb=${avail_gb} used_pct=${used_pct} need_gb=${need_gb}"
+}
+
+trim_standalone_backups() {
+  mapfile -t baks < <(ls -1dt "${WEB_ROOT}"/standalone.bak-* 2>/dev/null || true)
+  local i=0
+  for d in "${baks[@]}"; do
+    i=$((i + 1))
+    if [ "$i" -gt "$STANDALONE_BAK_KEEP" ]; then
+      log "trim_old_backup=${d}"
+      rm -rf "$d"
+    fi
+  done
+}
 
 rollback() {
   if docker image inspect "$ROLLBACK_TAG" >/dev/null 2>&1; then
@@ -31,12 +62,7 @@ trap 'if [ "${DEPLOY_OK:-0}" != 1 ]; then rollback; fi' ERR
 [ -d "$SRC" ] || fail "missing source tree ${SRC}"
 [ -f "${COMPOSE_DIR}/docker-compose.yml" ] || fail "missing compose file"
 
-avail_kb=$(df -Pk / | awk 'NR==2 {print $4}')
-avail_gb=$((avail_kb / 1024 / 1024))
-if [ "$avail_gb" -lt "$MIN_FREE_GB" ]; then
-  fail "disk low: ${avail_gb}GB free (need >= ${MIN_FREE_GB}GB)"
-fi
-log "disk_ok free_gb=${avail_gb}"
+disk_preflight
 
 if docker ps --format '{{.Names}}' | grep -q '^infra-web-1$'; then
   cur_img=$(docker inspect infra-web-1 --format '{{.Config.Image}}')
@@ -52,6 +78,7 @@ cd "$COMPOSE_DIR"
 log "building image=${IMAGE}"
 docker build -f Dockerfile.web --build-arg "BUILD_SHA=${SHA}" -t "$IMAGE" ..
 docker tag "$IMAGE" infra-web:deployed
+docker image prune -f >/dev/null 2>&1 || true
 
 # standalone snapshot (rollback artifact, not runtime)
 BACKUP="${WEB_ROOT}/standalone.bak-$(date +%Y%m%d%H%M%S)"
@@ -63,6 +90,7 @@ if [ -d "$WEB_ROOT/standalone" ]; then cp -a "$WEB_ROOT/standalone" "$BACKUP"; f
 rm -rf "$WEB_ROOT/standalone"
 cp -a "$TMP/standalone" "$WEB_ROOT/standalone"
 rm -rf "$TMP"
+trim_standalone_backups
 
 # --- deploy compose web ---
 export WEB_IMAGE="$IMAGE"
