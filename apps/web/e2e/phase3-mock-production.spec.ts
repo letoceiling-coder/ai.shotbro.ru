@@ -26,7 +26,7 @@ test.describe("Phase 3 mock production (REAL)", () => {
       "Создай рекламный ролик 15 сек 9:16, три сцены с озвучкой для бренда TestCo",
     );
     await waitForAgentRunPersisted(page, projectId);
-    await waitForMockBriefVisible(page);
+    await waitForMockBriefVisible(page, projectId);
 
     await approvePendingApprovals(page, projectId);
     await waitForProductionEnqueued(page, projectId);
