@@ -103,7 +103,7 @@ shotbro_gc_images() {
     id=$(docker image inspect "${repo}:${tag}" --format '{{.Id}}' 2>/dev/null || true)
     [ -z "$id" ] && continue
     if shotbro_is_protected_id "$id"; then
-      shotbro_log "gc_keep ${repo}:${tag}"
+      docker rmi "${repo}:${tag}" 2>/dev/null && shotbro_log "gc_untag_legacy ${repo}:${tag}" || shotbro_log "gc_keep_id ${id}"
     else
       docker rmi "${repo}:${tag}" 2>/dev/null && shotbro_log "gc_rmi ${repo}:${tag}" || true
     fi
