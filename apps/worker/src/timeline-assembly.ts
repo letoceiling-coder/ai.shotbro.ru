@@ -7,7 +7,12 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { Logger } from "pino";
-import { parseTimelineDocument, type TimelineDocument, type TimelineClip } from "@shotbro/contracts";
+import {
+  parseTimelineDocument,
+  type TimelineDocument,
+  type TimelineClip,
+  type TimelineTrack,
+} from "@shotbro/contracts/production";
 import type { Db } from "@shotbro/db/client";
 import { asset, productionDocument, productionGraphNode } from "@shotbro/db/schema";
 import { readFixture } from "./mock-fixtures.js";
@@ -116,7 +121,7 @@ export async function assembleFromTimeline(input: {
 }) {
   const { db, s3, bucket, projectId, runId, timeline, tmpRoot, log } = input;
   const sceneMap = await sceneVideoMap(db, projectId, runId);
-  const videoTrack = timeline.tracks.find((t) => t.type === "VIDEO");
+  const videoTrack = timeline.tracks.find((t: TimelineTrack) => t.type === "VIDEO");
   const clips = [...(videoTrack?.clips ?? [])].sort((a, b) => a.order - b.order);
   if (!clips.length) throw new Error("timeline_no_video_clips");
 
@@ -145,7 +150,7 @@ export async function assembleFromTimeline(input: {
       segmentPaths.push(seg);
     }
 
-    const voiceTrack = timeline.tracks.find((t) => t.type === "VOICEOVER");
+    const voiceTrack = timeline.tracks.find((t: TimelineTrack) => t.type === "VOICEOVER");
     const voiceClip = voiceTrack?.clips?.[0];
     let voicePath: string | undefined;
     if (voiceClip?.assetId) {
@@ -211,6 +216,6 @@ function computeTimelineHash(doc: TimelineDocument) {
 }
 
 export function orderedClipsForDebug(timeline: TimelineDocument): TimelineClip[] {
-  const video = timeline.tracks.find((t) => t.type === "VIDEO");
+  const video = timeline.tracks.find((t: TimelineTrack) => t.type === "VIDEO");
   return [...(video?.clips ?? [])].sort((a, b) => a.order - b.order);
 }
