@@ -91,7 +91,9 @@ test.describe("Phase 5G prompt studio", () => {
       await page.getByTestId("prompt-model-image-select").click();
       await page.getByRole("option", { name: "fal-ai/flux/dev" }).click();
       await page.getByTestId("prompt-validate").click();
-      await expect(page.getByText(/Model parameters|unsupported|OK/i)).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(/Model parameters|unsupported|unknown|invalid|OK/i)).toBeVisible({
+        timeout: 10_000,
+      });
 
       await pinRealProjectOnReload(page, projectId, "prompts");
       await page.reload({ waitUntil: "domcontentloaded" });

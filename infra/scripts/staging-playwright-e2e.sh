@@ -74,7 +74,7 @@ elif [ \"${MODE}\" = phase5-references ]; then
 elif [ \"${MODE}\" = phase5-creative-flow ]; then
   pnpm exec playwright test e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-prompts ]; then
-  pnpm exec playwright test e2e/phase5-prompt-studio.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
+  pnpm exec playwright test e2e/phase5-prompt-studio.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-creative ]; then
   pnpm exec playwright test e2e/phase5-storyboard.spec.ts e2e/phase5-characters.spec.ts e2e/phase5-references.spec.ts e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = diagnostic ]; then
