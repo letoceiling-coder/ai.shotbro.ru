@@ -1,15 +1,15 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Remote repo HEAD (VPS):** `68a09d7`  
-**Acceptance date:** 2026-10-25  
+**Remote repo HEAD (VPS):** `00ea52e`  
+**Acceptance date:** 2026-10-25 (5G gate)  
 
 ## Deployed staging (https://ai.shotbro.ru)
 
 | Service | Build / image | Notes |
 |---------|----------------|--------|
-| Web | `shotbro-web-build:015cbb7` · digest `sha256:722cfabdfb82…` | Storyboard blur-save + E2E-stable UI |
-| API | `ai-shotbro-staging-api:latest` | Healthy; source era `ed85a6a` / post-migrate `0006` |
+| Web | `shotbro/web:current` · build **`13891f9`** | Prompt Studio tab |
+| API | `shotbro/api:current` · build **`f180fa0`** | Prompt REST + agent delegates |
 | Worker | `ai-shotbro-staging-worker:latest` | Up with API |
 | E2E runner scripts | `68a09d7` | Playwright specs + `staging-playwright-e2e.sh` modes |
 
