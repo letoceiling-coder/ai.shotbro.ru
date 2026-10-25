@@ -51,7 +51,7 @@ test.describe("Phase 5G prompt studio", () => {
         page.getByTestId("prompt-save").click(),
       ]);
 
-      await page.getByRole("tab", { name: "Video prompt" }).click();
+      await page.getByTestId("prompt-tab-video").click();
       await page.getByTestId("prompt-video-action").fill(`Pan left ${vp.name}`);
       await Promise.all([
         page.waitForResponse(

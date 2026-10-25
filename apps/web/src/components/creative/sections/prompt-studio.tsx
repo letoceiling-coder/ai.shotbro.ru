@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch } from "@/lib/api-client";
 import { useActiveScript } from "@/hooks/use-creative-documents";
@@ -58,6 +57,7 @@ export function PromptStudio({ projectId }: { projectId: string }) {
   const [draft, setDraft] = useState<ScenePromptBundle>(emptyBundle());
   const [viewVersion, setViewVersion] = useState<number | "latest">("latest");
   const [validationMsg, setValidationMsg] = useState<string | null>(null);
+  const [promptTab, setPromptTab] = useState<"image" | "video">("image");
 
   useEffect(() => {
     if (viewVersion === "latest" && latest?.bundle) {
@@ -213,12 +213,27 @@ export function PromptStudio({ projectId }: { projectId: string }) {
         </aside>
 
         <div className="space-y-4">
-          <Tabs defaultValue="image">
-            <TabsList>
-              <TabsTrigger value="image">Image prompt</TabsTrigger>
-              <TabsTrigger value="video">Video prompt</TabsTrigger>
-            </TabsList>
-            <TabsContent value="image" className="space-y-3 pt-3">
+          <div className="flex gap-2 border-b border-border pb-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={promptTab === "image" ? "default" : "ghost"}
+              onClick={() => setPromptTab("image")}
+            >
+              Image prompt
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={promptTab === "video" ? "default" : "ghost"}
+              data-testid="prompt-tab-video"
+              onClick={() => setPromptTab("video")}
+            >
+              Video prompt
+            </Button>
+          </div>
+          {promptTab === "image" ? (
+            <div className="space-y-3 pt-3">
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1.5 md:col-span-2">
                   <Label>Prompt</Label>
@@ -307,8 +322,9 @@ export function PromptStudio({ projectId }: { projectId: string }) {
                   />
                 </div>
               </div>
-            </TabsContent>
-            <TabsContent value="video" className="space-y-3 pt-3">
+            </div>
+          ) : (
+            <div className="space-y-3 pt-3">
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1.5 md:col-span-2">
                   <Label>Scene action</Label>
@@ -389,8 +405,8 @@ export function PromptStudio({ projectId }: { projectId: string }) {
                   />
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <Button
