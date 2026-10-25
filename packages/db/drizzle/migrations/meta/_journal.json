@@ -43,6 +43,13 @@
       "when": 1792820000000,
       "tag": "0005_provider_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792830000000,
+      "tag": "0006_provider_route_metadata",
+      "breakpoints": true
     }
   ]
 }

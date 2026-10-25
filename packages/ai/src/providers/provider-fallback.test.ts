@@ -8,6 +8,7 @@ const baseEnv = {
   OPENROUTER_ENABLED: false,
   OPENROUTER_ALLOW_PAID_REQUESTS: false,
   OPENROUTER_FALLBACK_ROUTING_ENABLED: true,
+  OPENROUTER_API_KEY: "or-test-key-123456789",
   FAL_API_KEY: "fal-test-key-123456789",
   FAL_PROVIDER_ENABLED: false,
   ELEVENLABS_API_KEY: "el-test-key-123456789",
@@ -42,6 +43,23 @@ describe("ProviderFallbackPlanner (mock routing)", () => {
     expect(plan.selected?.providerId).toBe("openrouter");
   });
 
+  it("C: video resolution mismatch → compatible OpenRouter video", () => {
+    const plan = new ProviderFallbackPlanner(baseEnv).plan(
+      scene({ operation: "TEXT_TO_VIDEO", resolution: "2160p" }),
+    );
+    expect(plan.status).toBe("FALLBACK_PLANNED");
+    expect(plan.selected?.providerId).toBe("openrouter");
+  });
+
+  it("D: ElevenLabs unavailable → OpenRouter TTS", () => {
+    const plan = new ProviderFallbackPlanner(baseEnv).plan(
+      scene({ operation: "TEXT_TO_SPEECH" }),
+      { primaryUnavailable: true },
+    );
+    expect(plan.status).toBe("FALLBACK_PLANNED");
+    expect(plan.selected?.providerId).toBe("openrouter");
+  });
+
   it("E: strict voice → fallback blocked", () => {
     const plan = new ProviderFallbackPlanner(baseEnv).plan(
       scene({ operation: "TEXT_TO_SPEECH", strictVoiceConsistency: true }),
@@ -58,6 +76,27 @@ describe("ProviderFallbackPlanner (mock routing)", () => {
     expect(plan.status).toBe("NO_COMPATIBLE_FALLBACK");
   });
 
+  it("G: unknown pricing blocks live-eligible route", () => {
+    const liveEnv = {
+      ...baseEnv,
+      AI_MOCK_MODE: false,
+      PROVIDER_LIVE_EXECUTION_ENABLED: true,
+      FAL_PROVIDER_ENABLED: true,
+      OPENROUTER_ENABLED: true,
+      OPENROUTER_ALLOW_PAID_REQUESTS: true,
+    } as import("@shotbro/config/env").AppEnv;
+    const plan = new ProviderFallbackPlanner(liveEnv).plan(scene({ operation: "IMAGE_GENERATION" }));
+    expect(plan.status).toBe("PRICE_UNVERIFIED");
+  });
+
+  it("H: fallback over budget → re-approval", () => {
+    const plan = new ProviderFallbackPlanner(baseEnv).plan(
+      scene({ operation: "IMAGE_GENERATION", approvedMaxCostUsd: 0.01 }),
+      { primaryUnavailable: true, fallbackEstimateUsd: 5 },
+    );
+    expect(plan.status).toBe("RE_APPROVAL_REQUIRED");
+  });
+
   it("I: ambiguous submit → reconciliation", () => {
     const plan = new ProviderFallbackPlanner(baseEnv).plan(scene({}), {
       failureClass: "POST_SUBMIT_AMBIGUOUS",
@@ -65,12 +104,12 @@ describe("ProviderFallbackPlanner (mock routing)", () => {
     expect(plan.status).toBe("NEEDS_RECONCILIATION");
   });
 
-  it("H: fallback over budget → re-approval", () => {
-    const env = { ...baseEnv, OPENROUTER_FALLBACK_ROUTING_ENABLED: true };
-    const plan = new ProviderFallbackPlanner(env).plan(
-      scene({ operation: "IMAGE_GENERATION", approvedMaxCostUsd: 0.01 }),
-      { primaryUnavailable: true },
-    );
-    expect(["RE_APPROVAL_REQUIRED", "FALLBACK_PLANNED"]).toContain(plan.status);
+  it("J: provider recovery → primary without duplicate job flag", () => {
+    const plan = new ProviderFallbackPlanner(baseEnv).plan(scene({ operation: "IMAGE_GENERATION" }), {
+      providerRecovered: true,
+      existingAttemptCount: 1,
+    });
+    expect(plan.status).toBe("PRIMARY_SELECTED");
+    expect(plan.duplicateJobPrevented).toBe(true);
   });
 });

@@ -14,7 +14,8 @@
 | 5B | Creative workspace shell + section nav | **DEPLOYED** staging web `dab449f`+ |
 | 5C | Script editor + API CRUD | **DEPLOYED** API `b2d78d3`+ |
 | 5H ext | Magnific + Model Settings Engine | **WIRED** (adapter, registry, Providers tab) |
-| 5MP | Multi-provider + OpenRouter fallback | **MOCK-ONLY** (matrix, router, contracts; execution metadata/SSE partial) |
+| 5MP | Multi-provider + OpenRouter fallback | **MOCK-ONLY** (matrix, router, metadata, SSE, UI timeline, A–J tests) |
+| 5MP-R | Route reliability (metadata/SSE/budget) | **WIRED** — pending VPS migrate + E2E evidence |
 | 5D | Storyboard studio | NOT IMPLEMENTED |
 | 5E | Character studio | NOT IMPLEMENTED |
 | 5F | Reference manager | NOT IMPLEMENTED |
@@ -31,11 +32,11 @@
 
 ## Verification checklist (ongoing)
 
-- [ ] VPS `pnpm typecheck` (monorepo)  
-- [ ] API integration: script scene CRUD  
-- [ ] Playwright `phase5-audit`  
-- [ ] Playwright `regression-strict` (Phase 3/4 unchanged)  
-- [ ] Staging web deploy after 5B/5C bundle  
+- [x] VPS API Docker build + `pnpm --filter api typecheck` (742d9ff)  
+- [ ] Vitest provider suite in CI/VPS runner (host pnpm broken; use Playwright image or rebuild API for in-container vitest)  
+- [ ] Playwright `phase5-audit` + Providers UI E2E  
+- [x] Playwright `regression-strict` **8/8**  
+- [x] Staging deploy multi-provider bundle (742d9ff web+api)  
 
 ## Docs
 

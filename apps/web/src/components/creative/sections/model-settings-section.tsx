@@ -62,6 +62,39 @@ export function ModelSettingsSection({ projectId }: { projectId: string }) {
       }) as Promise<{ plan: { status: string; primary?: { providerId: string; modelId: string }; selected?: { providerId: string; modelId: string }; fallbacks?: unknown[] }; mockRoutingOnly?: boolean }>,
   });
 
+  const { data: persistedRoute, refetch: refetchRoute } = useQuery({
+    queryKey: ["provider-route", projectId, selectedSceneId],
+    enabled: Boolean(projectId && selectedSceneId),
+    queryFn: () =>
+      apiFetch(`/api/v1/projects/${projectId}/scenes/${selectedSceneId}/provider-route`) as Promise<{
+        logicalOperation: { id: string; latestStatus: string; routePlanVersion: number } | null;
+        plan: { status?: string; fallbackReason?: string; selected?: { providerId: string; modelId: string } } | null;
+        routeEvents: Array<{ type: string; payload?: Record<string, unknown>; timestamp?: string }>;
+        providerJobs: Array<{ id: string; routeMetadata?: Record<string, unknown> }>;
+      }>,
+    refetchInterval: 8_000,
+  });
+
+  const planRoute = useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/v1/projects/${projectId}/scenes/${selectedSceneId}/provider-route/plan`, {
+        method: "POST",
+        body: JSON.stringify({ operation, fallbackMode, aspectRatio: "9:16" }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["provider-route", projectId, selectedSceneId] });
+    },
+  });
+
+  const simulateFailure = useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/v1/projects/${projectId}/scenes/${selectedSceneId}/provider-route/simulate-primary-failure`, {
+        method: "POST",
+        body: JSON.stringify({ operation }),
+      }),
+    onSuccess: () => refetchRoute(),
+  });
+
   const { data: sceneSettings } = useQuery({
     queryKey: ["scene-model-settings", projectId, selectedSceneId],
     enabled: Boolean(selectedSceneId),
@@ -105,19 +138,73 @@ export function ModelSettingsSection({ projectId }: { projectId: string }) {
         <h2 className="text-lg font-semibold">Providers &amp; Models</h2>
         <Badge variant="demo">MOCK ROUTING</Badge>
       </div>
-      {routePlan?.plan ? (
-        <div className="mb-4 rounded-lg border border-border bg-muted/30 p-3 text-xs" data-testid="provider-route-plan">
-          <p>
-            Primary: {routePlan.plan.primary?.providerId ?? "—"} / {routePlan.plan.primary?.modelId ?? "—"}
-          </p>
-          <p>
-            Selected: {routePlan.plan.selected?.providerId ?? "—"} · {routePlan.plan.status}
-          </p>
-          <p className="text-muted-foreground">
-            Fallback: OpenRouter when compatible · Live I/O blocked · {routePlan.mockRoutingOnly ? "simulation only" : ""}
-          </p>
-        </div>
-      ) : null}
+      <div className="mb-4 space-y-3" data-testid="provider-route-plan">
+        {routePlan?.plan ? (
+          <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs">
+            <p data-testid="provider-route-primary">
+              Primary: {routePlan.plan.primary?.providerId ?? "—"} / {routePlan.plan.primary?.modelId ?? "—"}
+            </p>
+            <p data-testid="provider-route-selected">
+              Preview selected: {routePlan.plan.selected?.providerId ?? "—"} · {routePlan.plan.status}
+            </p>
+            <p className="text-muted-foreground">
+              Live I/O blocked · {routePlan.mockRoutingOnly ? "simulation only" : ""}
+            </p>
+          </div>
+        ) : null}
+        {persistedRoute?.logicalOperation ? (
+          <div className="rounded-lg border border-border p-3 text-xs" data-testid="provider-route-status">
+            <p>
+              Saved route v{persistedRoute.logicalOperation.routePlanVersion}:{" "}
+              {persistedRoute.logicalOperation.latestStatus}
+            </p>
+            <p>
+              Selected: {persistedRoute.plan?.selected?.providerId ?? "—"} ·{" "}
+              {persistedRoute.plan?.fallbackReason ? `Reason: ${persistedRoute.plan.fallbackReason}` : "primary path"}
+            </p>
+            {(persistedRoute.logicalOperation.latestStatus === "RE_APPROVAL_REQUIRED" ||
+              persistedRoute.logicalOperation.latestStatus === "NEEDS_RECONCILIATION") && (
+              <p className="mt-1 text-amber-600" data-testid="provider-route-blocked">
+                {persistedRoute.logicalOperation.latestStatus === "RE_APPROVAL_REQUIRED"
+                  ? "Re-approval required before fallback spend"
+                  : "Reconciliation required — no auto resubmit"}
+              </p>
+            )}
+          </div>
+        ) : null}
+        {persistedRoute?.routeEvents?.length ? (
+          <div className="rounded-lg border border-border p-3 text-xs" data-testid="provider-route-timeline">
+            <p className="mb-2 font-medium">Route timeline</p>
+            <ul className="max-h-40 space-y-1 overflow-y-auto">
+              {persistedRoute.routeEvents.slice(-12).map((ev, i) => (
+                <li key={`${ev.type}-${i}`} className="text-muted-foreground">
+                  {ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString() : ""} · {ev.type}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!selectedSceneId || planRoute.isPending}
+          data-testid="provider-route-save-plan"
+          onClick={() => planRoute.mutate()}
+        >
+          Persist route plan
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!selectedSceneId || simulateFailure.isPending}
+          data-testid="provider-route-simulate-failure"
+          onClick={() => simulateFailure.mutate()}
+        >
+          Simulate primary failure (mock)
+        </Button>
+      </div>
       <div className="mb-4">
         <Label>Fallback mode</Label>
         <Select value={fallbackMode} onValueChange={(v) => setFallbackMode(v as typeof fallbackMode)}>
@@ -222,6 +309,10 @@ export function ModelSettingsSection({ projectId }: { projectId: string }) {
               parameters: { [modelId]: merged },
               imageModelId: modelId,
               fallbackMode,
+              primaryProviderId: "fal-flux",
+              primaryModelId: modelId,
+              fallbackProviderId: "openrouter",
+              fallbackModelId: "openrouter/image/auto",
             })
           }
         >

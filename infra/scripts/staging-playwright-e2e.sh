@@ -59,6 +59,8 @@ if [ \"${MODE}\" = audit ]; then
   pnpm exec playwright test e2e/phase4f-studio-audit.spec.ts --project=desktop
 elif [ \"${MODE}\" = phase5-audit ]; then
   pnpm exec playwright test e2e/phase5-baseline-audit.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile
+elif [ \"${MODE}\" = phase5-providers ]; then
+  pnpm exec playwright test e2e/phase5-providers-routing.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
 elif [ \"${MODE}\" = diagnostic ]; then
   export E2E_DIAG_DIR=/tmp/phase4f-composer-diag
   rm -rf \"\$E2E_DIAG_DIR\"

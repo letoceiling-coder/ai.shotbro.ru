@@ -24,6 +24,9 @@ export type ProviderJobRow = {
   actualUsage?: Record<string, unknown> | null;
   failureCode?: string | null;
   metadata?: Record<string, unknown>;
+  logicalOperationId?: string | null;
+  routePlanVersion?: number | null;
+  routeMetadata?: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
 };

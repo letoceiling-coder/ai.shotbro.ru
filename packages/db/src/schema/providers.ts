@@ -43,6 +43,24 @@ export const providerJob = pgTable("provider_job", {
   actualUsage: jsonb("actual_usage").$type<Record<string, unknown>>(),
   failureCode: text("failure_code"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  logicalOperationId: text("logical_operation_id"),
+  routePlanVersion: integer("route_plan_version").default(1),
+  routeMetadata: jsonb("route_metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const providerLogicalOperation = pgTable("provider_logical_operation", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  sceneId: text("scene_id"),
+  runId: text("run_id").references(() => agentRun.id, { onDelete: "set null" }),
+  operation: text("operation").notNull(),
+  routePlanVersion: integer("route_plan_version").notNull().default(1),
+  latestStatus: text("latest_status").notNull(),
+  planSnapshot: jsonb("plan_snapshot").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

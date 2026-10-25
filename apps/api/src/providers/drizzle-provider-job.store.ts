@@ -45,6 +45,9 @@ export class DrizzleProviderJobStore implements ProviderJobStore {
       actualUsage: job.actualUsage ?? null,
       failureCode: job.failureCode ?? null,
       metadata: job.metadata ?? {},
+      logicalOperationId: job.logicalOperationId ?? null,
+      routePlanVersion: job.routePlanVersion ?? 1,
+      routeMetadata: job.routeMetadata ?? {},
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
     });
@@ -73,6 +76,9 @@ export class DrizzleProviderJobStore implements ProviderJobStore {
         actualUsage: patch.actualUsage ?? current.actualUsage,
         failureCode: patch.failureCode ?? current.failureCode,
         metadata: patch.metadata ?? current.metadata,
+        logicalOperationId: patch.logicalOperationId ?? current.logicalOperationId,
+        routePlanVersion: patch.routePlanVersion ?? current.routePlanVersion,
+        routeMetadata: patch.routeMetadata ?? current.routeMetadata,
         updatedAt: patch.updatedAt ?? new Date(),
       })
       .where(and(eq(providerJob.id, id), eq(providerJob.version, current.version)));
@@ -159,6 +165,9 @@ export class DrizzleProviderJobStore implements ProviderJobStore {
       actualUsage: row.actualUsage ?? undefined,
       failureCode: row.failureCode,
       metadata: (row.metadata as Record<string, unknown>) ?? {},
+      logicalOperationId: row.logicalOperationId,
+      routePlanVersion: row.routePlanVersion,
+      routeMetadata: (row.routeMetadata as Record<string, unknown>) ?? undefined,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

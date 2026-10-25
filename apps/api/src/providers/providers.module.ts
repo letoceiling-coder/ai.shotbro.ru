@@ -10,17 +10,26 @@ import { ProviderJobRuntimeService } from "./provider-job-runtime.service";
 import { ProviderWebhookController } from "./provider-webhook.controller";
 import { ProviderCatalogController } from "./provider-catalog.controller";
 import { ProviderRouterController } from "./provider-router.controller";
+import { ProviderRouteService } from "./provider-route.service";
+import { ProviderRouteController } from "./provider-route.controller";
 
 @Module({
   imports: [ProductionModule, EventsModule],
-  controllers: [ProviderJobsController, ProviderWebhookController, ProviderCatalogController, ProviderRouterController],
+  controllers: [
+    ProviderJobsController,
+    ProviderWebhookController,
+    ProviderCatalogController,
+    ProviderRouterController,
+    ProviderRouteController,
+  ],
   providers: [
     ProviderJobsService,
     ProviderJobSchedulerService,
     ProviderJobEventBridgeService,
     ProviderJobRuntimeService,
+    ProviderRouteService,
     AccessPolicyService,
   ],
-  exports: [ProviderJobsService, ProviderJobRuntimeService],
+  exports: [ProviderJobsService, ProviderJobRuntimeService, ProviderRouteService],
 })
 export class ProvidersModule {}

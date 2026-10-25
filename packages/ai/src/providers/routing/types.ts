@@ -45,10 +45,13 @@ export type ProviderRoutePlan = {
     | "RE_APPROVAL_REQUIRED"
     | "NEEDS_RECONCILIATION"
     | "PRICING_BLOCKED"
+    | "PRICE_UNVERIFIED"
     | "FALLBACK_BLOCKED_VOICE";
   events: Array<{ type: string; message: string }>;
   originalSettingsSnapshot: CanonicalSceneSettings;
   translatedSettingsSnapshot?: Record<string, unknown>;
+  routePlanVersion?: number;
+  duplicateJobPrevented?: boolean;
 };
 
 export type SubmitFailureClass = "PRE_SUBMIT_FAILURE" | "POST_SUBMIT_AMBIGUOUS";

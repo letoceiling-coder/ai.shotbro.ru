@@ -4,6 +4,7 @@ import type { ProviderJobRow, ProviderJobStore } from "./provider-job-types.js";
 import type { MediaProviderAdapter, ProviderSubmitResult } from "./provider-contracts.js";
 import { ExecutionPolicyEngine } from "../execution/execution-policy-engine.js";
 import type { AppEnv } from "@shotbro/config/env";
+import { mergeRouteMetadata, type ProviderJobRouteMetadata } from "./routing/route-metadata.js";
 
 export type SubmitProviderJobInput = {
   id: string;
@@ -18,6 +19,9 @@ export type SubmitProviderJobInput = {
   input: Record<string, unknown>;
   estimatedCostUsd?: number;
   userId: string;
+  logicalOperationId?: string;
+  routePlanVersion?: number;
+  routeMetadata?: ProviderJobRouteMetadata;
 };
 
 export type ProviderJobLifecycleEvent = {
@@ -67,7 +71,22 @@ export class ProviderJobManager {
       version: 1,
       outputAssetIds: [],
       estimatedCost: input.estimatedCostUsd?.toFixed(4),
-      metadata: { mock: true, userId: input.userId },
+      logicalOperationId: input.logicalOperationId,
+      routePlanVersion: input.routePlanVersion ?? 1,
+      routeMetadata: input.routeMetadata ? { ...input.routeMetadata } : undefined,
+      metadata: mergeRouteMetadata(
+        { mock: true, userId: input.userId },
+        input.routeMetadata ?? {
+          requestedProvider: input.providerId,
+          requestedModel: input.modelId,
+          selectedProvider: input.providerId,
+          selectedModel: input.modelId,
+          operation: input.operation,
+          routePlanVersion: input.routePlanVersion ?? 1,
+          fallbackAttempt: 0,
+          reconciliationStatus: "NONE" as const,
+        },
+      ),
       createdAt: now,
       updatedAt: now,
     };

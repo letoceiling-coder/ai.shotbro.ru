@@ -116,8 +116,42 @@ export class ProductionDocumentService {
     return { ...rev, sceneId, scene: scenes.find((s) => s.id === sceneId) };
   }
 
+  private async ensureScriptDocument(userId: string, projectId: string) {
+    try {
+      return await this.getActive(userId, projectId, "SCRIPT");
+    } catch {
+      const sceneId = uuid();
+      const payload = ScriptDocumentSchema.parse({
+        schemaVersion: 1,
+        title: "Script",
+        scenes: [
+          ScriptScenePayloadSchema.parse({
+            id: sceneId,
+            sequence: 1,
+            title: "Scene 1",
+            durationSeconds: 3,
+            description: "",
+          }),
+        ],
+        totalDurationSeconds: 3,
+      });
+      const id = uuid();
+      await this.db.insert(productionDocument).values({
+        id,
+        projectId,
+        docType: "SCRIPT",
+        version: 1,
+        status: "ACTIVE",
+        schemaVersion: 1,
+        payload,
+        createdBy: userId,
+      });
+      return { id, version: 1, payload, projectId, docType: "SCRIPT" as const, status: "ACTIVE" as const };
+    }
+  }
+
   async addScriptScene(userId: string, projectId: string, input: { afterSceneId?: string; title?: string }) {
-    const doc = await this.getActive(userId, projectId, "SCRIPT");
+    const doc = await this.ensureScriptDocument(userId, projectId);
     const payload = ScriptDocumentSchema.parse(doc.payload);
     const newScene = ScriptScenePayloadSchema.parse({
       id: uuid(),
