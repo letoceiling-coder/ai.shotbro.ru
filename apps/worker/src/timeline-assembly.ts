@@ -8,11 +8,21 @@ import { promisify } from "node:util";
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { Logger } from "pino";
 import {
-  parseTimelineDocument,
+  TimelineDocumentSchema,
   type TimelineDocument,
   type TimelineClip,
   type TimelineTrack,
 } from "../../../packages/contracts/src/production/timeline-schemas.ts";
+
+function parseTimelinePayload(raw: unknown): TimelineDocument | null {
+  try {
+    const legacy = raw as { schemaVersion?: number };
+    if (legacy?.schemaVersion !== 2) return null;
+    return TimelineDocumentSchema.parse(raw);
+  } catch {
+    return null;
+  }
+}
 import type { Db } from "@shotbro/db/client";
 import { asset, productionDocument, productionGraphNode } from "@shotbro/db/schema";
 import { readFixture } from "./mock-fixtures.js";
@@ -60,13 +70,8 @@ export async function loadTimelineForAssembly(
         ),
       )
       .limit(1);
-    if (row?.schemaVersion === 2) {
-      try {
-        return parseTimelineDocument(row.payload);
-      } catch {
-        /* fall through to ACTIVE timeline */
-      }
-    }
+    const parsed = row ? parseTimelinePayload(row.payload) : null;
+    if (parsed) return parsed;
   }
   const [active] = await db
     .select()
@@ -75,12 +80,8 @@ export async function loadTimelineForAssembly(
       and(eq(productionDocument.projectId, projectId), eq(productionDocument.docType, "TIMELINE"), eq(productionDocument.status, "ACTIVE")),
     )
     .limit(1);
-  if (!active || active.schemaVersion !== 2) return null;
-  try {
-    return parseTimelineDocument(active.payload);
-  } catch {
-    return null;
-  }
+  if (!active) return null;
+  return parseTimelinePayload(active.payload);
 }
 
 async function sceneVideoMap(db: Db, projectId: string, runId: string) {

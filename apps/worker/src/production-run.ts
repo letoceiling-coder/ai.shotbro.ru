@@ -127,9 +127,14 @@ export async function executeProductionRun(
           timelineVersion: data.timelineVersion ?? stored.timelineVersion,
           timelineHash: data.timelineHash ?? stored.timelineHash,
         };
-        const timeline = await loadTimelineForAssembly(db, data.projectId, runMeta);
+        let timeline = await loadTimelineForAssembly(db, data.projectId, runMeta);
+        if (!timeline && process.env.AI_MOCK_MODE === "true") {
+          timeline = await loadTimelineForAssembly(db, data.projectId, {});
+        }
         if (!timeline) {
-          log.warn({ runMeta }, "timeline_assembly_fallback_legacy");
+          log.warn({ runMeta, projectId: data.projectId, jobTimelineVersion: data.timelineVersion }, "timeline_assembly_fallback_legacy");
+        } else {
+          log.info({ clipCount: timeline.tracks.find((t) => t.type === "VIDEO")?.clips?.length, runMeta }, "timeline_assembly_start");
         }
         let out: { buffer: Buffer; path: string; timelineHash?: string; clipCount?: number };
         let assemblyMeta: Record<string, unknown> = { legacy: true };
