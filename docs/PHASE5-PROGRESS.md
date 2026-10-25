@@ -1,9 +1,11 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**HEAD:** pending push (multi-provider slice)  
-**Last staging deploy:** `341e6da` — strict **8/8** at `/tmp/regression-strict-341e6da.log`  
-**Multi-provider:** capability matrix, OpenRouter media adapters, `ProviderFallbackPlanner`, route-plan API, agent tools, Providers UI (mock routing)  
+**HEAD:** `cdda4c5` (multi-provider + TS/build fixes)  
+**Last staging deploy:** API/worker **`742d9ff`**, web **`742d9ff`** (`staging-deploy-web` digest ok)  
+**Regression:** strict **8/8**, retries=0 — `/tmp/regression-strict-742d9ff.log` (2026-10-25)  
+**Multi-provider:** capability matrix, OpenRouter Image/Video/TTS adapters, `ProviderFallbackPlanner`, route-plan API, agent tools, Providers UI (mock routing only)  
+**Policy:** `AI_MOCK_MODE=true`, per-provider switches default false, no live paid execution  
 **Started:** 2026-10-25
 
 | Stage | Scope | Status |
@@ -11,7 +13,8 @@
 | 5A | Product audit + baseline screenshots | **IMPLEMENTED** (docs + `phase5-baseline-audit.spec.ts`) |
 | 5B | Creative workspace shell + section nav | **DEPLOYED** staging web `dab449f`+ |
 | 5C | Script editor + API CRUD | **DEPLOYED** API `b2d78d3`+ |
-| 5H ext | Magnific + Model Settings Engine | **WIRED** (adapter, registry, UI Models tab) |
+| 5H ext | Magnific + Model Settings Engine | **WIRED** (adapter, registry, Providers tab) |
+| 5MP | Multi-provider + OpenRouter fallback | **MOCK-ONLY** (matrix, router, contracts; execution metadata/SSE partial) |
 | 5D | Storyboard studio | NOT IMPLEMENTED |
 | 5E | Character studio | NOT IMPLEMENTED |
 | 5F | Reference manager | NOT IMPLEMENTED |
