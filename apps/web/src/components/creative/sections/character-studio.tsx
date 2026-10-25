@@ -36,9 +36,10 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
   const selected = useMemo(() => items.find((c) => c.id === selectedId) ?? items[0], [items, selectedId]);
   const scriptScenes = script?.payload.scenes ?? [];
   const storyboardScenes = storyboard?.payload.scenes ?? [];
-  const sceneOptions = scriptScenes.length
-    ? scriptScenes.map((s) => ({ id: s.id, title: s.title }))
-    : storyboardScenes.map((s) => ({ id: s.sceneId, title: s.title }));
+  const sceneOptions =
+    scriptScenes.length > 0
+      ? scriptScenes.map((s) => ({ id: s.id, title: s.title }))
+      : storyboardScenes.map((s) => ({ id: s.sceneId, title: s.title }));
 
   useEffect(() => {
     if (selected && selectedId !== selected.id) setSelectedId(selected.id);
@@ -50,8 +51,8 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
   }, [selected?.id, selected?.version]);
 
   useEffect(() => {
-    if (!assignSceneId && scenes[0]) setAssignSceneId(scenes[0].id ?? (scenes[0] as { sceneId?: string }).sceneId ?? "");
-  }, [scenes, assignSceneId]);
+    if (!assignSceneId && sceneOptions[0]) setAssignSceneId(sceneOptions[0].id);
+  }, [sceneOptions, assignSceneId]);
 
   if (isLoading) return <WorkspaceState title="Characters" state="loading" />;
 
@@ -162,15 +163,11 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
                         <SelectValue placeholder="Сцена" />
                       </SelectTrigger>
                       <SelectContent>
-                        {scenes.map((s) => {
-                          const id = "id" in s ? s.id : (s as { sceneId: string }).sceneId;
-                          const title = "title" in s ? s.title : "Scene";
-                          return (
-                            <SelectItem key={id} value={id}>
-                              {title}
-                            </SelectItem>
-                          );
-                        })}
+                        {sceneOptions.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.title}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Button
