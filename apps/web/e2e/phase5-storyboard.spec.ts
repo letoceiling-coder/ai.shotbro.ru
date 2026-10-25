@@ -1,8 +1,13 @@
 import { mkdirSync } from "node:fs";
 import { test, expect, type BrowserContext } from "@playwright/test";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
-import { pinRealProjectOnReload } from "./helpers/real-studio-state";
-import { seedScriptScene, uploadTinyImage } from "./helpers/phase5-creative-seed";
+import {
+  addScriptScenesViaUI,
+  getStoryboardScene,
+  gotoStudioSection,
+  saveScriptSceneFields,
+  uploadImageViaPicker,
+} from "./helpers/phase5-creative-ui";
 
 const viewports = [
   { name: "desktop1920", width: 1920, height: 1080 },
@@ -33,44 +38,88 @@ test.describe("Phase 5D storyboard studio", () => {
   });
 
   for (const vp of viewports) {
-    test(`Storyboard grid + first frame persist @ ${vp.name}`, async ({ page }) => {
+    test(`Storyboard UI persistence @ ${vp.name}`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/studio", { waitUntil: "domcontentloaded" });
       const projectId = await openRealNewProject(page);
-      const sceneId = await seedScriptScene(page, projectId);
-      const assetId = await uploadTinyImage(page, projectId);
 
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await pinRealProjectOnReload(page, projectId, "storyboard");
-      await page.goto("/studio", { waitUntil: "domcontentloaded" });
+      await gotoStudioSection(page, projectId, "script");
+      await addScriptScenesViaUI(page, 2);
+      await saveScriptSceneFields(page, {
+        title: `E2E SB ${vp.name}`,
+        durationSeconds: 5,
+        description: "Script description seed",
+      });
 
-      await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 20_000 });
+      const scriptRes = await page.request.get(`/api/v1/projects/${projectId}/script`);
+      const script = (await scriptRes.json()) as { payload?: { scenes?: Array<{ id: string }> } };
+      const sceneId = script.payload?.scenes?.[0]?.id;
+      expect(sceneId).toBeTruthy();
+
+      await gotoStudioSection(page, projectId, "storyboard");
+      await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByTestId("storyboard-scene-grid")).toBeVisible({ timeout: 20_000 });
       await page.screenshot({ path: `test-results/phase5-storyboard-grid-${vp.name}.png`, fullPage: true });
 
       await page.getByTestId("storyboard-view-detail").click();
-      await expect(page.getByTestId("storyboard-scene-detail")).toBeVisible({ timeout: 15_000 });
-      await page.getByTestId("storyboard-first-frame").getByRole("button", { name: "Назначить" }).click();
-      await expect(page.getByTestId("asset-picker-dialog")).toBeVisible();
-      await page.getByTestId(`asset-pick-${assetId}`).click();
+      await expect(page.getByTestId("storyboard-scene-detail")).toBeVisible();
+
+      await page.getByTestId("storyboard-scene-title").fill(`Board title ${vp.name}`);
+      await page.getByTestId("storyboard-scene-description").fill(`Board desc ${vp.name}`);
+      await page.getByTestId("storyboard-scene-description").blur();
 
       await expect
-        .poll(async () => {
-          const r = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
-          if (!r.ok()) return "";
-          const j = (await r.json()) as {
-            payload?: { scenes?: Array<{ sceneId: string; firstFrameAssetId?: string }> };
-          };
-          return j.payload?.scenes?.find((s) => s.sceneId === sceneId)?.firstFrameAssetId ?? "";
-        }, { timeout: 30_000 })
-        .toBe(assetId);
+        .poll(async () => (await getStoryboardScene(page, projectId, sceneId!))?.description ?? "", {
+          timeout: 30_000,
+        })
+        .toContain(`Board desc ${vp.name}`);
+
+      await page.getByTestId("storyboard-view-grid").click();
+      const scenes = script.payload!.scenes!;
+      if (scenes.length >= 2) {
+        const firstCard = page.getByTestId(`storyboard-scene-${scenes[0]!.id}`);
+        await firstCard.getByRole("button", { name: "↓" }).click();
+        await page.waitForTimeout(800);
+      }
+
+      await page.getByTestId("storyboard-view-detail").click();
+      await page.getByTestId("storyboard-first-frame").getByRole("button", { name: "Назначить" }).click();
+      await uploadImageViaPicker(page);
+
+      await page.getByTestId("storyboard-last-frame").getByRole("button", { name: "Назначить" }).click();
+      await uploadImageViaPicker(page);
+
+      const after = await getStoryboardScene(page, projectId, sceneId!);
+      expect(after?.firstFrameAssetId).toBeTruthy();
+      expect(after?.lastFrameAssetId).toBeTruthy();
 
       await page.reload({ waitUntil: "domcontentloaded" });
-      await pinRealProjectOnReload(page, projectId, "storyboard");
-      await page.goto("/studio", { waitUntil: "domcontentloaded" });
+      await gotoStudioSection(page, projectId, "storyboard");
       await page.getByTestId("storyboard-view-detail").click();
-      await expect(page.getByTestId("storyboard-first-frame")).toContainText(assetId.slice(0, 8));
+      await expect(page.getByTestId("storyboard-first-frame")).toContainText(after!.firstFrameAssetId!.slice(0, 8));
+      await expect
+        .poll(async () => (await getStoryboardScene(page, projectId, sceneId!))?.description ?? "", { timeout: 20_000 })
+        .toContain(`Board desc ${vp.name}`);
       await page.screenshot({ path: `test-results/phase5-storyboard-detail-${vp.name}.png`, fullPage: true });
-      void sceneId;
     });
   }
+
+  test("Storyboard revision conflict returns 409", async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
+    const projectId = await openRealNewProject(page);
+    await gotoStudioSection(page, projectId, "script");
+    await addScriptScenesViaUI(page, 1);
+    const script = (await (await page.request.get(`/api/v1/projects/${projectId}/script`)).json()) as {
+      payload?: { scenes?: Array<{ id: string }> };
+    };
+    const sceneId = script.payload!.scenes![0]!.id;
+    await page.request.post(`/api/v1/projects/${projectId}/storyboard/sync`, { data: {} });
+    const scene = await getStoryboardScene(page, projectId, sceneId);
+    expect(scene?.revision).toBeTruthy();
+    const stale = await page.request.patch(`/api/v1/projects/${projectId}/storyboard/scenes/${sceneId}`, {
+      data: { description: "stale", expectedRevision: (scene!.revision ?? 1) - 1 },
+    });
+    expect(stale.status()).toBe(409);
+  });
 });

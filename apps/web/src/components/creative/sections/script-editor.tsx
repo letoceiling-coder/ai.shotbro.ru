@@ -105,7 +105,13 @@ export function ScriptEditor({ projectId }: { projectId: string }) {
             v{data.version} · {scenes.length} сцен · {total}s
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => addScene.mutate({})} disabled={addScene.isPending}>
+        <Button
+          size="sm"
+          variant="outline"
+          data-testid="script-add-scene"
+          onClick={() => addScene.mutate({})}
+          disabled={addScene.isPending}
+        >
           <Plus className="mr-1 size-3.5" />
           Сцена
         </Button>
@@ -206,7 +212,11 @@ export function ScriptEditor({ projectId }: { projectId: string }) {
               </div>
               <Field label="Локация" id="scene-loc" value={draft.location} onChange={(v) => setDraft((d) => ({ ...d, location: v }))} />
               <div className="flex flex-wrap gap-2 pt-2">
-                <Button onClick={() => void persistDraft()} disabled={patchScene.isPending || saveState === "saving"}>
+                <Button
+                  data-testid="script-save-scene"
+                  onClick={() => void persistDraft()}
+                  disabled={patchScene.isPending || saveState === "saving"}
+                >
                   Сохранить сцену
                 </Button>
                 <Button

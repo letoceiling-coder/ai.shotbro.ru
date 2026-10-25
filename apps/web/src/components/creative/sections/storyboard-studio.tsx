@@ -216,6 +216,7 @@ export function StoryboardStudio({ projectId }: { projectId: string }) {
               <Label>Описание</Label>
               <Textarea
                 rows={4}
+                data-testid="storyboard-scene-description"
                 defaultValue={selected.description}
                 onBlur={(e) => void persistScene({ description: e.target.value })}
               />
