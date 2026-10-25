@@ -66,6 +66,10 @@
 - `mcr.microsoft.com/playwright:v1.64.1-jammy` (E2E runner)  
 - User MinIO objects / PostgreSQL data  
 
+## Minimal deploy (2026-10-25, `SHOTBRO-MINIMAL-DEPLOYMENT.md`)
+
+Mechanism fix: **`shotbro/{web,api,worker}:current|:rollback`** only; no per-commit SHA tags; no `standalone.bak` on deploy; post-deploy **`shotbro_gc_images`**. Build cache trimmed with **`docker builder prune --keep-storage 12GB`** after source-image GC.
+
 ## Tools added (repo)
 
 - `infra/scripts/staging-disk-audit.sh` — read-only report  

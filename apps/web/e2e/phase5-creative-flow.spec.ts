@@ -1,5 +1,5 @@
-import { mkdirSync } from "node:fs";
 import { test, expect, type BrowserContext } from "@playwright/test";
+import { acceptanceScreenshot } from "./helpers/acceptance-artifacts";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
 import {
   addScriptScenesViaUI,
@@ -16,7 +16,6 @@ test.describe("Phase 5 combined creative flow", () => {
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
-    mkdirSync("test-results", { recursive: true });
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -73,6 +72,6 @@ test.describe("Phase 5 combined creative flow", () => {
     await gotoStudioSection(page, projectId, "references");
     await expect(page.getByTestId("reference-list")).toContainText("STYLE");
 
-    await page.screenshot({ path: "test-results/phase5-creative-flow-final.png", fullPage: true });
+    await acceptanceScreenshot(page, "phase5-creative-flow-final.png");
   });
 });

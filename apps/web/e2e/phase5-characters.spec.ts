@@ -1,5 +1,5 @@
-import { mkdirSync } from "node:fs";
 import { test, expect, type BrowserContext } from "@playwright/test";
+import { acceptanceScreenshot } from "./helpers/acceptance-artifacts";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
 import { gotoStudioSection, uploadImageViaPicker } from "./helpers/phase5-creative-ui";
 import { seedScriptScene } from "./helpers/phase5-creative-seed";
@@ -18,7 +18,6 @@ test.describe("Phase 5E character studio", () => {
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
-    mkdirSync("test-results", { recursive: true });
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -94,8 +93,8 @@ test.describe("Phase 5E character studio", () => {
       await page.reload({ waitUntil: "domcontentloaded" });
       await gotoStudioSection(page, projectId, "characters");
       await expect(page.getByTestId("character-gallery")).toContainText("E2E Hero");
-      await page.screenshot({ path: `test-results/phase5-character-gallery-${vp.name}.png`, fullPage: true });
-      await page.screenshot({ path: `test-results/phase5-character-editor-${vp.name}.png`, fullPage: true });
+      await acceptanceScreenshot(page, `phase5-character-gallery-${vp.name}.png`);
+      await acceptanceScreenshot(page, `phase5-character-editor-${vp.name}.png`);
     });
   }
 });

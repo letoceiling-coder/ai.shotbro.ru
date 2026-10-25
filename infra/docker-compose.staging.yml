@@ -46,9 +46,12 @@ services:
     networks: [staging_internal]
 
   migrate:
+    image: ${SHOTBRO_API_IMAGE:-shotbro/api:current}
     build:
       context: ..
       dockerfile: infra/Dockerfile.api
+      args:
+        BUILD_SHA: ${DEPLOY_SHA:-dev}
     restart: "no"
     environment:
       DATABASE_URL: postgresql://shotbro_staging:${STAGING_POSTGRES_PASSWORD}@postgres:5432/shotbro_staging
@@ -59,9 +62,12 @@ services:
     networks: [staging_internal]
 
   api:
+    image: ${SHOTBRO_API_IMAGE:-shotbro/api:current}
     build:
       context: ..
       dockerfile: infra/Dockerfile.api
+      args:
+        BUILD_SHA: ${DEPLOY_SHA:-dev}
     restart: unless-stopped
     logging: *staging-logging
     env_file:
@@ -105,9 +111,12 @@ services:
     networks: [staging_internal]
 
   worker:
+    image: ${SHOTBRO_WORKER_IMAGE:-shotbro/worker:current}
     build:
       context: ..
       dockerfile: infra/Dockerfile.worker
+      args:
+        BUILD_SHA: ${DEPLOY_SHA:-dev}
     restart: unless-stopped
     logging: *staging-logging
     env_file:

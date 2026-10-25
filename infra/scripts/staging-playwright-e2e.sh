@@ -6,6 +6,7 @@ ENVF="${ROOT}/infra/staging.env"
 MODE="${2:-full}"
 # Must match pnpm-lock @playwright/test (currently 1.64.1).
 PW_IMAGE="${PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v1.64.1-jammy}"
+PW_NODE_VOLUME="${PLAYWRIGHT_NODE_MODULES_VOLUME:-shotbro-e2e-node-modules}"
 
 if [ ! -f "$ENVF" ]; then
   echo "missing $ENVF" >&2
@@ -42,19 +43,22 @@ fi
 
 docker run --rm \
   -v "$ROOT:/app" \
+  -v "${PW_NODE_VOLUME}:/app/node_modules" \
   -w /app \
   -e E2E_REAL_BACKEND=1 \
   -e E2E_STAGING_URL \
   -e E2E_TEST_EMAIL \
   -e E2E_TEST_PASSWORD \
   -e CI=1 \
+  -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
   "$PW_IMAGE" \
   bash -lc "set -euo pipefail
 corepack enable && corepack prepare pnpm@11.5.1 --activate
 pnpm config set verify-deps-before-run false
 pnpm config set strict-dep-builds false
-if [ ! -d node_modules ]; then pnpm install; fi
+if [ ! -f node_modules/.modules.yaml ]; then pnpm install --frozen-lockfile; fi
 cd apps/web
+rm -rf test-results playwright-report 2>/dev/null || true
 if [ \"${MODE}\" = audit ]; then
   pnpm exec playwright test e2e/phase4f-studio-audit.spec.ts --project=desktop
 elif [ \"${MODE}\" = phase5-audit ]; then

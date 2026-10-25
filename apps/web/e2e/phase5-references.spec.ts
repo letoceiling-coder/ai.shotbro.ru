@@ -1,5 +1,5 @@
-import { mkdirSync } from "node:fs";
 import { test, expect, type BrowserContext } from "@playwright/test";
+import { acceptanceScreenshot } from "./helpers/acceptance-artifacts";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
 import { gotoStudioSection, uploadImageViaPicker } from "./helpers/phase5-creative-ui";
 import { seedScriptScene, uploadTinyImage } from "./helpers/phase5-creative-seed";
@@ -25,7 +25,6 @@ test.describe("Phase 5F reference manager", () => {
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
-    mkdirSync("test-results", { recursive: true });
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -51,7 +50,7 @@ test.describe("Phase 5F reference manager", () => {
 
       await attachRole(page, "FIRST_FRAME");
       await attachRole(page, "STYLE");
-      await page.screenshot({ path: `test-results/phase5-reference-picker-${vp.name}.png`, fullPage: true });
+      await acceptanceScreenshot(page, `phase5-reference-picker-${vp.name}.png`);
 
       await expect
         .poll(async () => {

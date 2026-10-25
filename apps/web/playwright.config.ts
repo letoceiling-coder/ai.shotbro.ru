@@ -14,8 +14,9 @@ export default defineConfig({
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
     baseURL: stagingBase ?? "http://127.0.0.1:3000",
-    trace: process.env.E2E_STRICT === "1" ? "retain-on-failure" : "on-first-retry",
+    trace: realBackend || process.env.E2E_STRICT === "1" ? "retain-on-failure" : "on-first-retry",
     screenshot: "only-on-failure",
+    video: "off",
     navigationTimeout: realBackend ? 60_000 : 30_000,
     actionTimeout: realBackend ? 45_000 : 15_000,
     ...(realBackend && stagingBase && process.platform === "win32"

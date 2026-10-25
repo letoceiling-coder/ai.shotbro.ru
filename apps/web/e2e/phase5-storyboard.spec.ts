@@ -1,5 +1,5 @@
-import { mkdirSync } from "node:fs";
 import { test, expect, type BrowserContext } from "@playwright/test";
+import { acceptanceScreenshot } from "./helpers/acceptance-artifacts";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
 import {
   addScriptScenesViaUI,
@@ -23,7 +23,6 @@ test.describe("Phase 5D storyboard studio", () => {
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
-    mkdirSync("test-results", { recursive: true });
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -59,7 +58,7 @@ test.describe("Phase 5D storyboard studio", () => {
       await gotoStudioSection(page, projectId, "storyboard");
       await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 25_000 });
       await expect(page.getByTestId("storyboard-scene-grid")).toBeVisible({ timeout: 20_000 });
-      await page.screenshot({ path: `test-results/phase5-storyboard-grid-${vp.name}.png`, fullPage: true });
+      await acceptanceScreenshot(page, `phase5-storyboard-grid-${vp.name}.png`);
 
       await page.getByTestId("storyboard-view-detail").click();
       await expect(page.getByTestId("storyboard-scene-detail")).toBeVisible();
@@ -118,7 +117,7 @@ test.describe("Phase 5D storyboard studio", () => {
       await expect
         .poll(async () => (await getStoryboardScene(page, projectId, sceneId!))?.description ?? "", { timeout: 20_000 })
         .toContain(`Board desc ${vp.name}`);
-      await page.screenshot({ path: `test-results/phase5-storyboard-detail-${vp.name}.png`, fullPage: true });
+      await acceptanceScreenshot(page, `phase5-storyboard-detail-${vp.name}.png`);
     });
   }
 

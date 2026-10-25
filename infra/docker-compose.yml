@@ -6,7 +6,7 @@ x-web-logging: &web-logging
 
 services:
   web:
-    image: ${WEB_IMAGE:-infra-web:latest}
+    image: ${WEB_IMAGE:-shotbro/web:current}
     logging: *web-logging
     build:
       context: ..

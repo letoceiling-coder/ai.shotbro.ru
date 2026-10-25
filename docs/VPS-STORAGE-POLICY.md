@@ -13,12 +13,15 @@ Deploy preflight requires:
 
 `free_gb >= MIN_FREE_GB (8) + WEB_BUILD_PEAK_GB (10)` → **18GB** default free before web build.
 
-## Retention
+## Retention (minimal deploy — see `SHOTBRO-MINIMAL-DEPLOYMENT.md`)
 
 | Artifact | Policy |
 |----------|--------|
-| `shotbro-web-build` tags | Keep current + **2** rollback SHAs (`KEEP_WEB_TAGS`) |
-| `infra-web:deployed` / `infra-web:rollback` | Always keep |
+| `shotbro/web\|api\|worker:current` | **1** active image ID per service |
+| `shotbro/*:rollback` | **0–1** previous confirmed image ID |
+| `shotbro-web-build:*` | **None** after deploy (GC removes stale SHA tags) |
+| `infra-web:deployed` / `infra-web:rollback` | Aliases to web current/rollback (compat) |
+| `standalone.bak-*` | **Removed** — no new copies on deploy |
 | Dangling `<none>` images | Remove after each web deploy + weekly cleanup |
 | BuildKit cache | `docker builder prune --keep-storage 12GB` (configurable) |
 | `standalone.bak-*` | Keep **2** newest (`STANDALONE_BAK_KEEP`) |
