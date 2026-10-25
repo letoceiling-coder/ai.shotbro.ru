@@ -9,15 +9,20 @@ import { ProductionDocumentService } from "./production-document.service";
 import { CharacterContinuityService } from "./character-continuity.service";
 import { PromptVersionService } from "./prompt-version.service";
 import { ProductionAssetIngestionService } from "./production-asset-ingestion.service";
+import { StoryboardDocumentService } from "./storyboard-document.service";
+import { ReferenceService } from "./reference.service";
+import { AssetsModule } from "../assets/assets.module";
 
 @Module({
-  imports: [QueueModule],
+  imports: [QueueModule, AssetsModule],
   controllers: [ProductionController],
   providers: [
     ProductionGraphService,
     ProjectMemoryService,
     CostReservationService,
     ProductionDocumentService,
+    StoryboardDocumentService,
+    ReferenceService,
     CharacterContinuityService,
     PromptVersionService,
     ProductionAssetIngestionService,
@@ -28,6 +33,8 @@ import { ProductionAssetIngestionService } from "./production-asset-ingestion.se
     ProjectMemoryService,
     CostReservationService,
     ProductionDocumentService,
+    StoryboardDocumentService,
+    ReferenceService,
     CharacterContinuityService,
     PromptVersionService,
     ProductionAssetIngestionService,

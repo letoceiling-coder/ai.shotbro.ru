@@ -16,9 +16,9 @@
 | 5H ext | Magnific + Model Settings Engine | **WIRED** (adapter, registry, Providers tab) |
 | 5MP | Multi-provider + OpenRouter fallback | **MOCK-ONLY** (matrix, router, metadata, SSE, UI timeline, A–J tests) |
 | 5MP-R | Route reliability (metadata/SSE/budget) | **WIRED** — pending VPS migrate + E2E evidence |
-| 5D | Storyboard studio | NOT IMPLEMENTED |
-| 5E | Character studio | NOT IMPLEMENTED |
-| 5F | Reference manager | NOT IMPLEMENTED |
+| 5D | Storyboard studio | **WIRED** — UI + API + E2E (pending VPS deploy SHA) |
+| 5E | Character studio | **WIRED** — versioning + assign scene |
+| 5F | Reference manager | **WIRED** — persistent referenceLinks |
 | 5G | Prompt studio | NOT IMPLEMENTED |
 | 5H | Model strategy per scene | NOT IMPLEMENTED |
 | 5I | Timeline | NOT IMPLEMENTED |

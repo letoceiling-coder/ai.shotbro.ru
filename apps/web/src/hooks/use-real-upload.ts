@@ -68,7 +68,10 @@ export function useRealUpload(projectId: string | undefined) {
       return init.assetId;
     },
     onSuccess: () => {
-      if (projectId) qc.invalidateQueries({ queryKey: ["assets", projectId] });
+      if (projectId) {
+        qc.invalidateQueries({ queryKey: ["assets", projectId] });
+        qc.invalidateQueries({ queryKey: ["project-assets", projectId] });
+      }
     },
     onSettled: () => {
       setTimeout(() => setProgressPct(null), 1500);

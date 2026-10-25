@@ -7,6 +7,9 @@ import { ScriptEditor } from "./sections/script-editor";
 import { BriefSection } from "./sections/brief-section";
 import { PlaceholderSection } from "./sections/placeholder-section";
 import { ModelSettingsSection } from "./sections/model-settings-section";
+import { StoryboardStudio } from "./sections/storyboard-studio";
+import { CharacterStudio } from "./sections/character-studio";
+import { ReferenceManager } from "./sections/reference-manager";
 
 export function CreativeWorkspace({ projectId }: { projectId: string }) {
   const section = useStudioStore((s) => s.creativeSection);
@@ -18,19 +21,9 @@ export function CreativeWorkspace({ projectId }: { projectId: string }) {
         {section === "chat" ? <RealThread projectId={projectId} /> : null}
         {section === "brief" ? <BriefSection projectId={projectId} /> : null}
         {section === "script" ? <ScriptEditor projectId={projectId} /> : null}
-        {section === "storyboard" ? (
-          <PlaceholderSection
-            title="Storyboard Studio"
-            phase="5D"
-            hint="Сетка кадров, first/last frame assets и mock generation — следующий этап."
-          />
-        ) : null}
-        {section === "characters" ? (
-          <PlaceholderSection title="Character Studio" phase="5E" hint="Галерея персонажей через ProjectMemory API." />
-        ) : null}
-        {section === "references" ? (
-          <PlaceholderSection title="Reference Manager" phase="5F" hint="Привязка assets к сценам и персонажам." />
-        ) : null}
+        {section === "storyboard" ? <StoryboardStudio projectId={projectId} /> : null}
+        {section === "characters" ? <CharacterStudio projectId={projectId} /> : null}
+        {section === "references" ? <ReferenceManager projectId={projectId} /> : null}
         {section === "models" ? <ModelSettingsSection projectId={projectId} /> : null}
         {section === "production" ? (
           <PlaceholderSection title="Production" phase="5H" hint="Граф, jobs и approvals — см. правую панель и чат." />

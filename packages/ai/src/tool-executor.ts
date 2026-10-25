@@ -11,7 +11,48 @@ export type ToolHandler = (input: Record<string, unknown>, ctx: ToolRunContext) 
 
 export type ToolExecutionDelegates = {
   listAssets?: (projectId: string, userId: string) => Promise<Array<{ id: string; mimeType: string; originalName?: string }>>;
-  attachReference?: (input: { projectId: string; userId: string; assetId: string; sceneId?: string }) => Promise<{ linked: boolean }>;
+  attachReference?: (input: {
+    projectId: string;
+    userId: string;
+    assetId: string;
+    sceneId?: string;
+    characterId?: string;
+    role?: string;
+  }) => Promise<{ linked: boolean; linkId?: string; duplicate?: boolean }>;
+  detachReference?: (input: { projectId: string; userId: string; linkId: string }) => Promise<{ detached: boolean }>;
+  getStoryboard?: (input: { projectId: string; userId: string }) => Promise<{ storyboard: unknown; version: number | null }>;
+  syncStoryboard?: (input: { projectId: string; userId: string }) => Promise<{ synced: boolean; version?: number; sceneCount: number }>;
+  updateStoryboardScene?: (input: {
+    projectId: string;
+    userId: string;
+    sceneId: string;
+    patch: Record<string, unknown>;
+  }) => Promise<{ updated: boolean; version?: number; sceneId: string }>;
+  reorderStoryboardScenes?: (input: {
+    projectId: string;
+    userId: string;
+    sceneIds: string[];
+  }) => Promise<{ reordered: boolean; version?: number }>;
+  upsertCharacter?: (input: {
+    projectId: string;
+    userId: string;
+    body: Record<string, unknown> & { name: string };
+  }) => Promise<{ character: unknown; version: number }>;
+  assignCharacterToScene?: (input: {
+    projectId: string;
+    userId: string;
+    characterId: string;
+    sceneId: string;
+    characterVersion?: number;
+  }) => Promise<Record<string, unknown>>;
+  setSceneFrame?: (input: {
+    projectId: string;
+    userId: string;
+    sceneId: string;
+    frame: "first" | "last";
+    assetId: string;
+    expectedRevision?: number;
+  }) => Promise<{ sceneId: string; frame: string; assetId: string }>;
   requestApproval?: (input: {
     projectId: string;
     userId: string;

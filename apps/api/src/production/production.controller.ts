@@ -8,7 +8,10 @@ import { ProductionGraphService } from "./production-graph.service";
 import { ProjectMemoryService } from "./project-memory.service";
 import { CharacterContinuityService } from "./character-continuity.service";
 import { PromptVersionService } from "./prompt-version.service";
+import { StoryboardDocumentService } from "./storyboard-document.service";
+import { ReferenceService } from "./reference.service";
 import { ModelParameterValidator, SceneModelSettingsSchema } from "@shotbro/ai";
+import { ReferenceRoleSchema } from "@shotbro/contracts";
 
 @ApiTags("production")
 @Controller("api/v1/projects/:projectId")
@@ -21,6 +24,8 @@ export class ProductionController {
     @Inject(ProductionDocumentService) private readonly documents: ProductionDocumentService,
     @Inject(CharacterContinuityService) private readonly characters: CharacterContinuityService,
     @Inject(PromptVersionService) private readonly prompts: PromptVersionService,
+    @Inject(StoryboardDocumentService) private readonly storyboard: StoryboardDocumentService,
+    @Inject(ReferenceService) private readonly references: ReferenceService,
   ) {}
 
   @Get("brief")
@@ -159,6 +164,118 @@ export class ProductionController {
     @Body() body: { modelId?: string; renderedPrompt: string; parameters?: Record<string, unknown> },
   ) {
     return this.prompts.create(req.user.id, projectId, { sceneId, ...body });
+  }
+
+  @Get("storyboard")
+  getStoryboard(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    return this.storyboard.getActive(req.user.id, projectId);
+  }
+
+  @Post("storyboard/sync")
+  syncStoryboard(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    return this.storyboard.syncFromScript(req.user.id, projectId);
+  }
+
+  @Patch("storyboard/scenes/:sceneId")
+  patchStoryboardScene(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.storyboard.patchScene(req.user.id, projectId, sceneId, body);
+  }
+
+  @Post("storyboard/scenes/reorder")
+  reorderStoryboard(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: { sceneIds: string[] }) {
+    return this.storyboard.reorderScenes(req.user.id, projectId, body.sceneIds ?? []);
+  }
+
+  @Post("characters/:characterId/assign-scene")
+  async assignCharacterScene(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("characterId") characterId: string,
+    @Body() body: { sceneId: string; characterVersion?: number },
+  ) {
+    const assigned = await this.characters.assignToScene(req.user.id, projectId, characterId, body.sceneId, {
+      characterVersion: body.characterVersion,
+    });
+    try {
+      const board = await this.storyboard.getActive(req.user.id, projectId);
+      const scene = board?.payload.scenes.find((s) => s.sceneId === body.sceneId);
+      if (scene) {
+        await this.storyboard.patchScene(req.user.id, projectId, body.sceneId, {
+          characterIds: [...new Set([...scene.characterIds, characterId])],
+          characterVersionById: {
+            ...scene.characterVersionById,
+            [characterId]: assigned.characterVersion as number,
+          },
+          expectedRevision: scene.revision,
+        });
+      }
+    } catch {
+      /* no storyboard yet */
+    }
+    return assigned;
+  }
+
+  @Post("characters/:characterId/restore")
+  restoreCharacter(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("characterId") characterId: string,
+    @Body() body: { version: number },
+  ) {
+    return this.characters.restoreVersion(req.user.id, projectId, characterId, body.version);
+  }
+
+  @Get("references")
+  listReferences(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Query("sceneId") sceneId?: string,
+    @Query("characterId") characterId?: string,
+  ) {
+    return this.references.list(req.user.id, projectId, { sceneId, characterId });
+  }
+
+  @Post("references")
+  attachReference(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Body()
+    body: {
+      assetId: string;
+      role?: string;
+      sceneId?: string;
+      characterId?: string;
+      idempotencyKey?: string;
+    },
+  ) {
+    const role = ReferenceRoleSchema.parse(body.role ?? "GENERAL");
+    return this.references.attach(req.user.id, projectId, {
+      assetId: body.assetId,
+      role,
+      sceneId: body.sceneId,
+      characterId: body.characterId,
+      idempotencyKey: body.idempotencyKey,
+    });
+  }
+
+  @Post("references/:linkId/detach")
+  detachReference(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("linkId") linkId: string) {
+    return this.references.detach(req.user.id, projectId, linkId);
+  }
+
+  @Patch("references/:linkId")
+  patchReference(
+    @Req() req: AuthedRequest,
+    @Param("projectId") projectId: string,
+    @Param("linkId") linkId: string,
+    @Body() body: { role: string },
+  ) {
+    return this.references.updateRole(req.user.id, projectId, linkId, ReferenceRoleSchema.parse(body.role));
   }
 
   @Post("cost/reserve")

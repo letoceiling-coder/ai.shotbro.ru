@@ -89,12 +89,105 @@ export const StoryboardFrameSchema = z.object({
   narration: z.string().optional(),
 });
 
-export const StoryboardDocumentSchema = z.object({
-  schemaVersion: z.literal(1).default(1),
+export const StoryboardSceneStatusSchema = z.enum(["draft", "review", "approved", "locked"]);
+
+export const StoryboardSceneSchema = z.object({
+  sceneId: z.string(),
+  order: z.number().int(),
   title: z.string(),
-  frames: z.array(StoryboardFrameSchema).min(1),
+  description: z.string().default(""),
+  durationSeconds: z.number().positive(),
+  firstFrameAssetId: z.string().optional(),
+  lastFrameAssetId: z.string().optional(),
+  referenceAssetIds: z.array(z.string()).default([]),
+  characterIds: z.array(z.string()).default([]),
+  characterVersionById: z.record(z.number().int().positive()).default({}),
+  imagePromptVersionId: z.string().optional(),
+  videoPromptVersionId: z.string().optional(),
+  imageModelSettings: z.record(z.unknown()).optional(),
+  videoModelSettings: z.record(z.unknown()).optional(),
+  cameraMotion: z.string().optional(),
+  lighting: z.string().optional(),
+  transition: z.string().optional(),
+  status: StoryboardSceneStatusSchema.default("draft"),
+  revision: z.number().int().positive().default(1),
+  visualDescription: z.string().optional(),
+  firstFramePrompt: z.string().max(2500).optional(),
+  videoMotionPrompt: z.string().max(2500).optional(),
+  narration: z.string().optional(),
+});
+
+export const StoryboardDocumentSchema = z.object({
+  schemaVersion: z.union([z.literal(1), z.literal(2)]).default(2),
+  title: z.string(),
+  scriptDocumentVersion: z.number().int().positive().optional(),
+  frames: z.array(StoryboardFrameSchema).optional(),
+  scenes: z.array(StoryboardSceneSchema).optional(),
   mock: z.literal(true).optional(),
 });
+
+export const ReferenceRoleSchema = z.enum([
+  "CHARACTER",
+  "STYLE",
+  "FIRST_FRAME",
+  "LAST_FRAME",
+  "PRODUCT",
+  "LOCATION",
+  "CAMERA",
+  "VOICE",
+  "GENERAL",
+]);
+
+export const ReferenceLinkSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  assetId: z.string(),
+  role: ReferenceRoleSchema,
+  sceneId: z.string().optional(),
+  characterId: z.string().optional(),
+  revision: z.number().int().positive().default(1),
+  createdAt: z.string(),
+});
+
+export const CharacterProfileSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  appearance: z.string().optional(),
+  wardrobe: z.string().optional(),
+  visualStyle: z.string().optional(),
+  voiceNotes: z.string().optional(),
+  referenceAssetIds: z.array(z.string()).default([]),
+  primaryReferenceAssetId: z.string().optional(),
+  sceneIds: z.array(z.string()).default([]),
+  version: z.number().int().positive().default(1),
+  history: z.array(z.object({ version: z.number(), snapshot: z.record(z.unknown()) })).optional(),
+});
+
+/** Normalize v1 frames → v2 scenes for API consumers. */
+export function parseStoryboardDocument(raw: unknown) {
+  const base = StoryboardDocumentSchema.parse(raw);
+  if (base.scenes?.length) {
+    return { ...base, schemaVersion: 2 as const, scenes: base.scenes };
+  }
+  const frames = base.frames ?? [];
+  const scenes = frames.map((f) =>
+    StoryboardSceneSchema.parse({
+      sceneId: f.sceneId,
+      order: f.sequence,
+      title: f.visualDescription.slice(0, 120) || `Scene ${f.sequence}`,
+      description: f.visualDescription,
+      durationSeconds: f.durationSeconds,
+      visualDescription: f.visualDescription,
+      firstFramePrompt: f.firstFramePrompt,
+      videoMotionPrompt: f.videoMotionPrompt,
+      narration: f.narration,
+      revision: 1,
+      status: "draft",
+    }),
+  );
+  return { ...base, schemaVersion: 2 as const, scenes };
+}
 
 export const AgentProductionStateSchema = z.enum([
   "DRAFT",
@@ -141,4 +234,7 @@ export type ProductionBrief = z.infer<typeof ProductionBriefSchema>;
 export type ProductionPlan = z.infer<typeof ProductionPlanSchema>;
 export type ScriptDocument = z.infer<typeof ScriptDocumentSchema>;
 export type StoryboardDocument = z.infer<typeof StoryboardDocumentSchema>;
+export type StoryboardScene = z.infer<typeof StoryboardSceneSchema>;
+export type ReferenceLink = z.infer<typeof ReferenceLinkSchema>;
+export type CharacterProfile = z.infer<typeof CharacterProfileSchema>;
 export type AgentProductionState = z.infer<typeof AgentProductionStateSchema>;

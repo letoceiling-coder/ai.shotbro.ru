@@ -28,6 +28,9 @@ import { buildAgentToolDelegates } from "./agent-tool-delegates";
 import type { AgentProductionState } from "@shotbro/contracts";
 import { AssetsService } from "../assets/assets.service";
 import { ProviderJobsService } from "../providers/provider-jobs.service";
+import { StoryboardDocumentService } from "../production/storyboard-document.service";
+import { ReferenceService } from "../production/reference.service";
+import { CharacterContinuityService } from "../production/character-continuity.service";
 
 @Injectable()
 export class AgentService {
@@ -45,6 +48,9 @@ export class AgentService {
     @Inject(AssetsService) private readonly assets: AssetsService,
     @Inject(ProviderJobsService) private readonly providerJobs: ProviderJobsService,
     @Inject(AgentRuntimeRolloutService) private readonly rollout: AgentRuntimeRolloutService,
+    @Inject(StoryboardDocumentService) private readonly storyboard: StoryboardDocumentService,
+    @Inject(ReferenceService) private readonly references: ReferenceService,
+    @Inject(CharacterContinuityService) private readonly characters: CharacterContinuityService,
   ) {}
 
   async resumeAfterApproval(projectId: string, userId: string, targetType: string) {
@@ -189,6 +195,9 @@ export class AgentService {
         approvals: this.approvals,
         graph: this.graph,
         providerJobs: this.providerJobs,
+        references: this.references,
+        storyboard: this.storyboard,
+        characters: this.characters,
         conversationId,
       });
       await this.postAssistantBlocks(conversationId, projectId, [

@@ -229,7 +229,15 @@ export function registerPhase4ToolHandlers(executor: ToolExecutor) {
     return { items: [], mock: true, note: "delegate_missing" };
   });
 
-  executor.register("save_character", z.object({ name: z.string(), description: z.string().optional() }), async (input, ctx) => {
+  executor.register("save_character", z.object({ name: z.string(), description: z.string().optional() }).passthrough(), async (input, ctx) => {
+    if (ctx.delegates?.upsertCharacter) {
+      const res = await ctx.delegates.upsertCharacter({
+        projectId: ctx.projectId,
+        userId: ctx.userId,
+        body: input as Record<string, unknown> & { name: string },
+      });
+      return { saved: true, ...res, mock: true };
+    }
     const run = await ctx.storage.getRun(ctx.runId);
     const metadata = { ...(run?.metadata ?? {}), character: input };
     await ctx.storage.updateRunState(ctx.runId, { metadata });
@@ -263,17 +271,35 @@ export function registerPhase4ToolHandlers(executor: ToolExecutor) {
     mock: true,
   }));
 
-  executor.register("attach_reference", z.object({ assetId: z.string(), sceneId: z.string().optional() }), async (input, ctx) => {
-    const parsed = z.object({ assetId: z.string(), sceneId: z.string().optional() }).parse(input);
-    if (!ctx.delegates?.attachReference) throw new Error("attach_reference: delegate missing");
-    const res = await ctx.delegates.attachReference({
-      projectId: ctx.projectId,
-      userId: ctx.userId,
-      assetId: parsed.assetId,
-      sceneId: parsed.sceneId,
-    });
-    return { ...res, mock: true };
-  });
+  executor.register(
+    "attach_reference",
+    z.object({
+      assetId: z.string(),
+      sceneId: z.string().optional(),
+      characterId: z.string().optional(),
+      role: z.string().optional(),
+    }),
+    async (input, ctx) => {
+      const parsed = z
+        .object({
+          assetId: z.string(),
+          sceneId: z.string().optional(),
+          characterId: z.string().optional(),
+          role: z.string().optional(),
+        })
+        .parse(input);
+      if (!ctx.delegates?.attachReference) throw new Error("attach_reference: delegate missing");
+      const res = await ctx.delegates.attachReference({
+        projectId: ctx.projectId,
+        userId: ctx.userId,
+        assetId: parsed.assetId,
+        sceneId: parsed.sceneId,
+        characterId: parsed.characterId,
+        role: parsed.role,
+      });
+      return { ...res, mock: true };
+    },
+  );
 
   executor.register(
     "request_approval",
