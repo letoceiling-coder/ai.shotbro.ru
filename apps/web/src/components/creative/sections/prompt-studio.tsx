@@ -73,6 +73,7 @@ export function PromptStudio({ projectId }: { projectId: string }) {
     onSuccess: (row) => {
       if (row.bundle) setDraft(row.bundle);
       setViewVersion(row.version);
+      setPromptTab("image");
     },
   });
 
@@ -218,6 +219,7 @@ export function PromptStudio({ projectId }: { projectId: string }) {
               type="button"
               size="sm"
               variant={promptTab === "image" ? "default" : "ghost"}
+              data-testid="prompt-tab-image"
               onClick={() => setPromptTab("image")}
             >
               Image prompt

@@ -69,7 +69,14 @@ test.describe("Phase 5G prompt studio", () => {
         }, { timeout: 20_000 })
         .toBeGreaterThanOrEqual(2);
 
-      await page.getByTestId("prompt-version-1").click();
+      await Promise.all([
+        page.waitForResponse(
+          (r) => r.url().includes("/prompts/versions/1") && r.request().method() === "GET" && r.ok(),
+          { timeout: 30_000 },
+        ),
+        page.getByTestId("prompt-version-1").click(),
+      ]);
+      await page.getByTestId("prompt-tab-image").click();
       await expect(page.getByTestId("prompt-image-text")).toHaveValue(imagePrompt);
 
       await page.getByTestId("prompt-restore").click();
