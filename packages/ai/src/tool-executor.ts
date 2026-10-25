@@ -74,6 +74,43 @@ export type ToolExecutionDelegates = {
     idempotencyKey: string;
     payload: Record<string, unknown>;
   }) => Promise<{ providerJobId: string; status: string }>;
+  getScenePrompt?: (input: { projectId: string; userId: string; sceneId: string }) => Promise<Record<string, unknown>>;
+  saveScenePrompt?: (input: {
+    projectId: string;
+    userId: string;
+    sceneId: string;
+    bundle: Record<string, unknown>;
+    changeNote?: string;
+  }) => Promise<Record<string, unknown>>;
+  listPromptVersions?: (input: { projectId: string; userId: string; sceneId: string }) => Promise<Record<string, unknown>>;
+  comparePromptVersions?: (input: {
+    projectId: string;
+    userId: string;
+    sceneId: string;
+    versionA: number;
+    versionB: number;
+  }) => Promise<Record<string, unknown>>;
+  restorePromptVersion?: (input: {
+    projectId: string;
+    userId: string;
+    sceneId: string;
+    version: number;
+  }) => Promise<Record<string, unknown>>;
+  getSceneModelSettings?: (input: { projectId: string; userId: string; sceneId: string }) => Promise<Record<string, unknown>>;
+  validatePromptForModel?: (input: {
+    projectId: string;
+    userId: string;
+    sceneId: string;
+    modelId: string;
+    operation: string;
+    parameters?: Record<string, unknown>;
+  }) => Promise<Record<string, unknown>>;
+  prepareScenePrompt?: (input: {
+    projectId: string;
+    userId: string;
+    sceneId: string;
+    focus: "image" | "video" | "both";
+  }) => Promise<Record<string, unknown>>;
 };
 
 export type ToolRunContext = {
