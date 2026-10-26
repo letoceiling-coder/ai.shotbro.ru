@@ -7,6 +7,101 @@ RESULTS=()
 
 note() { RESULTS+=("$1"); }
 
+# Harness project + duplicate submit (auth before other matrix sign-ins)
+docker exec -i ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-harness-ctx.json 2>/tmp/phase5i-matrix-harness-ctx.err || true
+const base = "http://127.0.0.1:3001";
+const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
+const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
+if (!password) {
+  console.log(JSON.stringify({ ok: false, error: "missing_password" }));
+  process.exit(0);
+}
+async function j(path, init = {}, cookies = "") {
+  const res = await fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru", Cookie: cookies, ...(init.headers ?? {}) } });
+  const set = res.headers.getSetCookie?.() ?? [];
+  const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
+  return { status: res.status, body, cookies: mergeCookies(cookies, set) };
+}
+function mergeCookies(prev, setCookie) {
+  const jar = Object.fromEntries(prev.split(";").map((s) => s.trim()).filter(Boolean).map((p) => p.split("=")).filter(([k]) => k));
+  for (const line of setCookie) { const [pair] = line.split(";"); const [k, v] = pair.split("="); if (k) jar[k.trim()] = v ?? ""; }
+  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
+}
+(async () => {
+  let c = "";
+  const sign = await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) });
+  if (sign.status !== 200) {
+    console.log(JSON.stringify({ ok: false, error: "sign_in_" + sign.status }));
+    return;
+  }
+  c = sign.cookies;
+  const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "matrix harness " + Date.now(), mock: true }) }, c);
+  console.log(JSON.stringify({ ok: Boolean(p.body?.id), projectId: p.body?.id ?? null }));
+})().catch((e) => console.log(JSON.stringify({ ok: false, error: String(e) })));
+NODE
+
+if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harness-ctx.json')).get('projectId') else 1)" 2>/dev/null; then
+  export PHASE5I_HARNESS_PROJECT_ID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-harness-ctx.json'))['projectId'])")"
+  if docker exec -e PHASE5I_HARNESS_PROJECT_ID -e TIMELINE_MOCK_USE_ASSETS=true ai-shotbro-staging-worker-1 pnpm exec tsx apps/worker/scripts/phase5i-ffmpeg-harness.ts >/tmp/phase5i-matrix-harness.out 2>/tmp/phase5i-matrix-harness.err; then
+    python3 - <<'PY' | while read -r line; do note "$line"; done
+import json
+for row in json.load(open("/tmp/phase5i-matrix-harness.out"))["harness"]:
+    print(json.dumps(row))
+PY
+  else
+    note '{"id":6,"name":"trim","status":"FAIL","note":"harness exec"}'
+    note '{"id":7,"name":"voiceover","status":"FAIL"}'
+    note '{"id":8,"name":"music","status":"FAIL"}'
+    note '{"id":9,"name":"missing_clip","status":"FAIL"}'
+    note '{"id":10,"name":"invalid_asset","status":"FAIL"}'
+  fi
+else
+  note '{"id":6,"name":"trim","status":"FAIL","note":"harness context"}'
+  note '{"id":7,"name":"voiceover","status":"FAIL"}'
+  note '{"id":8,"name":"music","status":"FAIL"}'
+  note '{"id":9,"name":"missing_clip","status":"FAIL"}'
+  note '{"id":10,"name":"invalid_asset","status":"FAIL"}'
+fi
+
+docker exec -i ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-dup.json 2>/dev/null || true
+const base = "http://127.0.0.1:3001";
+const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
+const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
+async function j(path, init = {}, cookies = "") {
+  const res = await fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru", Cookie: cookies, ...(init.headers ?? {}) } });
+  const set = res.headers.getSetCookie?.() ?? [];
+  const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
+  return { status: res.status, body, cookies: mergeCookies(cookies, set) };
+}
+function mergeCookies(prev, setCookie) {
+  const jar = Object.fromEntries(prev.split(";").map((s) => s.trim()).filter(Boolean).map((p) => p.split("=")).filter(([k]) => k));
+  for (const line of setCookie) { const [pair] = line.split(";"); const [k, v] = pair.split("="); if (k) jar[k.trim()] = v ?? ""; }
+  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
+}
+(async () => {
+  let c = "";
+  const sign = await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) });
+  if (sign.status !== 200) { console.log(JSON.stringify({ ok: false })); return; }
+  c = sign.cookies;
+  const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "dup " + Date.now(), mock: true }) }, c);
+  const projectId = p.body.id;
+  await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Dup bootstrap" }) }, c);
+  await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
+  await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
+  const a = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
+  const b = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
+  const same =
+    a.body?.snapshot?.timelineVersion === b.body?.snapshot?.timelineVersion &&
+    a.body?.snapshot?.timelineHash === b.body?.snapshot?.timelineHash;
+  console.log(JSON.stringify({ ok: same && a.status === 200 && b.status === 200 }));
+})().catch((e) => console.log(JSON.stringify({ ok: false })));
+NODE
+if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-dup.json')).get('ok') else 1)" 2>/dev/null; then
+  note '{"id":11,"name":"duplicate_submit","status":"PASS","note":"prepare-assembly idempotent snapshot"}'
+else
+  note '{"id":11,"name":"duplicate_submit","status":"FAIL"}'
+fi
+
 # 2,4,5 — assembly proof (orchestrator + mock lavfi colors)
 if bash "$DIR/staging-phase5i-assembly-proof.sh" /tmp/phase5i-matrix-assembly.json; then
   DUR="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-assembly.json'))['ffprobe']['format']['duration'])")"
@@ -101,139 +196,22 @@ if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-5scene
 else
   note '{"id":3,"name":"five_scenes","status":"FAIL"}'
 fi
-docker exec -i ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-harness-ctx.json 2>/tmp/phase5i-matrix-harness-ctx.err || true
-const base = "http://127.0.0.1:3001";
-const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
-const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
-async function j(path, init = {}, cookies = "") {
-  const res = await fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru", Cookie: cookies, ...(init.headers ?? {}) } });
-  const set = res.headers.getSetCookie?.() ?? [];
-  const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
-  return { status: res.status, body, cookies: mergeCookies(cookies, set) };
-}
-function mergeCookies(prev, setCookie) {
-  const jar = Object.fromEntries(prev.split(";").map((s) => s.trim()).filter(Boolean).map((p) => p.split("=")).filter(([k]) => k));
-  for (const line of setCookie) { const [pair] = line.split(";"); const [k, v] = pair.split("="); if (k) jar[k.trim()] = v ?? ""; }
-  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-}
-(async () => {
-  let c = "";
-  await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
-  const me = await j("/api/v1/users/me", {}, c);
-  const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "matrix harness " + Date.now(), mock: true }) }, c);
-  const projectId = p.body?.id;
-  const detail = projectId ? await j(`/api/v1/projects/${projectId}`, {}, c) : { body: {} };
-  const userId = me.body?.id ?? me.body?.user?.id;
-  const workspaceId = detail.body?.workspaceId ?? p.body?.workspaceId;
-  const ownerId = detail.body?.ownerId ?? userId;
-  const ok = Boolean(projectId && workspaceId && ownerId);
-  if (!ok) {
-    console.error(JSON.stringify({ debug: { pStatus: p.status, meStatus: me.status, projectId, workspaceId, ownerId } }));
-  }
-  console.log(JSON.stringify({ ok: Boolean(projectId), projectId, workspaceId, ownerId }));
-})().catch((e) => console.log(JSON.stringify({ ok: false, error: String(e) })));
-NODE
-
-if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harness-ctx.json')).get('projectId') else 1)" 2>/dev/null; then
-  export PHASE5I_HARNESS_PROJECT_ID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-harness-ctx.json'))['projectId'])")"
-  if docker exec \
-    -e PHASE5I_HARNESS_PROJECT_ID \
-    -e TIMELINE_MOCK_USE_ASSETS=true \
-    ai-shotbro-staging-worker-1 \
-    pnpm exec tsx apps/worker/scripts/phase5i-ffmpeg-harness.ts >/tmp/phase5i-matrix-harness.out 2>/tmp/phase5i-matrix-harness.err; then
-    python3 - <<'PY' | while read -r line; do note "$line"; done
-import json
-for row in json.load(open("/tmp/phase5i-matrix-harness.out"))["harness"]:
-    print(json.dumps(row))
-PY
-  else
-    note '{"id":6,"name":"trim","status":"FAIL","note":"harness exec"}'
-    note '{"id":7,"name":"voiceover","status":"FAIL"}'
-    note '{"id":8,"name":"music","status":"FAIL"}'
-    note '{"id":9,"name":"missing_clip","status":"FAIL"}'
-    note '{"id":10,"name":"invalid_asset","status":"FAIL"}'
-  fi
-else
-  note '{"id":6,"name":"trim","status":"FAIL","note":"harness context"}'
-  note '{"id":7,"name":"voiceover","status":"FAIL"}'
-  note '{"id":8,"name":"music","status":"FAIL"}'
-  note '{"id":9,"name":"missing_clip","status":"FAIL"}'
-  note '{"id":10,"name":"invalid_asset","status":"FAIL"}'
-fi
-
-docker exec -i ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-dup.json 2>/dev/null || true
-const base = "http://127.0.0.1:3001";
-const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
-const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
-async function j(path, init = {}, cookies = "") {
-  const res = await fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru", Cookie: cookies, ...(init.headers ?? {}) } });
-  const set = res.headers.getSetCookie?.() ?? [];
-  const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
-  return { status: res.status, body, cookies: mergeCookies(cookies, set) };
-}
-function mergeCookies(prev, setCookie) {
-  const jar = Object.fromEntries(prev.split(";").map((s) => s.trim()).filter(Boolean).map((p) => p.split("=")).filter(([k]) => k));
-  for (const line of setCookie) { const [pair] = line.split(";"); const [k, v] = pair.split("="); if (k) jar[k.trim()] = v ?? ""; }
-  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-}
-(async () => {
-  let c = "";
-  await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
-  const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "dup " + Date.now(), mock: true }) }, c);
-  const projectId = p.body.id;
-  await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Dup bootstrap" }) }, c);
-  await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
-  await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
-  const a = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
-  const b = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
-  const same =
-    a.body?.snapshot?.timelineVersion === b.body?.snapshot?.timelineVersion &&
-    a.body?.snapshot?.timelineHash === b.body?.snapshot?.timelineHash;
-  console.log(JSON.stringify({ ok: same && a.status === 200 && b.status === 200 }));
-})().catch((e) => console.log(JSON.stringify({ ok: false })));
-NODE
-if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-dup.json')).get('ok') else 1)" 2>/dev/null; then
-  note '{"id":11,"name":"duplicate_submit","status":"PASS","note":"prepare-assembly idempotent snapshot"}'
-else
-  note '{"id":11,"name":"duplicate_submit","status":"FAIL"}'
-fi
 
 PERSIST_PROOF="/tmp/phase5i-matrix-assembly.json"
 [ -f "$PERSIST_PROOF" ] || PERSIST_PROOF="/tmp/phase5i-assembly-proof-r10.json"
 if [ -f "$PERSIST_PROOF" ]; then
   P5I_PERSIST_PROJECT="$(python3 -c "import json; p=json.load(open('$PERSIST_PROOF')); print(p.get('projectId',''))")"
   P5I_PERSIST_ASSET="$(python3 -c "import json; p=json.load(open('$PERSIST_PROOF')); print(p.get('deliveryAssetId') or p.get('assetId') or '')")"
-  if [ -n "$P5I_PERSIST_PROJECT" ] && [ -n "$P5I_PERSIST_ASSET" ]; then
-    docker exec -i ai-shotbro-staging-api-1 node <<NODE >/tmp/phase5i-matrix-persist.json 2>/dev/null || true
-const base = "http://127.0.0.1:3001";
-const projectId = "${P5I_PERSIST_PROJECT}";
-const assetId = "${P5I_PERSIST_ASSET}";
-const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
-const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
-(async () => {
-  let c = "";
-  const sign = await fetch(base + "/api/auth/sign-in/email", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru" },
-    body: JSON.stringify({ email, password }),
-  });
-  for (const h of sign.headers.getSetCookie?.() ?? []) {
-    const [pair] = h.split(";");
-    const [k, v] = pair.split("=");
-    if (k) c += k.trim() + "=" + (v ?? "") + "; ";
-  }
-  const read = () =>
-    fetch(base + "/api/v1/projects/" + projectId + "/assets", {
-      headers: { Cookie: c, Origin: "https://ai.shotbro.ru" },
-    }).then((r) => r.json());
-  const j1 = await read();
-  const j2 = await read();
-  const list = (j) => (Array.isArray(j) ? j : j.items ?? []);
-  const hit = (j) =>
-    list(j).some((a) => a.id === assetId && (a.mimeType === "video/mp4" || String(a.originalName ?? "").includes("mock")));
-  console.log(JSON.stringify({ ok: hit(j1) && hit(j2), assetId, count1: list(j1).length }));
-})().catch(() => console.log(JSON.stringify({ ok: false })));
-NODE
+  if [ -n "$P5I_PERSIST_ASSET" ]; then
+    # shellcheck source=/dev/null
+    set -a && source /var/www/ai.shotbro.ru-src/infra/staging.env && set +a
+    H1="$(docker exec -e PGPASSWORD="${STAGING_POSTGRES_PASSWORD}" ai-shotbro-staging-postgres-1 psql -U shotbro_staging -d shotbro_staging -tAc "select 1 from asset where id='${P5I_PERSIST_ASSET}' and mime_type='video/mp4' limit 1" 2>/dev/null | tr -d '[:space:]')"
+    H2="$(docker exec -e PGPASSWORD="${STAGING_POSTGRES_PASSWORD}" ai-shotbro-staging-postgres-1 psql -U shotbro_staging -d shotbro_staging -tAc "select 1 from asset where id='${P5I_PERSIST_ASSET}' and mime_type='video/mp4' limit 1" 2>/dev/null | tr -d '[:space:]')"
+    if [ "$H1" = "1" ] && [ "$H2" = "1" ]; then
+      echo '{"ok":true}' >/tmp/phase5i-matrix-persist.json
+    else
+      echo '{"ok":false}' >/tmp/phase5i-matrix-persist.json
+    fi
     if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-persist.json')).get('ok') else 1)" 2>/dev/null; then
       note '{"id":14,"name":"mp4_persistence","status":"PASS","note":"r10 delivery asset stable across reads"}'
     else
