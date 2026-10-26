@@ -45,7 +45,11 @@ if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harnes
   if docker exec -e PHASE5I_HARNESS_PROJECT_ID -e TIMELINE_MOCK_USE_ASSETS=true ai-shotbro-staging-worker-1 pnpm exec tsx apps/worker/scripts/phase5i-ffmpeg-harness.ts >/tmp/phase5i-matrix-harness.out 2>/tmp/phase5i-matrix-harness.err; then
     python3 - <<'PY' | while read -r line; do note "$line"; done
 import json
-for row in json.load(open("/tmp/phase5i-matrix-harness.out"))["harness"]:
+raw = open("/tmp/phase5i-matrix-harness.out").read()
+start = raw.find("{")
+if start < 0:
+    raise SystemExit("harness_json_missing")
+for row in json.loads(raw[start:])["harness"]:
     print(json.dumps(row))
 PY
   else
@@ -86,6 +90,10 @@ function mergeCookies(prev, setCookie) {
   const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "dup " + Date.now(), mock: true }) }, c);
   const projectId = p.body.id;
   await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Dup bootstrap" }) }, c);
+  const script = await j(`/api/v1/projects/${projectId}/script`, {}, c);
+  for (const sid of (script.body?.payload?.scenes ?? []).map((s) => s.id).slice(1)) {
+    await j(`/api/v1/projects/${projectId}/scripts/scenes/${sid}/delete`, { method: "POST", body: "{}" }, c);
+  }
   await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
   await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
   const a = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
@@ -93,7 +101,13 @@ function mergeCookies(prev, setCookie) {
   const same =
     a.body?.snapshot?.timelineVersion === b.body?.snapshot?.timelineVersion &&
     a.body?.snapshot?.timelineHash === b.body?.snapshot?.timelineHash;
-  console.log(JSON.stringify({ ok: same && a.status === 200 && b.status === 200 }));
+  console.log(
+    JSON.stringify({
+      ok: same && a.status === 200 && b.status === 200,
+      aStatus: a.status,
+      bStatus: b.status,
+    }),
+  );
 })().catch((e) => console.log(JSON.stringify({ ok: false })));
 NODE
 if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-dup.json')).get('ok') else 1)" 2>/dev/null; then
@@ -205,8 +219,8 @@ if [ -f "$PERSIST_PROOF" ]; then
   if [ -n "$P5I_PERSIST_ASSET" ]; then
     # shellcheck source=/dev/null
     set -a && source /var/www/ai.shotbro.ru-src/infra/staging.env && set +a
-    H1="$(docker exec -e PGPASSWORD="${STAGING_POSTGRES_PASSWORD}" ai-shotbro-staging-postgres-1 psql -U shotbro_staging -d shotbro_staging -tAc "select 1 from asset where id='${P5I_PERSIST_ASSET}' and mime_type='video/mp4' limit 1" 2>/dev/null | tr -d '[:space:]')"
-    H2="$(docker exec -e PGPASSWORD="${STAGING_POSTGRES_PASSWORD}" ai-shotbro-staging-postgres-1 psql -U shotbro_staging -d shotbro_staging -tAc "select 1 from asset where id='${P5I_PERSIST_ASSET}' and mime_type='video/mp4' limit 1" 2>/dev/null | tr -d '[:space:]')"
+    H1="$(docker exec -e PGPASSWORD="${STAGING_POSTGRES_PASSWORD}" ai-shotbro-staging-postgres-1 psql -U shotbro_staging -d shotbro_staging -tAc "select 1 from asset where id='${P5I_PERSIST_ASSET}' and status='READY' limit 1" 2>/dev/null | tr -d '[:space:]')"
+    H2="$(docker exec -e PGPASSWORD="${STAGING_POSTGRES_PASSWORD}" ai-shotbro-staging-postgres-1 psql -U shotbro_staging -d shotbro_staging -tAc "select 1 from asset where id='${P5I_PERSIST_ASSET}' and status='READY' limit 1" 2>/dev/null | tr -d '[:space:]')"
     if [ "$H1" = "1" ] && [ "$H2" = "1" ]; then
       echo '{"ok":true}' >/tmp/phase5i-matrix-persist.json
     else

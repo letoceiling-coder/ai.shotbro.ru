@@ -19,7 +19,7 @@ import { defaultTimelineTracks } from "../../../packages/contracts/src/productio
 import { getWorkerDb } from "../src/db.js";
 import { assembleFromTimeline } from "../src/timeline-assembly.js";
 
-loadEnv({ path: resolve(process.cwd(), "../../.env.production") });
+loadEnv({ path: resolve(process.cwd(), "../../.env.production"), quiet: true });
 
 const execFileAsync = promisify(execFile);
 const log = pino({ name: "phase5i-harness" });
