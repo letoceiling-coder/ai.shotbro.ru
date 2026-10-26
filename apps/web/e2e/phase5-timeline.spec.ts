@@ -4,24 +4,23 @@ import { gotoStudioSection } from "./helpers/phase5-creative-ui";
 import { seedScriptScene } from "./helpers/phase5-creative-seed";
 import { pinRealProjectOnReload } from "./helpers/real-studio-state";
 
-let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
+let authState: Promise<Awaited<ReturnType<BrowserContext["storageState"]>>> | undefined;
 
 test.describe("Phase 5I timeline studio", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
   test.describe.configure({ mode: "serial" });
 
-  test.beforeAll(async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => localStorage.clear());
-    await loginRealUser(page);
-    loggedInStorage = await context.storageState();
-    await context.close();
-  });
-
-  test.beforeEach(async ({ context }) => {
-    if (loggedInStorage?.cookies.length) await context.addCookies(loggedInStorage.cookies);
+  test.beforeEach(async ({ page, context }) => {
+    if (!authState) {
+      authState = (async () => {
+        await page.goto("/", { waitUntil: "domcontentloaded" });
+        await page.evaluate(() => localStorage.clear());
+        await loginRealUser(page);
+        return context.storageState();
+      })();
+    }
+    const state = await authState;
+    if (state.cookies.length) await context.addCookies(state.cookies);
   });
 
   test("Timeline sync reorder save", async ({ page }, testInfo) => {
