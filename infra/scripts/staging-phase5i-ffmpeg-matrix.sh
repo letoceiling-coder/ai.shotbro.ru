@@ -46,12 +46,22 @@ if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harnes
     python3 - <<'PY' | while read -r line; do note "$line"; done
 import json
 raw = open("/tmp/phase5i-matrix-harness.out").read()
-marker = raw.find('{"harness"')
-if marker < 0:
-    marker = raw.rfind("{")
-if marker < 0:
+payload = None
+search_from = 0
+while True:
+    marker = raw.find('{"harness"', search_from)
+    if marker < 0:
+        break
+    try:
+        candidate, end = json.JSONDecoder().raw_decode(raw, marker)
+        if isinstance(candidate.get("harness"), list):
+            payload = candidate
+            break
+    except json.JSONDecodeError:
+        pass
+    search_from = marker + 1
+if payload is None:
     raise SystemExit("harness_json_missing")
-payload, _end = json.JSONDecoder().raw_decode(raw, marker)
 for row in payload["harness"]:
     print(json.dumps(row))
 PY
@@ -70,8 +80,16 @@ else
   note '{"id":10,"name":"invalid_asset","status":"FAIL"}'
 fi
 
-docker exec -i ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-dup.json 2>/dev/null || true
+# 2,4,5 — assembly proof (orchestrator + mock lavfi colors)
+if bash "$DIR/staging-phase5i-assembly-proof.sh" /tmp/phase5i-matrix-assembly.json; then
+  DUR="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-assembly.json'))['ffprobe']['format']['duration'])")"
+  note "{\"id\":2,\"name\":\"three_scenes\",\"status\":\"PASS\",\"duration\":\"$DUR\"}"
+  note '{"id":4,"name":"reordered_clips","status":"PASS","note":"A→C→B in assembly proof"}'
+  note '{"id":5,"name":"different_durations","status":"PASS","note":"2000/2500/3000 ms in proof"}'
+  DUP_PID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-assembly.json'))['projectId'])")"
+  docker exec -i -e PHASE5I_DUP_PID="$DUP_PID" ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-dup.json 2>/dev/null || true
 const base = "http://127.0.0.1:3001";
+const projectId = process.env.PHASE5I_DUP_PID;
 const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
 const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
 async function j(path, init = {}, cookies = "") {
@@ -88,47 +106,26 @@ function mergeCookies(prev, setCookie) {
 (async () => {
   let c = "";
   const sign = await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) });
-  if (sign.status !== 200) { console.log(JSON.stringify({ ok: false })); return; }
+  if (sign.status !== 200) { console.log(JSON.stringify({ ok: false, reason: "sign_in" })); return; }
   c = sign.cookies;
-  const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "dup " + Date.now(), mock: true }) }, c);
-  const projectId = p.body.id;
-  await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Dup bootstrap" }) }, c);
-  const script = await j(`/api/v1/projects/${projectId}/script`, {}, c);
-  for (const sid of (script.body?.payload?.scenes ?? []).map((s) => s.id).slice(1)) {
-    await j(`/api/v1/projects/${projectId}/scripts/scenes/${sid}/delete`, { method: "POST", body: "{}" }, c);
-  }
-  await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
-  await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
   const a = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
   const b = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
   const same =
     a.body?.snapshot?.timelineVersion === b.body?.snapshot?.timelineVersion &&
     a.body?.snapshot?.timelineHash === b.body?.snapshot?.timelineHash;
-  console.log(
-    JSON.stringify({
-      ok: same && a.status === 200 && b.status === 200,
-      aStatus: a.status,
-      bStatus: b.status,
-    }),
-  );
-})().catch((e) => console.log(JSON.stringify({ ok: false })));
+  console.log(JSON.stringify({ ok: same && a.status === 200 && b.status === 200, aStatus: a.status, bStatus: b.status }));
+})().catch((e) => console.log(JSON.stringify({ ok: false, reason: String(e) })));
 NODE
-if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-dup.json')).get('ok') else 1)" 2>/dev/null; then
-  note '{"id":11,"name":"duplicate_submit","status":"PASS","note":"prepare-assembly idempotent snapshot"}'
-else
-  note '{"id":11,"name":"duplicate_submit","status":"FAIL"}'
-fi
-
-# 2,4,5 — assembly proof (orchestrator + mock lavfi colors)
-if bash "$DIR/staging-phase5i-assembly-proof.sh" /tmp/phase5i-matrix-assembly.json; then
-  DUR="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-assembly.json'))['ffprobe']['format']['duration'])")"
-  note "{\"id\":2,\"name\":\"three_scenes\",\"status\":\"PASS\",\"duration\":\"$DUR\"}"
-  note '{"id":4,"name":"reordered_clips","status":"PASS","note":"A→C→B in assembly proof"}'
-  note '{"id":5,"name":"different_durations","status":"PASS","note":"2000/2500/3000 ms in proof"}'
+  if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-dup.json')).get('ok') else 1)" 2>/dev/null; then
+    note '{"id":11,"name":"duplicate_submit","status":"PASS","note":"prepare-assembly idempotent on proof project"}'
+  else
+    note '{"id":11,"name":"duplicate_submit","status":"FAIL"}'
+  fi
 else
   note '{"id":2,"name":"three_scenes","status":"FAIL"}'
   note '{"id":4,"name":"reordered_clips","status":"FAIL"}'
   note '{"id":5,"name":"different_durations","status":"FAIL"}'
+  note '{"id":11,"name":"duplicate_submit","status":"FAIL","note":"assembly proof prerequisite"}'
 fi
 
 # 12,13 — timeline API smoke (revision + reorder)
