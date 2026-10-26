@@ -47,6 +47,8 @@ test.describe("Phase 5I timeline-driven assembly", () => {
     expect(prepJson.snapshot?.timelineVersion).toBeGreaterThan(0);
 
     await enablePhase4AgentForProject(page, projectId);
+    await page.getByTestId("creative-section-chat").click();
+    await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
     await sendRealComposerMessage(
       page,
       "Собери финальный ролик по текущему timeline, mock без live провайдеров",

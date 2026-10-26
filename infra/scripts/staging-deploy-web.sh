@@ -36,8 +36,8 @@ systemctl stop ai-shotbro-web.service 2>/dev/null || true
 systemctl disable ai-shotbro-web.service 2>/dev/null || true
 
 cd "$COMPOSE_DIR"
-log "building ${BUILD_REF} sha=${SHA}"
-docker build -f Dockerfile.web --build-arg "BUILD_SHA=${SHA}" -t "$BUILD_REF" ..
+log "building ${BUILD_REF} sha=${SHA} buildkit=${DOCKER_BUILDKIT:-1}"
+shotbro_docker_build -f Dockerfile.web --build-arg "BUILD_SHA=${SHA}" -t "$BUILD_REF" ..
 shotbro_promote_image "shotbro/web" "$BUILD_REF"
 
 docker tag "$CURRENT" infra-web:deployed 2>/dev/null || true

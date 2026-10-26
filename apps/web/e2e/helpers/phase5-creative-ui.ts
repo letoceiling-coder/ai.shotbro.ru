@@ -2,10 +2,20 @@ import { expect, type Page } from "@playwright/test";
 import { pinRealProjectOnReload } from "./real-studio-state";
 import { tinyPngBuffer } from "./phase5-creative-seed";
 
-export type CreativeSection = "script" | "storyboard" | "characters" | "references" | "prompts" | "timeline" | "models";
+export type CreativeSection =
+  | "chat"
+  | "script"
+  | "storyboard"
+  | "characters"
+  | "references"
+  | "prompts"
+  | "timeline"
+  | "models";
 
 export async function gotoStudioSection(page: Page, projectId: string, section: CreativeSection) {
-  await pinRealProjectOnReload(page, projectId, section === "models" ? "models" : section);
+  const pinSection =
+    section === "models" ? "models" : section === "chat" ? "chat" : section;
+  await pinRealProjectOnReload(page, projectId, pinSection);
   await page.goto("/studio", { waitUntil: "domcontentloaded" });
   await page.getByTestId(`creative-section-${section}`).click();
 }

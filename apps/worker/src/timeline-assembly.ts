@@ -229,7 +229,8 @@ export async function assembleFromTimeline(input: {
 }) {
   const { db, s3, bucket, projectId, runId, timeline, tmpRoot, log } = input;
   const sceneMap = await sceneVideoMap(db, projectId, runId);
-  const mockColorSegments = process.env.AI_MOCK_MODE === "true";
+  const mockColorSegments =
+    process.env.AI_MOCK_MODE === "true" && process.env.TIMELINE_MOCK_USE_ASSETS !== "true";
   const videoTrack = timeline.tracks.find((t: TimelineTrack) => t.type === "VIDEO");
   const clips = [...(videoTrack?.clips ?? [])].sort((a, b) => a.order - b.order);
   if (!clips.length) throw new Error("timeline_no_video_clips");
@@ -250,10 +251,27 @@ export async function assembleFromTimeline(input: {
       } else if (assetId) {
         const raw = join(tmp, `raw-${i}.mp4`);
         await downloadAssetToFile(s3, bucket, db, assetId, raw, log);
-        const trimStart = (clip.sourceInMs / 1000).toFixed(3);
+        const trimStartSec = clip.sourceInMs / 1000;
+        const trimEndSec =
+          clip.sourceOutMs != null && clip.sourceOutMs > clip.sourceInMs
+            ? clip.sourceOutMs / 1000
+            : trimStartSec + durSec;
+        const segmentDurSec = Math.max(0.1, Math.min(durSec, trimEndSec - trimStartSec));
         await execFileAsync(
           "ffmpeg",
-          ["-y", "-ss", trimStart, "-i", raw, "-t", String(durSec), "-an", "-pix_fmt", "yuv420p", seg],
+          [
+            "-y",
+            "-ss",
+            trimStartSec.toFixed(3),
+            "-i",
+            raw,
+            "-t",
+            segmentDurSec.toFixed(3),
+            "-an",
+            "-pix_fmt",
+            "yuv420p",
+            seg,
+          ],
           { timeout: 120_000 },
         );
       } else {
@@ -263,11 +281,18 @@ export async function assembleFromTimeline(input: {
     }
 
     const voiceTrack = timeline.tracks.find((t: TimelineTrack) => t.type === "VOICEOVER");
-    const voiceClip = voiceTrack?.clips?.[0];
+    const voiceClip = voiceTrack?.clips?.find((c) => c.assetId && !c.muted);
+    const musicTrack = timeline.tracks.find((t: TimelineTrack) => t.type === "MUSIC");
+    const musicClip = musicTrack?.clips?.find((c) => c.assetId && !c.muted);
     let voicePath: string | undefined;
+    let musicPath: string | undefined;
     if (voiceClip?.assetId) {
       voicePath = join(tmp, "voice.mp3");
       await downloadAssetToFile(s3, bucket, db, voiceClip.assetId, voicePath, log);
+    }
+    if (musicClip?.assetId) {
+      musicPath = join(tmp, "music.mp3");
+      await downloadAssetToFile(s3, bucket, db, musicClip.assetId, musicPath, log);
     }
 
     const listPath = join(tmp, "list.txt");
@@ -280,39 +305,16 @@ export async function assembleFromTimeline(input: {
     );
 
     const outPath = join(tmp, "out.mp4");
-    if (voicePath) {
-      await execFileAsync(
-        "ffmpeg",
-        [
-          "-y",
-          "-i",
-          concatOut,
-          "-i",
-          voicePath,
-          "-filter_complex",
-          "[1:a]volume=1[a1];[0:a][a1]amix=inputs=2:duration=first:dropout_transition=0[aout]",
-          "-map",
-          "0:v",
-          "-map",
-          "[aout]",
-          "-c:v",
-          "copy",
-          "-c:a",
-          "aac",
-          "-shortest",
-          outPath,
-        ],
-        { timeout: 180_000 },
-      ).catch(async () => {
-        await execFileAsync(
-          "ffmpeg",
-          ["-y", "-i", concatOut, "-i", voicePath, "-c:v", "copy", "-c:a", "aac", "-shortest", outPath],
-          { timeout: 180_000 },
-        );
-      });
-    } else {
-      await execFileAsync("ffmpeg", ["-y", "-i", concatOut, "-c", "copy", outPath], { timeout: 120_000 });
-    }
+    await muxTimelineAudio({
+      concatOut,
+      outPath,
+      voice: voicePath
+        ? { path: voicePath, volume: voiceClip?.volume ?? 1 }
+        : undefined,
+      music: musicPath
+        ? { path: musicPath, volume: musicClip?.volume ?? 0.35 }
+        : undefined,
+    });
 
     const { readFile } = await import("node:fs/promises");
     const buffer = await readFile(outPath);
@@ -325,6 +327,58 @@ export async function assembleFromTimeline(input: {
 
 function computeTimelineHash(doc: TimelineDocument) {
   return createHash("sha256").update(JSON.stringify(doc)).digest("hex");
+}
+
+async function muxTimelineAudio(input: {
+  concatOut: string;
+  outPath: string;
+  voice?: { path: string; volume: number };
+  music?: { path: string; volume: number };
+}) {
+  const { concatOut, outPath, voice, music } = input;
+  if (!voice && !music) {
+    await execFileAsync("ffmpeg", ["-y", "-i", concatOut, "-c", "copy", outPath], { timeout: 120_000 });
+    return;
+  }
+  const args = ["-y", "-i", concatOut];
+  const filterParts: string[] = [];
+  const mixInputs: string[] = [];
+  let inputIndex = 1;
+  if (voice) {
+    args.push("-i", voice.path);
+    filterParts.push(`[${inputIndex}:a]volume=${voice.volume.toFixed(3)}[va]`);
+    mixInputs.push("[va]");
+    inputIndex += 1;
+  }
+  if (music) {
+    args.push("-i", music.path);
+    filterParts.push(`[${inputIndex}:a]volume=${music.volume.toFixed(3)}[ma]`);
+    mixInputs.push("[ma]");
+    inputIndex += 1;
+  }
+  const filterComplex =
+    mixInputs.length === 1
+      ? `${filterParts[0]}[aout]`
+      : `${filterParts.join(";")};${mixInputs.join("")}amix=inputs=${mixInputs.length}:duration=first:dropout_transition=0[aout]`;
+  await execFileAsync(
+    "ffmpeg",
+    [
+      ...args,
+      "-filter_complex",
+      filterComplex,
+      "-map",
+      "0:v",
+      "-map",
+      "[aout]",
+      "-c:v",
+      "copy",
+      "-c:a",
+      "aac",
+      "-shortest",
+      outPath,
+    ],
+    { timeout: 180_000 },
+  );
 }
 
 export function orderedClipsForDebug(timeline: TimelineDocument): TimelineClip[] {

@@ -49,8 +49,8 @@ trap 'if [ "${DEPLOY_OK:-0}" != 1 ]; then rollback; fi' ERR
 disk_preflight
 
 cd "$COMPOSE_DIR"
-log "build ${BUILD_REF} sha=${SHA}"
-docker build -f "$DOCKERFILE" --build-arg "BUILD_SHA=${SHA}" -t "$BUILD_REF" ..
+log "build ${BUILD_REF} sha=${SHA} buildkit=${DOCKER_BUILDKIT:-1}"
+shotbro_docker_build -f "$DOCKERFILE" --build-arg "BUILD_SHA=${SHA}" -t "$BUILD_REF" ..
 shotbro_promote_image "$REPO" "$BUILD_REF"
 
 if [ "$SVC" = "api" ]; then
@@ -75,5 +75,5 @@ built=$(shotbro_image_id "$CURRENT")
 shotbro_record_deploy "$SVC" "$SHA" "$CURRENT"
 DEPLOY_OK=1
 trap - ERR
-docker image prune -f >/dev/null 2>&1 || true
+shotbro_gc_images
 log "ok image=${built}"

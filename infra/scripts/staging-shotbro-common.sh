@@ -5,9 +5,48 @@ set -euo pipefail
 SHOTBRO_SRC="${SHOTBRO_SRC:-/var/www/ai.shotbro.ru-src}"
 SHOTBRO_DEPLOY_DIR="${SHOTBRO_DEPLOY_DIR:-${SHOTBRO_SRC}/.deploy}"
 SHOTBRO_STATE_FILE="${SHOTBRO_STATE_FILE:-${SHOTBRO_DEPLOY_DIR}/state.env}"
+SHOTBRO_DOCKER_LOCK="${SHOTBRO_DOCKER_LOCK:-/var/lock/shotbro-docker.lock}"
 
 shotbro_log() { echo "[shotbro] $*"; }
 shotbro_fail() { shotbro_log "ERROR: $*"; exit 1; }
+
+shotbro_ensure_docker_lock_dir() {
+  mkdir -p "$(dirname "$SHOTBRO_DOCKER_LOCK")"
+}
+
+# Serialize docker build / GC on shared storage (legacy builder drops intermediate stages under races).
+shotbro_with_docker_lock() {
+  shotbro_ensure_docker_lock_dir
+  local lock_fd
+  exec {lock_fd}>"$SHOTBRO_DOCKER_LOCK"
+  if ! flock -x "$lock_fd"; then
+    shotbro_fail "docker_lock_unavailable ${SHOTBRO_DOCKER_LOCK}"
+  fi
+  "$@"
+  flock -u "$lock_fd"
+  exec {lock_fd}>&-
+}
+
+shotbro_try_docker_lock() {
+  shotbro_ensure_docker_lock_dir
+  local lock_fd
+  exec {lock_fd}>"$SHOTBRO_DOCKER_LOCK"
+  if ! flock -n "$lock_fd"; then
+    exec {lock_fd}>&-
+    return 1
+  fi
+  "$@"
+  local rc=$?
+  flock -u "$lock_fd"
+  exec {lock_fd}>&-
+  return "$rc"
+}
+
+shotbro_docker_build() {
+  export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
+  export COMPOSE_DOCKER_CLI_BUILD="${COMPOSE_DOCKER_CLI_BUILD:-1}"
+  shotbro_with_docker_lock docker build "$@"
+}
 
 shotbro_ensure_deploy_dir() {
   mkdir -p "$SHOTBRO_DEPLOY_DIR"
@@ -94,6 +133,13 @@ shotbro_is_protected_id() {
 
 # Remove Shotbro-specific historical tags / unused IDs only.
 shotbro_gc_images() {
+  if ! shotbro_try_docker_lock _shotbro_gc_images_inner; then
+    shotbro_log "gc_skipped docker_build_or_gc_in_progress"
+    return 0
+  fi
+}
+
+_shotbro_gc_images_inner() {
   local repo tag id
   shotbro_log "gc_start"
   docker image prune -f >/dev/null 2>&1 || true
