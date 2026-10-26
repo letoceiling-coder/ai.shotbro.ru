@@ -49,6 +49,7 @@ function mergeCookies(prev, setCookie) {
   await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
   const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "1scene " + Date.now(), mock: true }) }, c);
   const projectId = p.body.id;
+  await j(`/api/v1/projects/${projectId}/scripts`, {}, c);
   await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
   await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
   const tl = await j(`/api/v1/projects/${projectId}/timeline`, {}, c);
@@ -115,7 +116,12 @@ function mergeCookies(prev, setCookie) {
   await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
   const me = await j("/api/v1/users/me", {}, c);
   const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "matrix harness " + Date.now(), mock: true }) }, c);
-  console.log(JSON.stringify({ ok: true, projectId: p.body.id, workspaceId: p.body.workspaceId, ownerId: me.body.id }));
+  const projectId = p.body?.id;
+  const detail = projectId ? await j(`/api/v1/projects/${projectId}`, {}, c) : { body: {} };
+  const userId = me.body?.id ?? me.body?.user?.id;
+  const workspaceId = detail.body?.workspaceId ?? p.body?.workspaceId;
+  const ownerId = detail.body?.ownerId ?? userId;
+  console.log(JSON.stringify({ ok: Boolean(projectId && workspaceId && ownerId), projectId, workspaceId, ownerId }));
 })().catch((e) => console.log(JSON.stringify({ ok: false, error: String(e) })));
 NODE
 
@@ -170,6 +176,8 @@ function mergeCookies(prev, setCookie) {
   await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
   const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "dup " + Date.now(), mock: true }) }, c);
   const projectId = p.body.id;
+  await j(`/api/v1/projects/${projectId}/scripts`, {}, c);
+  await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
   await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
   const a = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
   const b = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
@@ -185,9 +193,11 @@ else
   note '{"id":11,"name":"duplicate_submit","status":"FAIL"}'
 fi
 
-if [ -f /tmp/phase5i-assembly-proof-r10.json ]; then
-  P5I_PERSIST_PROJECT="$(python3 -c "import json; p=json.load(open('/tmp/phase5i-assembly-proof-r10.json')); print(p.get('projectId',''))")"
-  P5I_PERSIST_ASSET="$(python3 -c "import json; p=json.load(open('/tmp/phase5i-assembly-proof-r10.json')); print(p.get('deliveryAssetId') or p.get('assetId') or '')")"
+PERSIST_PROOF="/tmp/phase5i-matrix-assembly.json"
+[ -f "$PERSIST_PROOF" ] || PERSIST_PROOF="/tmp/phase5i-assembly-proof-r10.json"
+if [ -f "$PERSIST_PROOF" ]; then
+  P5I_PERSIST_PROJECT="$(python3 -c "import json; p=json.load(open('$PERSIST_PROOF')); print(p.get('projectId',''))")"
+  P5I_PERSIST_ASSET="$(python3 -c "import json; p=json.load(open('$PERSIST_PROOF')); print(p.get('deliveryAssetId') or p.get('assetId') or '')")"
   if [ -n "$P5I_PERSIST_PROJECT" ] && [ -n "$P5I_PERSIST_ASSET" ]; then
     docker exec -i ai-shotbro-staging-api-1 node <<NODE >/tmp/phase5i-matrix-persist.json 2>/dev/null || true
 const base = "http://127.0.0.1:3001";
