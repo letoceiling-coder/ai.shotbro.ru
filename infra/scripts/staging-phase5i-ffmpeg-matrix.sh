@@ -238,9 +238,12 @@ else
   note '{"id":14,"name":"mp4_persistence","status":"FAIL","note":"missing r10 proof artifact"}'
 fi
 
-python3 - <<PY >"$LOG"
-import json
-rows = [json.loads(x) for x in """$(printf '%s\n' "${RESULTS[@]}")""".strip().split("\n") if x.strip()]
+RESULTS_FILE="/tmp/phase5i-matrix-results.ndjson"
+printf '%s\n' "${RESULTS[@]}" >"$RESULTS_FILE"
+export RESULTS_FILE
+python3 - <<'PY' >"$LOG"
+import json, os
+rows = [json.loads(line) for line in open(os.environ["RESULTS_FILE"]) if line.strip()]
 print(json.dumps({
   "cases": rows,
   "pass": sum(1 for r in rows if r["status"]=="PASS"),
