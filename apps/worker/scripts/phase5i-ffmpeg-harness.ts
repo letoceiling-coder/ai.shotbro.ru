@@ -374,7 +374,7 @@ async function main() {
   results.push(await caseTrim());
   results.push(...(await caseVoiceMusic()));
   results.push(...(await caseMissingInvalid()));
-  console.log(JSON.stringify({ harness: results }, null, 2));
+  console.log(JSON.stringify({ harness: results }));
   const fail = results.some((r) => r.status === "FAIL");
   process.exit(fail ? 2 : 0);
 }

@@ -43,28 +43,39 @@ NODE
 if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harness-ctx.json')).get('projectId') else 1)" 2>/dev/null; then
   export PHASE5I_HARNESS_PROJECT_ID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-harness-ctx.json'))['projectId'])")"
   if docker exec -e PHASE5I_HARNESS_PROJECT_ID -e TIMELINE_MOCK_USE_ASSETS=true ai-shotbro-staging-worker-1 pnpm exec tsx apps/worker/scripts/phase5i-ffmpeg-harness.ts >/tmp/phase5i-matrix-harness.out 2>/tmp/phase5i-matrix-harness.err; then
-    python3 - <<'PY' | while read -r line; do note "$line"; done
+    if python3 - <<'PY' | while read -r line; do note "$line"; done
 import json
 raw = open("/tmp/phase5i-matrix-harness.out").read()
 payload = None
 search_from = 0
 while True:
-    marker = raw.find('{"harness"', search_from)
-    if marker < 0:
+    key_at = raw.find('"harness"', search_from)
+    if key_at < 0:
         break
-    try:
-        candidate, end = json.JSONDecoder().raw_decode(raw, marker)
-        if isinstance(candidate.get("harness"), list):
-            payload = candidate
-            break
-    except json.JSONDecodeError:
-        pass
-    search_from = marker + 1
+    start = raw.rfind("{", 0, key_at)
+    if start >= 0:
+        try:
+            candidate, _end = json.JSONDecoder().raw_decode(raw, start)
+            if isinstance(candidate.get("harness"), list):
+                payload = candidate
+                break
+        except json.JSONDecodeError:
+            pass
+    search_from = key_at + 1
 if payload is None:
     raise SystemExit("harness_json_missing")
 for row in payload["harness"]:
     print(json.dumps(row))
 PY
+    then
+      :
+    else
+      note '{"id":6,"name":"trim","status":"FAIL","note":"harness_json_parse"}'
+      note '{"id":7,"name":"voiceover","status":"FAIL"}'
+      note '{"id":8,"name":"music","status":"FAIL"}'
+      note '{"id":9,"name":"missing_clip","status":"FAIL"}'
+      note '{"id":10,"name":"invalid_asset","status":"FAIL"}'
+    fi
   else
     note '{"id":6,"name":"trim","status":"FAIL","note":"harness exec"}'
     note '{"id":7,"name":"voiceover","status":"FAIL"}'
