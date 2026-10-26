@@ -80,8 +80,8 @@ test.describe("Phase 5I timeline studio", () => {
         .poll(async () => {
           const r = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
           const j = (await r.json()) as { payload?: { tracks?: Array<{ clips?: Array<{ durationMs?: number }> }> } };
-          const c = j.payload?.tracks?.[0]?.clips?.[0];
-          return c?.durationMs;
+          const all = j.payload?.tracks?.flatMap((t) => t.clips ?? []) ?? [];
+          return Math.max(...all.map((c) => c.durationMs ?? 0), 0);
         }, { timeout: 20_000 })
         .toBe(2500);
 

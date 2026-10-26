@@ -1,23 +1,30 @@
 # Phase 5I — FFmpeg assembly
 
-**Entry:** worker `production-run.ts` node `ASSEMBLY`.
+**Worker SHA (staging):** `82d72d4`  
+**Entry:** BullMQ `production.run` → `assembleFromTimeline`.
 
 ## Inputs (timeline v2)
 
-- Ordered **VIDEO** clips (`order`, `durationMs`, `sourceInMs`, optional `assetId`).
-- Resolve media: clip `assetId` or scene `VIDEO_GENERATION` node output.
-- Missing asset: colored lavfi segment (distinct hex per index) for mock order verification.
-- Optional **VOICEOVER** first clip mixed with `-filter_complex amix`.
-
-## Outputs
-
-- Unique MinIO key `mock/final-{uuid}.mp4` (no overwrite).
-- `production_document` DELIVERY payload includes `timelineVersion`, `timelineHash`, `clipCount` when applicable.
+- Ordered **VIDEO** clips (`order`, `durationMs`, `sourceInMs`, `sceneId`, optional `assetId`).
+- Mock mode (`AI_MOCK_MODE=true`): lavfi **RGB segments** by script scene index (history-aware if mock agent clobbered ACTIVE script).
+- Non-mock: trim via `-ss sourceInMs` + `-t durationMs`; scene video from graph nodes when no clip asset.
+- **VOICEOVER:** first clip mixed with `amix` when asset present.
+- **MUSIC:** not mixed in worker (matrix case 8 = NOT IMPLEMENTED).
 
 ## Legacy fallback
 
-If no parseable v2 timeline → previous `assembleMp4` lavfi concat (Phase 3/4 behavior).
+Timeline v2 present but snapshot missing → **`TimelineAssemblyError`** (no silent 3 s MP4).  
+True legacy runs without v2 → previous lavfi path.
 
 ## Verification
 
-Use `ffprobe` on VPS for duration/codec; E2E checks asset list + UI persistence.
+| Tool | Purpose |
+|------|---------|
+| `staging-phase5i-assembly-proof.sh` | A→C→B order, ~7.5 s, RGB frames |
+| `staging-phase5i-ffmpeg-matrix.sh` | Matrix JSON on VPS |
+| `ffprobe` | Duration / codec on worker container |
+
+## Matrix snapshot (2026-10-26)
+
+**PASS:** 1-scene sync (after `38892c7`), 3-scene assembly, reorder, durations, 5-scene sync, revision idempotency, new version.  
+**NOT IMPLEMENTED:** trim ffprobe harness, voiceover fixture, music, missing/invalid clip, duplicate submit, F5 persistence (use `phase5-assembly` E2E when green).
