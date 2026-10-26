@@ -46,10 +46,12 @@ if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harnes
     python3 - <<'PY' | while read -r line; do note "$line"; done
 import json
 raw = open("/tmp/phase5i-matrix-harness.out").read()
-start = raw.find("{")
-if start < 0:
+marker = raw.find('{"harness"')
+if marker < 0:
+    marker = raw.rfind("{")
+if marker < 0:
     raise SystemExit("harness_json_missing")
-for row in json.loads(raw[start:])["harness"]:
+for row in json.loads(raw[marker:])["harness"]:
     print(json.dumps(row))
 PY
   else
