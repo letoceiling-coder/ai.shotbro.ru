@@ -43,8 +43,13 @@ shotbro_try_docker_lock() {
 }
 
 shotbro_docker_build() {
-  export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
-  export COMPOSE_DOCKER_CLI_BUILD="${COMPOSE_DOCKER_CLI_BUILD:-1}"
+  if docker buildx version >/dev/null 2>&1; then
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+  else
+    export DOCKER_BUILDKIT=0
+    shotbro_log "buildkit_unavailable using_legacy_builder_with_flock"
+  fi
   shotbro_with_docker_lock docker build "$@"
 }
 
