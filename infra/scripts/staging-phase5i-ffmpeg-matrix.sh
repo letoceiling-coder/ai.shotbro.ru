@@ -49,7 +49,6 @@ function mergeCookies(prev, setCookie) {
   await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
   const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "1scene " + Date.now(), mock: true }) }, c);
   const projectId = p.body.id;
-  await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Only" }) }, c);
   await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
   await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
   const tl = await j(`/api/v1/projects/${projectId}/timeline`, {}, c);
