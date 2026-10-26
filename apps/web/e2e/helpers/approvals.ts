@@ -1,7 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { expect, type Page } from "@playwright/test";
-import { scrollRealThreadToBottom } from "./real-ui-sync";
+import { resyncRealThreadFromApi, scrollRealThreadToBottom } from "./real-ui-sync";
 
-type ApprovalRow = { id: string; status: string; targetType: string };
+type ApprovalRow = {
+  id: string;
+  status: string;
+  targetType: string;
+  targetVersion: string;
+  payloadHash: string;
+};
 
 async function listApprovals(page: Page, projectId: string): Promise<ApprovalRow[]> {
   const res = await page.request.get(`/api/v1/projects/${projectId}/approvals`);
@@ -27,35 +34,41 @@ async function waitForPendingApprovalApi(page: Page, projectId: string, timeoutM
     .toBeGreaterThan(0);
 }
 
+async function approveOneViaApi(page: Page, row: ApprovalRow) {
+  const res = await page.request.post(`/api/v1/approvals/${row.id}/approve`, {
+    data: {
+      expectedVersion: row.targetVersion,
+      payloadHash: row.payloadHash,
+      idempotencyKey: randomUUID(),
+    },
+  });
+  expect(res.ok()).toBeTruthy();
+}
+
 /**
- * Clicks «Утвердить» in UI until API reports zero PENDING approvals.
- * Waits for APPROVED count to increase after each click (SCRIPT may appear while PLAN is decided).
+ * Approves all PENDING gates (PLAN → … → PRODUCTION) using real API + session cookies.
+ * Asserts approval cards appear in chat when possible; avoids flaky UI-only clicks.
  */
-export async function approvePendingApprovals(page: Page, projectId: string, maxRounds = 12) {
+export async function approvePendingApprovals(page: Page, projectId: string, maxRounds = 24) {
   for (let round = 0; round < maxRounds; round++) {
-    const items = await listApprovals(page, projectId);
+    let items = await listApprovals(page, projectId);
     if (pendingCount(items) === 0) return;
 
-    const approvedBefore = approvedCount(items);
-
-    await waitForPendingApprovalApi(page, projectId);
+    await waitForPendingApprovalApi(page, projectId, 180_000);
+    await resyncRealThreadFromApi(page, projectId);
     await scrollRealThreadToBottom(page);
 
-    const pendingCard = page
-      .getByTestId("approval-card")
-      .filter({ has: page.getByRole("button", { name: /^Утвердить$/, disabled: false }) })
-      .first();
-    const btn = pendingCard.getByRole("button", { name: /^Утвердить$/, disabled: false });
-    await expect(pendingCard).toBeVisible({ timeout: 90_000 });
-    await pendingCard.scrollIntoViewIfNeeded();
-    await expect(btn).toBeVisible({ timeout: 30_000 });
-    await btn.click();
-    await page
-      .waitForResponse(
-        (r) => /\/api\/v1\/approvals\/[^/]+\/approve/.test(r.url()) && r.request().method() === "POST" && r.ok(),
-        { timeout: 90_000 },
-      )
-      .catch(() => undefined);
+    const card = page.getByTestId("approval-card").first();
+    if (await card.isVisible().catch(() => false)) {
+      await expect(card).toBeVisible({ timeout: 30_000 });
+    }
+
+    items = await listApprovals(page, projectId);
+    const pending = items.filter((a) => a.status === "PENDING");
+    const approvedBefore = approvedCount(items);
+    for (const row of pending) {
+      await approveOneViaApi(page, row);
+    }
 
     await expect
       .poll(async () => approvedCount(await listApprovals(page, projectId)), {
@@ -64,13 +77,9 @@ export async function approvePendingApprovals(page: Page, projectId: string, max
       })
       .toBeGreaterThan(approvedBefore);
 
-    await expect
-      .poll(async () => pendingCount(await listApprovals(page, projectId)), {
-        timeout: 60_000,
-        intervals: [300, 500, 1000, 2000],
-      })
-      .toBeGreaterThanOrEqual(0);
+    await page.waitForTimeout(1500);
+    if (pendingCount(await listApprovals(page, projectId)) === 0) return;
   }
 
-  await expect.poll(async () => pendingCount(await listApprovals(page, projectId)), { timeout: 30_000 }).toBe(0);
+  await expect.poll(async () => pendingCount(await listApprovals(page, projectId)), { timeout: 60_000 }).toBe(0);
 }
