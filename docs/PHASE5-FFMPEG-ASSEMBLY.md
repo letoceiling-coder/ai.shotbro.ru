@@ -1,6 +1,6 @@
 # Phase 5I — FFmpeg assembly
 
-**Worker SHA (staging):** `82d72d4`  
+**Worker SHA (staging):** `af5315f` (`shotbro/worker:current` image `fd41ee9b3c0f`; includes timeline assembly through `44e0a31`)  
 **Entry:** BullMQ `production.run` → `assembleFromTimeline`.
 
 ## Inputs (timeline v2)
@@ -9,7 +9,7 @@
 - Mock mode (`AI_MOCK_MODE=true`): lavfi **RGB segments** by script scene index (history-aware if mock agent clobbered ACTIVE script).
 - Non-mock: trim via `-ss sourceInMs` + `-t durationMs`; scene video from graph nodes when no clip asset.
 - **VOICEOVER:** first clip mixed with `amix` when asset present.
-- **MUSIC:** not mixed in worker (matrix case 8 = NOT IMPLEMENTED).
+- **MUSIC:** mixed with voice/video when MUSIC track assets present (`TIMELINE_MOCK_USE_ASSETS` on staging harness).
 
 ## Legacy fallback
 
@@ -24,7 +24,17 @@ True legacy runs without v2 → previous lavfi path.
 | `staging-phase5i-ffmpeg-matrix.sh` | Matrix JSON on VPS |
 | `ffprobe` | Duration / codec on worker container |
 
-## Matrix snapshot (2026-10-26)
+## Matrix snapshot (2026-10-26, VPS)
 
-**PASS:** 1-scene sync (after `38892c7`), 3-scene assembly, reorder, durations, 5-scene sync, revision idempotency, new version.  
-**NOT IMPLEMENTED:** trim ffprobe harness, voiceover fixture, music, missing/invalid clip, duplicate submit, F5 persistence (use `phase5-assembly` E2E when green).
+Script: `bash infra/scripts/staging-phase5i-ffmpeg-matrix.sh /tmp/phase5i-ffmpeg-matrix.json`  
+Result: **14 PASS / 0 FAIL** (exit 0). Evidence: `/tmp/phase5i-ffmpeg-matrix.json`, harness stdout `/tmp/phase5i-matrix-harness.out`.
+
+| Id | Case | Notes |
+|----|------|--------|
+| 1–5 | clip counts + assembly proof | A→C→B, 7.52 s, RGB |
+| 6–10 | worker harness | trim, voice, music, missing, invalid |
+| 11 | duplicate submit | `duplicateSubmitOk` in assembly proof |
+| 12–13 | timeline API smoke | revision / reorder |
+| 14 | mp4 persistence | `asset.status=READY` via psql |
+
+**Docker build:** `Dockerfile.worker` — `apk`/FFmpeg before `LABEL org.shotbro.build-sha` so SHA bumps do not reinstall 294 packages. Deploy lock: `/var/lock/shotbro-docker.lock` (`staging-phase5i-docker-lock-smoke.sh` PASS).

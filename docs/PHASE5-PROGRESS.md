@@ -1,21 +1,21 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Remote repo HEAD (VPS):** `00ea52e`  
-**Acceptance date:** 2026-10-25 (5G gate)  
+**Remote repo HEAD (VPS):** `c801ac2` → pull `e893853` for regression E2E fixes  
+**Acceptance date:** 2026-10-26 (5I gate in progress)  
 
 ## Deployed staging (https://ai.shotbro.ru)
 
 | Service | Build / image | Notes |
 |---------|----------------|--------|
-| Web | `shotbro/web:current` · build **`13891f9`** | Prompt Studio tab |
-| API | `shotbro/api:current` · build **`f180fa0`** | Prompt REST + agent delegates |
-| Worker | `ai-shotbro-staging-worker:latest` | Up with API |
-| E2E runner scripts | `68a09d7` | Playwright specs + `staging-playwright-e2e.sh` modes |
+| Web | `shotbro/web:current` · build **`c2e9420`** | Creative studio + timeline UI |
+| API | `shotbro/api:current` · build **`033aeae`** | Timeline v2, scene-id guards |
+| Worker | `shotbro/worker:current` · build **`af5315f`** · image `fd41ee9b3c0f` | Timeline FFmpeg + harness |
+| E2E runner scripts | `e893853` | Matrix + `staging-phase5i-acceptance-e2e.sh` |
 
 **Policy (verified on API container, values redacted):** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `OPENROUTER_ENABLED=false`, `OPENROUTER_ALLOW_PAID_REQUESTS=false`. Per-provider live switches off. **Live AI calls: 0.** No production cutover.
 
-**VPS disk:** `/dev/vda1` ~11G free (~91% used) — monitor before large image builds; rollback tags retained (`ed85a6a`, `3240e70`, `015cbb7`, …).
+**VPS disk:** `/dev/vda1` **67%** used (~39G free, 2026-10-26). Worker rollback retained from pre-`af5315f` promote.
 
 ## Stage status
 
@@ -29,7 +29,7 @@
 | 5F | Reference manager | **ACCEPTED** — see `PHASE5-REFERENCE-MANAGER.md` |
 | 5MP | Multi-provider (mock) | **DEPLOYED** — Providers E2E 16/16 |
 | 5G | Prompt studio | **ACCEPTED** (E2E 4/4) — see `PHASE5-PROMPT-STUDIO-ACCEPTANCE.md` |
-| 5I | Timeline + FFmpeg from timeline JSON | **ACCEPTANCE IN PROGRESS** — r10 PASS, scene-id PASS, matrix 6/14, E2E partial |
+| 5I | Timeline + FFmpeg from timeline JSON | **ACCEPTANCE IN PROGRESS** — matrix **14/14**, timeline+assembly E2E **PASS**, full regression pending |
 | 5H, 5J–5P | Remaining Phase 5 scope | NOT IMPLEMENTED |
 
 ## Playwright on VPS (`retries=0`, logs under `/var/log/shotbro-e2e/`)
