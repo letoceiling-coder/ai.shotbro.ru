@@ -41,8 +41,8 @@ Classification: **A** (fields absent in PostgreSQL effective view) caused by orc
 |-------|--------|--------|
 | `staging-phase5i-metadata-integration.sh` | **PASS** (post `5ecba66`) | `metadataKeys` includes `timelineDocumentId`, `timelineVersion`, `timelineHash` |
 | Assembly duration ~7.5s | **PASS** (r5–r8) | `timeline_assembly_start` with full `runMeta`; no `timeline_assembly_fallback_legacy` |
-| A→C→B frame colors | **In progress** (r9 pending) | Mock agent overwrote ACTIVE script to `scene-1..3` while timeline kept UUID `sceneId`s → worker now resolves **script revision history**; proof script drops bootstrap `Scene 1` |
-| Runtime (2026-10-26) | API `5ecba66`, Worker target `82d72d4` | Deploy via `staging-deploy.sh --service worker 82d72d4` |
+| A→C→B frame colors | **PASS** (r10) | `frameColors: RED, BLUE, GREEN`, duration 7.52s; worker `82d72d4` + script-history color index |
+| Runtime (2026-10-26) | API `5ecba66`, Worker `82d72d4` | Proof artifact: `/tmp/phase5i-assembly-proof-r10.json` |
 
 ### Secondary issue (mock colors)
 
