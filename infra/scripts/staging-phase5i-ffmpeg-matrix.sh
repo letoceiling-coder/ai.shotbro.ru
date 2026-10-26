@@ -51,7 +51,8 @@ if marker < 0:
     marker = raw.rfind("{")
 if marker < 0:
     raise SystemExit("harness_json_missing")
-for row in json.loads(raw[marker:])["harness"]:
+payload, _end = json.JSONDecoder().raw_decode(raw, marker)
+for row in payload["harness"]:
     print(json.dumps(row))
 PY
   else
