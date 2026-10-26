@@ -94,6 +94,69 @@ else
   note '{"id":10,"name":"invalid_asset","status":"FAIL"}'
 fi
 
+# 1,3 — clip counts (single sign-in to avoid auth rate limits)
+docker exec -i ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-scenes.json 2>/tmp/phase5i-matrix-scenes.err || true
+const base = "http://127.0.0.1:3001";
+const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
+const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
+async function j(path, init = {}, cookies = "") {
+  const res = await fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru", Cookie: cookies, ...(init.headers ?? {}) } });
+  const set = res.headers.getSetCookie?.() ?? [];
+  const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
+  return { status: res.status, body, cookies: mergeCookies(cookies, set) };
+}
+function mergeCookies(prev, setCookie) {
+  const jar = Object.fromEntries(prev.split(";").map((s) => s.trim()).filter(Boolean).map((p) => p.split("=")).filter(([k]) => k));
+  for (const line of setCookie) { const [pair] = line.split(";"); const [k, v] = pair.split("="); if (k) jar[k.trim()] = v ?? ""; }
+  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
+}
+function videoClips(tl) {
+  return tl.body?.payload?.tracks?.find((t) => t.type === "VIDEO")?.clips ?? [];
+}
+(async () => {
+  const sign = await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) });
+  if (sign.status !== 200) {
+    console.log(JSON.stringify({ single: { ok: false }, five: { ok: false }, error: "sign_in_" + sign.status }));
+    return;
+  }
+  const c = sign.cookies;
+  const p1 = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "1scene " + Date.now(), mock: true }) }, c);
+  const project1 = p1.body.id;
+  await j(`/api/v1/projects/${project1}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Bootstrap" }) }, c);
+  const script = await j(`/api/v1/projects/${project1}/script`, {}, c);
+  for (const sid of (script.body?.payload?.scenes ?? []).map((s) => s.id).slice(1)) {
+    await j(`/api/v1/projects/${project1}/scripts/scenes/${sid}/delete`, { method: "POST", body: "{}" }, c);
+  }
+  await j(`/api/v1/projects/${project1}/storyboard/sync`, { method: "POST", body: "{}" }, c);
+  await j(`/api/v1/projects/${project1}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
+  const tl1 = await j(`/api/v1/projects/${project1}/timeline`, {}, c);
+  const clips1 = videoClips(tl1);
+  const p5 = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "5scene " + Date.now(), mock: true }) }, c);
+  const project5 = p5.body.id;
+  for (let i = 0; i < 4; i++) await j(`/api/v1/projects/${project5}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "S" + i }) }, c);
+  await j(`/api/v1/projects/${project5}/storyboard/sync`, { method: "POST", body: "{}" }, c);
+  await j(`/api/v1/projects/${project5}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
+  const tl5 = await j(`/api/v1/projects/${project5}/timeline`, {}, c);
+  const clips5 = videoClips(tl5);
+  console.log(
+    JSON.stringify({
+      single: { ok: clips1.length === 1, clipCount: clips1.length },
+      five: { ok: clips5.length >= 5, clipCount: clips5.length },
+    }),
+  );
+})().catch((e) => console.log(JSON.stringify({ single: { ok: false }, five: { ok: false }, error: String(e) })));
+NODE
+if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-scenes.json'))['single'].get('ok') else 1)" 2>/dev/null; then
+  note '{"id":1,"name":"single_scene","status":"PASS","note":"timeline sync 1 clip"}'
+else
+  note '{"id":1,"name":"single_scene","status":"FAIL"}'
+fi
+if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-scenes.json'))['five'].get('ok') else 1)" 2>/dev/null; then
+  note '{"id":3,"name":"five_scenes","status":"PASS","note":"timeline sync 5 clips"}'
+else
+  note '{"id":3,"name":"five_scenes","status":"FAIL"}'
+fi
+
 # 2,4,5 — assembly proof (orchestrator + mock lavfi colors)
 if bash "$DIR/staging-phase5i-assembly-proof.sh" /tmp/phase5i-matrix-assembly.json; then
   DUR="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-assembly.json'))['ffprobe']['format']['duration'])")"
@@ -150,80 +213,6 @@ if bash "$DIR/staging-phase5i-timeline-api-smoke.sh" >/tmp/phase5i-matrix-timeli
 else
   note '{"id":12,"name":"same_version_idempotency","status":"FAIL"}'
   note '{"id":13,"name":"new_timeline_version","status":"FAIL"}'
-fi
-
-# 1 — single-scene assembly via node (mock)
-docker exec -i ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-1scene.json 2>/tmp/phase5i-matrix-1scene.err || true
-const base = "http://127.0.0.1:3001";
-const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
-const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
-async function j(path, init = {}, cookies = "") {
-  const res = await fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru", Cookie: cookies, ...(init.headers ?? {}) } });
-  const set = res.headers.getSetCookie?.() ?? [];
-  const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
-  return { status: res.status, body, cookies: mergeCookies(cookies, set) };
-}
-function mergeCookies(prev, setCookie) {
-  const jar = Object.fromEntries(prev.split(";").map((s) => s.trim()).filter(Boolean).map((p) => p.split("=")).filter(([k]) => k));
-  for (const line of setCookie) { const [pair] = line.split(";"); const [k, v] = pair.split("="); if (k) jar[k.trim()] = v ?? ""; }
-  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-}
-(async () => {
-  let c = "";
-  await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
-  const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "1scene " + Date.now(), mock: true }) }, c);
-  const projectId = p.body.id;
-  await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Bootstrap" }) }, c);
-  const script = await j(`/api/v1/projects/${projectId}/script`, {}, c);
-  const sceneIds = (script.body?.payload?.scenes ?? []).map((s) => s.id);
-  for (const sid of sceneIds.slice(1)) {
-    await j(`/api/v1/projects/${projectId}/scripts/scenes/${sid}/delete`, { method: "POST", body: "{}" }, c);
-  }
-  await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
-  await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
-  const tl = await j(`/api/v1/projects/${projectId}/timeline`, {}, c);
-  const clips = tl.body.payload.tracks.find((t) => t.type === "VIDEO").clips;
-  console.log(JSON.stringify({ ok: clips.length === 1, clipCount: clips.length }));
-})().catch((e) => console.log(JSON.stringify({ ok: false, error: String(e) })));
-NODE
-if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-1scene.json')).get('ok') else 1)" 2>/dev/null; then
-  note '{"id":1,"name":"single_scene","status":"PASS","note":"timeline sync 1 clip"}'
-else
-  note '{"id":1,"name":"single_scene","status":"FAIL"}'
-fi
-
-docker exec -i ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-5scene.json 2>/dev/null || true
-const base = "http://127.0.0.1:3001";
-const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
-const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
-async function j(path, init = {}, cookies = "") {
-  const res = await fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru", Cookie: cookies, ...(init.headers ?? {}) } });
-  const set = res.headers.getSetCookie?.() ?? [];
-  const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
-  return { status: res.status, body, cookies: mergeCookies(cookies, set) };
-}
-function mergeCookies(prev, setCookie) {
-  const jar = Object.fromEntries(prev.split(";").map((s) => s.trim()).filter(Boolean).map((p) => p.split("=")).filter(([k]) => k));
-  for (const line of setCookie) { const [pair] = line.split(";"); const [k, v] = pair.split("="); if (k) jar[k.trim()] = v ?? ""; }
-  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-}
-(async () => {
-  let c = "";
-  await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
-  const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "5scene " + Date.now(), mock: true }) }, c);
-  const projectId = p.body.id;
-  for (let i = 0; i < 4; i++) await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "S" + i }) }, c);
-  await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
-  await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
-  const tl = await j(`/api/v1/projects/${projectId}/timeline`, {}, c);
-  const clips = tl.body.payload.tracks.find((t) => t.type === "VIDEO").clips;
-  console.log(JSON.stringify({ ok: clips.length >= 5, clipCount: clips.length, sceneTarget: 5 }));
-})().catch((e) => console.log(JSON.stringify({ ok: false })));
-NODE
-if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-5scene.json')).get('ok') else 1)" 2>/dev/null; then
-  note '{"id":3,"name":"five_scenes","status":"PASS","note":"timeline sync 5 clips"}'
-else
-  note '{"id":3,"name":"five_scenes","status":"FAIL"}'
 fi
 
 PERSIST_PROOF="/tmp/phase5i-matrix-assembly.json"
