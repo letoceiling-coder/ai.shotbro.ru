@@ -8,6 +8,7 @@ mkdir -p "$(dirname "$LOG")"
 : >"$LOG"
 rm -f "$ROOT/apps/web/e2e/.auth/real-user.json"
 
+START_FROM="${PHASE5I_E2E_START_FROM:-phase5-timeline}"
 modes=(
   phase5-timeline
   phase5-assembly
@@ -19,8 +20,13 @@ modes=(
   phase5-references
   phase5-creative-flow
 )
-
+started=0
 for mode in "${modes[@]}"; do
+  if [ "$started" -eq 0 ] && [ "$mode" != "$START_FROM" ]; then
+    continue
+  fi
+  started=1
+
   echo "===== $mode =====" >>"$LOG"
   if bash "$DIR/staging-playwright-e2e.sh" "$ROOT" "$mode" >>"$LOG" 2>&1; then
     echo "PASS $mode" >>"$LOG"
