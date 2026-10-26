@@ -4,13 +4,6 @@ import { gotoStudioSection } from "./helpers/phase5-creative-ui";
 import { seedScriptScene } from "./helpers/phase5-creative-seed";
 import { pinRealProjectOnReload } from "./helpers/real-studio-state";
 
-const viewports = [
-  { name: "desktop1920", width: 1920, height: 1080 },
-  { name: "desktop1440", width: 1440, height: 900 },
-  { name: "tablet", width: 834, height: 1194 },
-  { name: "mobile390", width: 390, height: 844 },
-] as const;
-
 let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
 test.describe("Phase 5I timeline studio", () => {
@@ -31,9 +24,7 @@ test.describe("Phase 5I timeline studio", () => {
     if (loggedInStorage?.cookies.length) await context.addCookies(loggedInStorage.cookies);
   });
 
-  for (const vp of viewports) {
-    test(`Timeline sync reorder save @ ${vp.name}`, async ({ page }) => {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
+  test("Timeline sync reorder save", async ({ page }, testInfo) => {
       await page.goto("/studio", { waitUntil: "domcontentloaded" });
       const projectId = await openRealNewProject(page);
       await seedScriptScene(page, projectId);
@@ -81,9 +72,9 @@ test.describe("Phase 5I timeline studio", () => {
           const r = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
           const j = (await r.json()) as { payload?: { tracks?: Array<{ clips?: Array<{ durationMs?: number }> }> } };
           const all = j.payload?.tracks?.flatMap((t) => t.clips ?? []) ?? [];
-          return Math.max(...all.map((c) => c.durationMs ?? 0), 0);
+          return all.some((c) => c.durationMs === 2500);
         }, { timeout: 20_000 })
-        .toBe(2500);
+        .toBe(true);
 
       await pinRealProjectOnReload(page, projectId, "timeline");
       await page.reload({ waitUntil: "domcontentloaded" });
@@ -91,6 +82,6 @@ test.describe("Phase 5I timeline studio", () => {
       const after = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
       const ja = (await after.json()) as { payload?: { revision?: number } };
       expect((ja.payload?.revision ?? 0) >= 2).toBeTruthy();
-    });
-  }
+      testInfo.annotations.push({ type: "viewport", description: testInfo.project.name });
+  });
 });

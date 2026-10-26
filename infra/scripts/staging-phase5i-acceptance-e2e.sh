@@ -20,15 +20,14 @@ modes=(
 )
 
 for mode in "${modes[@]}"; do
-  {
-    echo "===== $mode ====="
-    bash "$DIR/staging-playwright-e2e.sh" "$ROOT" "$mode"
-    echo "PASS $mode"
-  } >>"$LOG" 2>&1 || {
-    echo "FAIL $mode" >>"$LOG"
+  echo "===== $mode =====" >>"$LOG"
+  if bash "$DIR/staging-playwright-e2e.sh" "$ROOT" "$mode" >>"$LOG" 2>&1; then
+    echo "PASS $mode" >>"$LOG"
+  else
+    echo "FAIL $mode (exit $?)" >>"$LOG"
     tail -60 "$LOG" >&2
     exit 1
-  }
+  fi
 done
 echo "ALL_PASS" >>"$LOG"
 cat "$LOG" | tail -20
