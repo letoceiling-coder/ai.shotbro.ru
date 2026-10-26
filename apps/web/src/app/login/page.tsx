@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 
 const MODE_KEY = "shotbro-studio-mode-v1";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -35,6 +35,25 @@ export default function LoginPage() {
   }
 
   return (
+    <form className="space-y-4" onSubmit={onSubmit}>
+      <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      <Input
+        type="password"
+        placeholder="Пароль"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? "Вход…" : "Войти"}
+      </Button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
         <div className="mb-6 flex items-center gap-2">
@@ -44,20 +63,9 @@ export default function LoginPage() {
           <span className="text-lg font-semibold">SHOTBRO AI Studio</span>
         </div>
         <h1 className="mb-6 text-xl font-semibold">Вход</h1>
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Input
-            type="password"
-            placeholder="Пароль"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Вход…" : "Войти"}
-          </Button>
-        </form>
+        <Suspense fallback={<p className="text-sm text-muted-foreground">Загрузка…</p>}>
+          <LoginForm />
+        </Suspense>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Нет аккаунта?{" "}
           <Link href="/register" className="text-primary hover:underline">
