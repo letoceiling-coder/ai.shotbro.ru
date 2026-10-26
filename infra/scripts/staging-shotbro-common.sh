@@ -20,11 +20,16 @@ shotbro_with_docker_lock() {
   local lock_fd
   exec {lock_fd}>"$SHOTBRO_DOCKER_LOCK"
   if ! flock -x "$lock_fd"; then
+    exec {lock_fd}>&-
     shotbro_fail "docker_lock_unavailable ${SHOTBRO_DOCKER_LOCK}"
   fi
+  trap 'flock -u '"$lock_fd"' 2>/dev/null; exec '"$lock_fd"'>&-' EXIT
   "$@"
-  flock -u "$lock_fd"
+  local rc=$?
+  flock -u "$lock_fd" 2>/dev/null || true
   exec {lock_fd}>&-
+  trap - EXIT
+  return "$rc"
 }
 
 shotbro_try_docker_lock() {

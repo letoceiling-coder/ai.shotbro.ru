@@ -25,12 +25,13 @@ COPY . .
 RUN echo "${BUILD_SHA}" >/tmp/.shotbro-build-sha
 RUN pnpm --filter worker run typecheck 2>/dev/null || true
 
+# System deps in a SHA-independent layer so promote rebuilds do not reinstall apk/ffmpeg.
 FROM node:22-alpine AS runner
-ARG BUILD_SHA
-LABEL org.shotbro.build-sha="${BUILD_SHA}"
 RUN apk add --no-cache vips-dev fftw-dev build-base python3 ffmpeg
 WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
 COPY --from=builder /app /app
+ARG BUILD_SHA
+LABEL org.shotbro.build-sha="${BUILD_SHA}"
 CMD ["pnpm", "exec", "tsx", "--tsconfig", "apps/worker/tsconfig.json", "apps/worker/src/main.ts"]
