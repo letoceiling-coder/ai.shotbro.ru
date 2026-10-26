@@ -345,6 +345,9 @@ export class AgentService {
           reason: "mock_production_estimate",
         });
       },
+      onEnsureTimeline: async (input: { projectId: string; userId: string }) => {
+        await this.timeline.ensureTimeline(input.userId, input.projectId);
+      },
       onStartProduction: async (input: { runId: string; projectId: string; userId: string }) => {
         const [runRow] = await this.db.select().from(agentRun).where(eq(agentRun.id, input.runId)).limit(1);
         const meta = (runRow?.metadata ?? {}) as { productionEnqueued?: boolean; traceId?: string };

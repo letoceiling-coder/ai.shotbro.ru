@@ -34,6 +34,8 @@ export type OrchestratorPorts = {
     amountUsd: number;
     estimateVersion: string;
   }) => Promise<void>;
+  /** Creates/syncs TIMELINE before PRODUCTION approval when legacy runs skipped Phase 5 timeline UI. */
+  onEnsureTimeline?: (input: { projectId: string; userId: string }) => Promise<void>;
 };
 
 const WAITING: AgentProductionState[] = [
@@ -363,7 +365,11 @@ export class ProductionOrchestrator {
     docType: string,
     title: string,
   ) {
-    const doc = await ports.storage.getActiveDocument(run.projectId, docType);
+    let doc = await ports.storage.getActiveDocument(run.projectId, docType);
+    if (!doc && docType === "TIMELINE") {
+      await ports.onEnsureTimeline?.({ projectId: run.projectId, userId });
+      doc = await ports.storage.getActiveDocument(run.projectId, docType);
+    }
     if (!doc) throw new Error(`Missing document ${docType}`);
     const already = await ports.approvals.isApproved(run.projectId, targetType, doc.id, String(doc.version));
     if (already) return;
