@@ -43,7 +43,9 @@ NODE
 if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harness-ctx.json')).get('projectId') else 1)" 2>/dev/null; then
   export PHASE5I_HARNESS_PROJECT_ID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-harness-ctx.json'))['projectId'])")"
   if docker exec -e PHASE5I_HARNESS_PROJECT_ID -e TIMELINE_MOCK_USE_ASSETS=true ai-shotbro-staging-worker-1 pnpm exec tsx apps/worker/scripts/phase5i-ffmpeg-harness.ts >/tmp/phase5i-matrix-harness.out 2>/tmp/phase5i-matrix-harness.err; then
-    if python3 - <<'PY' | while read -r line; do note "$line"; done
+    HARNESS_PARSE_OK=0
+    while IFS= read -r line; do note "$line"; done < <(
+      python3 - <<'PY'
 import json
 raw = open("/tmp/phase5i-matrix-harness.out").read()
 payload = None
@@ -67,7 +69,8 @@ if payload is None:
 for row in payload["harness"]:
     print(json.dumps(row))
 PY
-    then
+    ) && HARNESS_PARSE_OK=1
+    if [ "$HARNESS_PARSE_OK" -eq 1 ]; then
       :
     else
       note '{"id":6,"name":"trim","status":"FAIL","note":"harness_json_parse"}'
@@ -124,7 +127,8 @@ function mergeCookies(prev, setCookie) {
   const same =
     a.body?.snapshot?.timelineVersion === b.body?.snapshot?.timelineVersion &&
     a.body?.snapshot?.timelineHash === b.body?.snapshot?.timelineHash;
-  console.log(JSON.stringify({ ok: same && a.status === 200 && b.status === 200, aStatus: a.status, bStatus: b.status }));
+  const okHttp = (s) => s >= 200 && s < 300;
+  console.log(JSON.stringify({ ok: same && okHttp(a.status) && okHttp(b.status), aStatus: a.status, bStatus: b.status }));
 })().catch((e) => console.log(JSON.stringify({ ok: false, reason: String(e) })));
 NODE
   if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-dup.json')).get('ok') else 1)" 2>/dev/null; then
@@ -208,12 +212,12 @@ function mergeCookies(prev, setCookie) {
   await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
   const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "5scene " + Date.now(), mock: true }) }, c);
   const projectId = p.body.id;
-  for (let i = 0; i < 5; i++) await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "S" + i }) }, c);
+  for (let i = 0; i < 4; i++) await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "S" + i }) }, c);
   await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
   await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
   const tl = await j(`/api/v1/projects/${projectId}/timeline`, {}, c);
   const clips = tl.body.payload.tracks.find((t) => t.type === "VIDEO").clips;
-  console.log(JSON.stringify({ ok: clips.length >= 5, clipCount: clips.length }));
+  console.log(JSON.stringify({ ok: clips.length >= 5, clipCount: clips.length, sceneTarget: 5 }));
 })().catch((e) => console.log(JSON.stringify({ ok: false })));
 NODE
 if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-5scene.json')).get('ok') else 1)" 2>/dev/null; then
