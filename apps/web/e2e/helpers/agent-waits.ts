@@ -34,11 +34,9 @@ export async function waitForMockBriefVisible(page: Page, projectId: string, tim
   await resyncRealThreadFromApi(page, projectId);
 
   const plan = page.getByTestId("generation-plan-card").first();
-  const briefText = page.getByText(/Brief \(MOCK\)|План производства|MOCK · Phase/i).first();
-  await expect(plan.or(briefText)).toBeVisible({ timeout: 60_000 });
-  const visible = (await plan.isVisible()) ? plan : briefText;
-  await visible.scrollIntoViewIfNeeded();
-  return visible;
+  await expect(plan).toBeVisible({ timeout: 60_000 });
+  await plan.scrollIntoViewIfNeeded();
+  return plan;
 }
 
 export async function waitForPhase4AgentSignalVisible(page: Page, projectId: string, timeoutMs = 180_000) {
@@ -57,10 +55,7 @@ export async function waitForPhase4AgentSignalVisible(page: Page, projectId: str
 
   await resyncRealThreadFromApi(page, projectId);
 
-  const signal = page
-    .getByTestId("generation-plan-card")
-    .or(page.getByText(/AgentRuntime|MOCK · Phase 4|Brief \(MOCK\)|План производства/i))
-    .first();
+  const signal = page.getByTestId("generation-plan-card").first();
   await expect(signal).toBeVisible({ timeout: 60_000 });
   await signal.scrollIntoViewIfNeeded();
   return signal;
