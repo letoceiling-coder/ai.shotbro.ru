@@ -34,6 +34,16 @@ async function waitForPendingApprovalApi(page: Page, projectId: string, timeoutM
     .toBeGreaterThan(0);
 }
 
+const APPROVAL_ORDER = ["PLAN", "SCRIPT", "STORYBOARD", "COST", "PRODUCTION"] as const;
+
+function sortPending(rows: ApprovalRow[]) {
+  return [...rows].sort(
+    (a, b) =>
+      (APPROVAL_ORDER.indexOf(a.targetType as (typeof APPROVAL_ORDER)[number]) + 1 || 99) -
+      (APPROVAL_ORDER.indexOf(b.targetType as (typeof APPROVAL_ORDER)[number]) + 1 || 99),
+  );
+}
+
 async function approveOneViaApi(page: Page, row: ApprovalRow) {
   const res = await page.request.post(`/api/v1/approvals/${row.id}/approve`, {
     data: {
@@ -42,7 +52,10 @@ async function approveOneViaApi(page: Page, row: ApprovalRow) {
       idempotencyKey: randomUUID(),
     },
   });
-  expect(res.ok()).toBeTruthy();
+  if (!res.ok()) {
+    const body = await res.text();
+    throw new Error(`approve ${row.id} (${row.targetType}) HTTP ${res.status()}: ${body}`);
+  }
 }
 
 /**
@@ -64,11 +77,10 @@ export async function approvePendingApprovals(page: Page, projectId: string, max
     }
 
     items = await listApprovals(page, projectId);
-    const pending = items.filter((a) => a.status === "PENDING");
+    const pending = sortPending(items.filter((a) => a.status === "PENDING"));
+    if (!pending.length) continue;
     const approvedBefore = approvedCount(items);
-    for (const row of pending) {
-      await approveOneViaApi(page, row);
-    }
+    await approveOneViaApi(page, pending[0]!);
 
     await expect
       .poll(async () => approvedCount(await listApprovals(page, projectId)), {
