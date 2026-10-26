@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signInRealUserOnce } from "./helpers/real-auth-once";
+import { applyRealAuthOnce } from "./helpers/real-auth-once";
 
 /**
  * Strict REAL user journey (P0 UX recovery).
@@ -8,8 +8,8 @@ import { signInRealUserOnce } from "./helpers/real-auth-once";
 test.describe("Phase 5 user journey (REAL)", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Requires E2E_REAL_BACKEND=1 on staging");
 
-  test.beforeAll(async ({ browser }) => {
-    await signInRealUserOnce(browser);
+  test.beforeEach(async ({ page, context }) => {
+    await applyRealAuthOnce(page, context);
   });
 
   test("studio REAL mode exposes creative workspace tabs", async ({ page }) => {

@@ -70,7 +70,9 @@ test.describe("Phase 5I timeline studio", () => {
       await expect
         .poll(async () => {
           const r = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
-          const j = (await r.json()) as { payload?: { tracks?: Array<{ clips?: Array<{ durationMs?: number }> }> } };
+          const j = (await r.json()) as {
+            payload?: { tracks?: Array<{ clips?: Array<{ clipId?: string; durationMs?: number }> }> };
+          };
           const all = j.payload?.tracks?.flatMap((t) => t.clips ?? []) ?? [];
           return all.some((c) => c.clipId === editClip!.clipId && c.durationMs === 2500);
         }, { timeout: 20_000 })
