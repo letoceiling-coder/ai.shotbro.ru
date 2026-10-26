@@ -163,39 +163,8 @@ if bash "$DIR/staging-phase5i-assembly-proof.sh" /tmp/phase5i-matrix-assembly.js
   note "{\"id\":2,\"name\":\"three_scenes\",\"status\":\"PASS\",\"duration\":\"$DUR\"}"
   note '{"id":4,"name":"reordered_clips","status":"PASS","note":"A→C→B in assembly proof"}'
   note '{"id":5,"name":"different_durations","status":"PASS","note":"2000/2500/3000 ms in proof"}'
-  DUP_PID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-assembly.json'))['projectId'])")"
-  docker exec -i -e PHASE5I_DUP_PID="$DUP_PID" ai-shotbro-staging-api-1 node <<'NODE' >/tmp/phase5i-matrix-dup.json 2>/dev/null || true
-const base = "http://127.0.0.1:3001";
-const projectId = process.env.PHASE5I_DUP_PID;
-const email = process.env.INTEGRATION_USER_A_EMAIL ?? "e2e-phase2@shotbro.test";
-const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST_PASSWORD;
-async function j(path, init = {}, cookies = "") {
-  const res = await fetch(base + path, { ...init, headers: { "Content-Type": "application/json", Origin: "https://ai.shotbro.ru", Cookie: cookies, ...(init.headers ?? {}) } });
-  const set = res.headers.getSetCookie?.() ?? [];
-  const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
-  return { status: res.status, body, cookies: mergeCookies(cookies, set) };
-}
-function mergeCookies(prev, setCookie) {
-  const jar = Object.fromEntries(prev.split(";").map((s) => s.trim()).filter(Boolean).map((p) => p.split("=")).filter(([k]) => k));
-  for (const line of setCookie) { const [pair] = line.split(";"); const [k, v] = pair.split("="); if (k) jar[k.trim()] = v ?? ""; }
-  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-}
-(async () => {
-  let c = "";
-  const sign = await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) });
-  if (sign.status !== 200) { console.log(JSON.stringify({ ok: false, reason: "sign_in" })); return; }
-  c = sign.cookies;
-  const a = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
-  const b = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
-  const same =
-    a.body?.snapshot?.timelineVersion === b.body?.snapshot?.timelineVersion &&
-    a.body?.snapshot?.timelineHash === b.body?.snapshot?.timelineHash;
-  const okHttp = (s) => s >= 200 && s < 300;
-  console.log(JSON.stringify({ ok: same && okHttp(a.status) && okHttp(b.status), aStatus: a.status, bStatus: b.status }));
-})().catch((e) => console.log(JSON.stringify({ ok: false, reason: String(e) })));
-NODE
-  if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-dup.json')).get('ok') else 1)" 2>/dev/null; then
-    note '{"id":11,"name":"duplicate_submit","status":"PASS","note":"prepare-assembly idempotent on proof project"}'
+  if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-assembly.json')).get('duplicateSubmitOk') else 1)" 2>/dev/null; then
+    note '{"id":11,"name":"duplicate_submit","status":"PASS","note":"prepare-assembly idempotent in assembly proof"}'
   else
     note '{"id":11,"name":"duplicate_submit","status":"FAIL"}'
   fi

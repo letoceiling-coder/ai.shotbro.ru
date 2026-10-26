@@ -118,6 +118,13 @@ function sleep(ms) {
   tl.body = reorder.body;
 
   const prep = await json(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, cookies);
+  const prep2 = await json(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, cookies);
+  const okHttp = (s) => s >= 200 && s < 300;
+  const duplicateSubmitOk =
+    okHttp(prep.status) &&
+    okHttp(prep2.status) &&
+    prep2.body?.snapshot?.timelineVersion === prep.body?.snapshot?.timelineVersion &&
+    prep2.body?.snapshot?.timelineHash === prep.body?.snapshot?.timelineHash;
 
   await json(`/api/v1/projects/${projectId}/agent/runtime-rollout`, {
     method: "POST",
@@ -194,6 +201,7 @@ function sleep(ms) {
       durationsMs: { A: dA, C: dC, B: dB },
       timelineOrder: ["A", "C", "B"],
       snapshot: prep.body.snapshot ?? null,
+      duplicateSubmitOk,
     }),
   );
 })().catch((e) => {
@@ -263,6 +271,7 @@ out = {
     "assetId": meta["assetId"],
     "timelineOrder": meta["timelineOrder"],
     "snapshot": meta.get("snapshot"),
+    "duplicateSubmitOk": meta.get("duplicateSubmitOk"),
     "ffprobe": ff.get("probe"),
     "frameColors": colors,
     "expected": ["RED", "BLUE", "GREEN"],
