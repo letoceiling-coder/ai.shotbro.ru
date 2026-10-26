@@ -91,6 +91,24 @@ export async function waitForProductionEnqueued(page: Page, projectId: string, t
     .not.toBe("");
 }
 
+/** Waits until mock production graph finished (delivery asset should exist). */
+export async function waitForProductionCompleted(page: Page, projectId: string, timeoutMs = 600_000) {
+  await expect
+    .poll(
+      async () => {
+        const res = await page.request.get(`/api/v1/projects/${projectId}/agent/runs`);
+        if (!res.ok()) return "";
+        const body = (await res.json()) as { items?: Array<{ productionState?: string; status?: string }> };
+        const run = body.items?.[0];
+        if (!run) return "";
+        if (run.productionState === "COMPLETED" || run.status === "COMPLETED") return "done";
+        return run.productionState ?? run.status ?? "";
+      },
+      { timeout: timeoutMs, intervals: [2000, 3000, 5000] },
+    )
+    .toBe("done");
+}
+
 export async function waitForMockMp4Asset(page: Page, projectId: string, timeoutMs = 600_000) {
   await expect
     .poll(
@@ -112,7 +130,8 @@ export async function waitForMockMp4Asset(page: Page, projectId: string, timeout
 }
 
 export async function waitForMockDeliveryVisible(page: Page, projectId: string, timeoutMs = 600_000) {
-  await waitForMockMp4Asset(page, projectId, timeoutMs);
+  await waitForProductionCompleted(page, projectId, timeoutMs);
+  await waitForMockMp4Asset(page, projectId, 120_000);
   await resyncRealThreadFromApi(page, projectId);
   const delivery = page
     .getByText(/Финальный ролик|Mock-производство|Production board|Готово: mock|mock-delivery/i)
