@@ -63,16 +63,27 @@ test.describe("Phase 5I timeline studio", () => {
           .toBeGreaterThan(1);
       }
 
-      const firstClipBtn = page.locator("[data-testid^=timeline-clip-]").first();
-      await firstClipBtn.click();
-      await page.getByTestId("timeline-clip-duration").fill("2500");
+      const tlPick = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
+      const pick = (await tlPick.json()) as {
+        payload?: { tracks?: Array<{ clips?: Array<{ clipId: string; order: number }> }> };
+      };
+      const ordered =
+        pick.payload?.tracks?.find((t) => t.clips?.length)?.clips?.sort((a, b) => a.order - b.order) ?? [];
+      const editClip = ordered[0];
+      expect(editClip?.clipId).toBeTruthy();
+      await page.getByTestId(`timeline-clip-${editClip!.clipId}`).click();
+      const durationInput = page.getByTestId("timeline-clip-duration");
+      await durationInput.click();
+      await durationInput.fill("2500");
+      await durationInput.blur();
+      await expect(page.getByTestId("timeline-save")).toBeEnabled({ timeout: 10_000 });
       await page.getByTestId("timeline-save").click();
       await expect
         .poll(async () => {
           const r = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
           const j = (await r.json()) as { payload?: { tracks?: Array<{ clips?: Array<{ durationMs?: number }> }> } };
           const all = j.payload?.tracks?.flatMap((t) => t.clips ?? []) ?? [];
-          return all.some((c) => c.durationMs === 2500);
+          return all.some((c) => c.clipId === editClip!.clipId && c.durationMs === 2500);
         }, { timeout: 20_000 })
         .toBe(true);
 
