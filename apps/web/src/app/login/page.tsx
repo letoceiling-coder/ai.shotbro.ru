@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 
+const MODE_KEY = "shotbro-studio-mode-v1";
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +27,11 @@ export default function LoginPage() {
       setError("Не удалось войти. Проверьте email и пароль.");
       return;
     }
-    router.push("/studio");
+    const returnTo = searchParams.get("return") || "/studio";
+    if (searchParams.get("mode") === "real" && typeof window !== "undefined") {
+      window.localStorage.setItem(MODE_KEY, "REAL");
+    }
+    router.push(returnTo);
   }
 
   return (

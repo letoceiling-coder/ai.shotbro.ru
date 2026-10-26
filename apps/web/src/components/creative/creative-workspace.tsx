@@ -12,6 +12,7 @@ import { CharacterStudio } from "./sections/character-studio";
 import { ReferenceManager } from "./sections/reference-manager";
 import { PromptStudio } from "./sections/prompt-studio";
 import { TimelineStudio } from "./sections/timeline-studio";
+import { ProjectAssetsSection } from "./sections/project-assets-section";
 
 export function CreativeWorkspace({ projectId }: { projectId: string }) {
   const section = useStudioStore((s) => s.creativeSection);
@@ -32,9 +33,7 @@ export function CreativeWorkspace({ projectId }: { projectId: string }) {
           <PlaceholderSection title="Production" phase="5H" hint="Граф, jobs и approvals — см. правую панель и чат." />
         ) : null}
         {section === "timeline" ? <TimelineStudio projectId={projectId} /> : null}
-        {section === "assets" ? (
-          <PlaceholderSection title="Asset Library" phase="5J" hint="Расширенная медиатека проекта." />
-        ) : null}
+        {section === "assets" ? <ProjectAssetsSection projectId={projectId} /> : null}
       </div>
     </div>
   );

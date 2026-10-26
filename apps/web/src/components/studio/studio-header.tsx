@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { useActiveProject, useStudioStore } from "@/store/studio-store";
 import { useStudioRuntimeMode } from "@/components/auth/studio-mode-provider";
 import { useRealProjects } from "@/hooks/use-real-studio";
+import { StudioModeSwitch } from "./studio-mode-switch";
+import { SettingsSheet } from "./settings-sheet";
 
 const panelActions = [
   { id: "files", label: "Файлы проекта" },
@@ -36,6 +38,7 @@ export function StudioHeader({ onOpenContext }: { onOpenContext?: () => void }) 
   const simulatorStatus = useStudioStore((s) => s.simulatorStatus);
   const { data: realProjects } = useRealProjects();
   const [mobileNav, setMobileNav] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const realTitle =
     realProjects?.items?.find((p: { id: string }) => p.id === activeRealProjectId)?.title ??
@@ -57,9 +60,7 @@ export function StudioHeader({ onOpenContext }: { onOpenContext?: () => void }) 
           SHOTBRO Studio
           <ChevronDown className="size-4 opacity-60" />
         </Button>
-        <Badge variant={mode === "REAL" ? "default" : "demo"} className="hidden sm:inline-flex">
-          {mode}
-        </Badge>
+        <StudioModeSwitch className="hidden sm:inline-flex" />
         <span className="hidden text-muted-foreground sm:inline">·</span>
         <p className="hidden truncate text-sm text-muted-foreground sm:block">
           {mode === "REAL" ? realTitle : (project?.title ?? "Проект")}
@@ -93,10 +94,18 @@ export function StudioHeader({ onOpenContext }: { onOpenContext?: () => void }) 
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <Button variant="ghost" size="icon" aria-label="Ещё">
-          <MoreHorizontal className="size-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Ещё">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setSettingsOpen(true)}>Настройки</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+      <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Sheet open={mobileNav} onOpenChange={setMobileNav}>
         <SheetContent side="left" className="w-[min(100vw,280px)] p-0">
           <StudioSidebar onNavigate={() => setMobileNav(false)} />

@@ -1,8 +1,8 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Remote repo HEAD (VPS):** `c801ac2` → pull `e893853` for regression E2E fixes  
-**Acceptance date:** 2026-10-26 (5I gate in progress)  
+**Remote repo HEAD (VPS):** `cd54b1f` (API TIMELINE fix); **P0 UX recovery** in progress (DEMO/REAL discoverability)  
+**Acceptance date:** 2026-10-26 (5I gate in progress; UI recovery not DONE)  
 
 ## Deployed staging (https://ai.shotbro.ru)
 

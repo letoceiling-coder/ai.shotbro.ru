@@ -12,6 +12,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useActiveProject, useStudioStore } from "@/store/studio-store";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import { useStudioRuntimeMode } from "@/components/auth/studio-mode-provider";
 
 const panelTitles = {
   none: "",
@@ -45,6 +49,18 @@ export function ContextPanel() {
   const setActivePanel = useStudioStore((s) => s.setActivePanel);
   const simulatorStatus = useStudioStore((s) => s.simulatorStatus);
   const setSimulatorStatus = useStudioStore((s) => s.setSimulatorStatus);
+  const { setMode } = useStudioRuntimeMode();
+  const session = authClient.useSession();
+  const router = useRouter();
+
+  function openReal() {
+    if (!session.data?.user) {
+      router.push("/login?return=/studio&mode=real");
+      return;
+    }
+    setMode("REAL");
+    setActivePanel("none");
+  }
 
   const panel = project?.activePanel ?? "none";
   const open = panel !== "none";
@@ -57,6 +73,13 @@ export function ContextPanel() {
         </SheetHeader>
         <div className="mt-4 space-y-4 text-sm">
           <Badge variant="demo">DEMO · контекстная панель</Badge>
+          <p className="text-muted-foreground">
+            Статические примеры (reference.jpg, цветные кадры раскадровки) — только для демонстрации UI. В REAL
+            используйте вкладки Creative Workspace и правую панель «Студия».
+          </p>
+          <Button type="button" size="sm" onClick={openReal}>
+            Перейти в REAL
+          </Button>
           {panel === "files" ? (
             <ul className="space-y-2">
               <li className="rounded-lg border border-border p-2">reference.jpg</li>

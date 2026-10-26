@@ -51,7 +51,7 @@ export function SettingsSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Настройки · DEMO</SheetTitle>
+          <SheetTitle>Настройки · {mode}</SheetTitle>
         </SheetHeader>
         <div className="mt-6 space-y-6">
           <section>

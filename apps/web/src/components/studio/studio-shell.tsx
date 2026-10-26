@@ -6,6 +6,7 @@ import { StudioHeader } from "./studio-header";
 import { DemoModeBanner } from "./demo-mode-banner";
 import { DemoThread } from "@/components/chat/demo-thread";
 import { CreativeWorkspace } from "@/components/creative/creative-workspace";
+import { RealStudioEmpty } from "./real-studio-empty";
 import { ContextPanel } from "./context-panel";
 import { RealContextPanel } from "./real-context-panel";
 import { AgentRunStrip } from "./agent-run-strip";
@@ -27,8 +28,12 @@ export function StudioShell() {
         {mode === "DEMO" ? <DemoModeBanner /> : null}
         {mode === "REAL" && activeRealProjectId ? <AgentRunStrip projectId={activeRealProjectId} /> : null}
         <main className="flex min-h-0 flex-1 flex-col">
-          {mode === "REAL" && activeRealProjectId ? (
-            <CreativeWorkspace projectId={activeRealProjectId} />
+          {mode === "REAL" ? (
+            activeRealProjectId ? (
+              <CreativeWorkspace projectId={activeRealProjectId} />
+            ) : (
+              <RealStudioEmpty />
+            )
           ) : (
             <DemoThread />
           )}
