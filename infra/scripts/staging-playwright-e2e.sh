@@ -76,7 +76,7 @@ elif [ \"${MODE}\" = phase5-creative-flow ]; then
 elif [ \"${MODE}\" = phase5-prompts ]; then
   pnpm exec playwright test e2e/phase5-prompt-studio.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-timeline ]; then
-  pnpm exec playwright test e2e/phase5-timeline.spec.ts --project=desktop --retries=0
+  pnpm exec playwright test e2e/phase5-timeline.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
 elif [ \"${MODE}\" = phase5-assembly ]; then
   pnpm exec playwright test e2e/phase5-assembly.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-creative ]; then

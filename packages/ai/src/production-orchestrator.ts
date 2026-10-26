@@ -1,4 +1,5 @@
 import type { AgentProductionState } from "@shotbro/contracts";
+import { isUserAuthoredScriptPayload } from "@shotbro/contracts";
 import type { AppEnv } from "@shotbro/config/env";
 import { assertProductionTransition } from "./state-machine.js";
 import type { ProductionStoragePort } from "./ports/production-storage.js";
@@ -194,6 +195,10 @@ export class ProductionOrchestrator {
         ]);
         break;
       case "SCRIPTING": {
+        const existingScript = await ports.storage.getActiveDocument(run.projectId, "SCRIPT");
+        if (existingScript?.payload && isUserAuthoredScriptPayload(existingScript.payload)) {
+          break;
+        }
         const briefDoc = await ports.storage.getActiveDocument(run.projectId, "BRIEF");
         const planDoc = await ports.storage.getActiveDocument(run.projectId, "PRODUCTION_PLAN");
         const brief = briefDoc?.payload as ReturnType<typeof BriefBuilder.fromUserRequest>;
@@ -230,6 +235,15 @@ export class ProductionOrchestrator {
         break;
       }
       case "STORYBOARDING": {
+        const existingStoryboard = await ports.storage.getActiveDocument(run.projectId, "STORYBOARD");
+        const existingTimeline = await ports.storage.getActiveDocument(run.projectId, "TIMELINE");
+        const timelineIsV2 = (existingTimeline?.payload as { schemaVersion?: number })?.schemaVersion === 2;
+        if (
+          timelineIsV2 ||
+          (existingStoryboard?.payload as { scenes?: unknown[] })?.scenes?.length
+        ) {
+          break;
+        }
         const scriptDoc = await ports.storage.getActiveDocument(run.projectId, "SCRIPT");
         const script = scriptDoc?.payload as Parameters<typeof StoryboardDirector.storyboard>[0];
         const storyboard = StoryboardDirector.storyboard(script);

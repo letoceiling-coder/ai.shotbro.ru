@@ -54,6 +54,7 @@ const COLORS = ["0x112233", "0x223311", "0x331122", "0x113322", "0x221133"];
 
 function sceneIdFromClip(clip: TimelineClip): string | undefined {
   if (clip.sceneId) return clip.sceneId;
+  // Legacy rows only: prefer explicit sceneId on clips synced from storyboard.
   const prefix = "scene-";
   if (clip.clipId.startsWith(prefix)) return clip.clipId.slice(prefix.length);
   return undefined;

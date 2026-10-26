@@ -1,6 +1,11 @@
 import { and, desc, eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import type { AgentProductionState } from "@shotbro/contracts";
+import {
+  isOrchestratorMockScriptPayload,
+  isOrchestratorMockStoryboardPayload,
+  isUserAuthoredScriptPayload,
+} from "@shotbro/contracts";
 import type { ProductionStoragePort, StoredDocument, ToolExecutionRecord } from "@shotbro/ai";
 import type { Db } from "@shotbro/db/client";
 import { agentRun, productionDocument, toolExecution } from "@shotbro/db/schema";
@@ -71,6 +76,77 @@ export class DrizzleProductionStorage implements ProductionStoragePort {
           version: activeV2.version,
           payload: activeV2.payload as Record<string, unknown>,
         };
+      }
+    }
+    if (input.docType === "SCRIPT" && isOrchestratorMockScriptPayload(input.payload)) {
+      const [activeScript] = await this.db
+        .select()
+        .from(productionDocument)
+        .where(
+          and(
+            eq(productionDocument.projectId, input.projectId),
+            eq(productionDocument.docType, "SCRIPT"),
+            eq(productionDocument.status, "ACTIVE"),
+          ),
+        )
+        .limit(1);
+      if (activeScript && isUserAuthoredScriptPayload(activeScript.payload)) {
+        return {
+          id: activeScript.id,
+          docType: activeScript.docType,
+          version: activeScript.version,
+          payload: activeScript.payload as Record<string, unknown>,
+        };
+      }
+    }
+    if (input.docType === "STORYBOARD" && isOrchestratorMockStoryboardPayload(input.payload)) {
+      const [activeTimelineV2] = await this.db
+        .select()
+        .from(productionDocument)
+        .where(
+          and(
+            eq(productionDocument.projectId, input.projectId),
+            eq(productionDocument.docType, "TIMELINE"),
+            eq(productionDocument.schemaVersion, 2),
+            eq(productionDocument.status, "ACTIVE"),
+          ),
+        )
+        .limit(1);
+      const [activeScript] = await this.db
+        .select()
+        .from(productionDocument)
+        .where(
+          and(
+            eq(productionDocument.projectId, input.projectId),
+            eq(productionDocument.docType, "SCRIPT"),
+            eq(productionDocument.status, "ACTIVE"),
+          ),
+        )
+        .limit(1);
+      const [activeStoryboard] = await this.db
+        .select()
+        .from(productionDocument)
+        .where(
+          and(
+            eq(productionDocument.projectId, input.projectId),
+            eq(productionDocument.docType, "STORYBOARD"),
+            eq(productionDocument.status, "ACTIVE"),
+          ),
+        )
+        .limit(1);
+      if (
+        activeTimelineV2 ||
+        (activeScript && isUserAuthoredScriptPayload(activeScript.payload)) ||
+        (activeStoryboard?.payload as { scenes?: unknown[] })?.scenes?.length
+      ) {
+        if (activeStoryboard) {
+          return {
+            id: activeStoryboard.id,
+            docType: activeStoryboard.docType,
+            version: activeStoryboard.version,
+            payload: activeStoryboard.payload as Record<string, unknown>,
+          };
+        }
       }
     }
     if (input.supersedePrevious !== false) {
