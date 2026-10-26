@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { loginRealUser, openRealNewProject, sendRealComposerMessage } from "./helpers/real-login";
+import { applyRealAuthOnce } from "./helpers/real-auth-once";
+import { openRealNewProject, sendRealComposerMessage } from "./helpers/real-login";
 import { enablePhase4AgentForProject } from "./helpers/phase4-rollout";
 import {
   waitForAgentRunPersisted,
@@ -15,10 +16,8 @@ import { seedScriptScene } from "./helpers/phase5-creative-seed";
 test.describe("Phase 5I timeline-driven assembly", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
 
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => localStorage.clear());
-    await loginRealUser(page);
+  test.beforeEach(async ({ page, context }) => {
+    await applyRealAuthOnce(page, context);
   });
 
   test("Timeline edits then mock MP4 assembly", async ({ page }) => {
@@ -77,6 +76,7 @@ test.describe("Phase 5I timeline-driven assembly", () => {
 
     await pinRealProjectOnReload(page, projectId, "chat");
     await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("creative-section-chat").click();
     await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
   });
 });
