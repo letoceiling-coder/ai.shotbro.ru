@@ -1,7 +1,7 @@
 # Phase 5I — Timeline acceptance
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (2026-10-26):** `e893853` (matrix harness, E2E auth/chat fixes)
+**Git HEAD (2026-10-26 UTC):** `526b0ff` (regression: API approvals + agent-waits strict-mode fixes)
 
 ## Runtime (VPS staging)
 
@@ -45,8 +45,9 @@ Runner: `infra/scripts/staging-phase5i-acceptance-e2e.sh` (`PHASE5I_E2E_START_FR
 |-------|---------------------|
 | `phase5-timeline` (desktop, desktop1440, tablet, mobile) | **4/4 PASS** |
 | `phase5-assembly` | **PASS** (13.6 s) |
-| `regression-strict` | **IN PROGRESS / re-run required** after `e893853` (phase3/4 auth + chat tab) |
-| Remaining phase5 suites | Pending green regression |
+| `regression-strict` | **NOT PASS** — resume + full run failed 8/8; root cause `WAITING_PRODUCTION_APPROVAL` + UI strict locator; fix `526b0ff` — **re-run in progress** `/var/log/shotbro-e2e/phase5i-regression-r3.log` |
+| Remaining phase5 suites | Blocked on regression 8/8 |
+| F5 / MP4 browser | **Not signed off** (pending green full acceptance) |
 
 ## Phase 5I close criteria
 
