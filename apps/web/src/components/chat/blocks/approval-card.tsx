@@ -98,6 +98,7 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
               }
               disabled={pending || displayStatus !== "pending"}
               onClick={() => void onAction(action.id)}
+              data-testid={action.id === "approve" ? "approval-action-approve" : undefined}
             >
               {action.label}
             </Button>

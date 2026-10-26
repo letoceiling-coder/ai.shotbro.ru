@@ -5,7 +5,6 @@ import { useStudioStore } from "@/store/studio-store";
 import { CreativeSectionNav } from "./creative-section-nav";
 import { ScriptEditor } from "./sections/script-editor";
 import { BriefSection } from "./sections/brief-section";
-import { PlaceholderSection } from "./sections/placeholder-section";
 import { ModelSettingsSection } from "./sections/model-settings-section";
 import { StoryboardStudio } from "./sections/storyboard-studio";
 import { CharacterStudio } from "./sections/character-studio";
@@ -13,6 +12,7 @@ import { ReferenceManager } from "./sections/reference-manager";
 import { PromptStudio } from "./sections/prompt-studio";
 import { TimelineStudio } from "./sections/timeline-studio";
 import { ProjectAssetsSection } from "./sections/project-assets-section";
+import { ProductionSection } from "./sections/production-section";
 
 export function CreativeWorkspace({ projectId }: { projectId: string }) {
   const section = useStudioStore((s) => s.creativeSection);
@@ -29,9 +29,7 @@ export function CreativeWorkspace({ projectId }: { projectId: string }) {
         {section === "references" ? <ReferenceManager projectId={projectId} /> : null}
         {section === "prompts" ? <PromptStudio projectId={projectId} /> : null}
         {section === "models" ? <ModelSettingsSection projectId={projectId} /> : null}
-        {section === "production" ? (
-          <PlaceholderSection title="Production" phase="5H" hint="Граф, jobs и approvals — см. правую панель и чат." />
-        ) : null}
+        {section === "production" ? <ProductionSection projectId={projectId} /> : null}
         {section === "timeline" ? <TimelineStudio projectId={projectId} /> : null}
         {section === "assets" ? <ProjectAssetsSection projectId={projectId} /> : null}
       </div>

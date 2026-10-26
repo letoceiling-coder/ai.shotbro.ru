@@ -4,13 +4,16 @@ import { tinyPngBuffer } from "./phase5-creative-seed";
 
 export type CreativeSection =
   | "chat"
+  | "brief"
   | "script"
   | "storyboard"
   | "characters"
   | "references"
   | "prompts"
   | "timeline"
-  | "models";
+  | "models"
+  | "production"
+  | "assets";
 
 export async function gotoStudioSection(page: Page, projectId: string, section: CreativeSection) {
   const pinSection =

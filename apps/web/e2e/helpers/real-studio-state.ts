@@ -4,7 +4,18 @@ import type { Page } from "@playwright/test";
 export async function pinRealProjectOnReload(
   page: Page,
   projectId: string,
-  section: "models" | "chat" | "storyboard" | "characters" | "references" | "prompts" | "timeline" | "script" = "models",
+  section:
+    | "models"
+    | "chat"
+    | "brief"
+    | "storyboard"
+    | "characters"
+    | "references"
+    | "prompts"
+    | "timeline"
+    | "script"
+    | "production"
+    | "assets" = "models",
 ) {
   await page.evaluate(
     ([pid, sec]) => {

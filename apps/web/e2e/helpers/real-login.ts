@@ -92,13 +92,19 @@ export async function ensureRealCreateVisible(page: Page) {
   await expect(create).toBeVisible({ timeout: 20_000 });
 }
 
-/** Opens settings and switches studio from DEMO to REAL (mobile-safe). */
+/** Switches studio from DEMO to REAL via header toggle (falls back to settings on mobile). */
 export async function switchToRealMode(page: Page) {
   await page.goto("/studio", { waitUntil: "domcontentloaded" });
-  await openStudioSettings(page);
-  await page.getByRole("button", { name: "REAL", exact: true }).click();
-  await page.keyboard.press("Escape");
-  await expect(page.getByText("локальные сценарии без сервера")).toHaveCount(0, { timeout: 15_000 });
+  await page.evaluate(() => window.localStorage.setItem("shotbro-studio-mode-v1", "REAL"));
+  const headerReal = page.getByRole("button", { name: "REAL", exact: true });
+  if (await headerReal.isVisible().catch(() => false)) {
+    await headerReal.click();
+  } else {
+    await openStudioSettings(page);
+    await page.getByRole("button", { name: "REAL", exact: true }).click();
+    await page.keyboard.press("Escape");
+  }
+  await expect(page.getByRole("button", { name: "Открыть REAL-студию" })).toHaveCount(0, { timeout: 15_000 });
   await ensureRealCreateVisible(page);
 }
 
