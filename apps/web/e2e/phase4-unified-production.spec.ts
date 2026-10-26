@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { loginRealUser, openRealNewProject, sendRealComposerMessage } from "./helpers/real-login";
+import { applyRealAuthOnce } from "./helpers/real-auth-once";
+import { openRealNewProject, sendRealComposerMessage } from "./helpers/real-login";
 import { enablePhase4AgentForProject } from "./helpers/phase4-rollout";
 import {
   waitForAgentRunPersisted,
@@ -13,10 +14,8 @@ import { pinRealProjectOnReload } from "./helpers/real-studio-state";
 test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
   test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
 
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => localStorage.clear());
-    await loginRealUser(page);
+  test.beforeEach(async ({ page, context }) => {
+    await applyRealAuthOnce(page, context);
   });
 
   test("AgentRuntime + orchestrator through mock MP4", async ({ page }) => {
@@ -39,6 +38,7 @@ test.describe("Phase 4 unified agent (REAL, project-scoped)", () => {
 
     await pinRealProjectOnReload(page, projectId, "chat");
     await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("creative-section-chat").click();
     await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
     await expect
       .poll(async () => {
