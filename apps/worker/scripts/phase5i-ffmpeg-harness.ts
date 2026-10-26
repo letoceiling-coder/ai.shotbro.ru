@@ -12,14 +12,14 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import pino from "pino";
 import { resolve } from "node:path";
-import { asset } from "@shotbro/db/schema";
+import { asset, project } from "@shotbro/db/schema";
+import { eq } from "drizzle-orm";
 import type { TimelineDocument } from "../../../packages/contracts/src/production/timeline-schemas.ts";
 import { defaultTimelineTracks } from "../../../packages/contracts/src/production/timeline-schemas.ts";
 import { getWorkerDb } from "../src/db.js";
 import { assembleFromTimeline } from "../src/timeline-assembly.js";
 
 loadEnv({ path: resolve(process.cwd(), "../../.env.production") });
-loadEnv({ path: resolve(process.cwd(), "infra/staging.env") });
 
 const execFileAsync = promisify(execFile);
 const log = pino({ name: "phase5i-harness" });
@@ -142,21 +142,24 @@ async function runAssembly(timeline: TimelineDocument, projectId: string, runId:
   return outFile;
 }
 
-function harnessContext() {
+async function harnessContext() {
   const projectId = process.env.PHASE5I_HARNESS_PROJECT_ID;
-  const workspaceId = process.env.PHASE5I_HARNESS_WORKSPACE_ID;
-  const ownerId = process.env.PHASE5I_HARNESS_OWNER_ID;
-  if (!projectId || !workspaceId || !ownerId) {
-    throw new Error("missing PHASE5I_HARNESS_PROJECT_ID|WORKSPACE_ID|OWNER_ID");
-  }
-  return { projectId, workspaceId, ownerId };
+  if (!projectId) throw new Error("missing PHASE5I_HARNESS_PROJECT_ID");
+  const db = getWorkerDb();
+  const [row] = await db
+    .select({ workspaceId: project.workspaceId, ownerId: project.ownerId })
+    .from(project)
+    .where(eq(project.id, projectId))
+    .limit(1);
+  if (!row) throw new Error(`project_not_found:${projectId}`);
+  return { projectId, workspaceId: row.workspaceId, ownerId: row.ownerId };
 }
 
 async function caseTrim(): Promise<CaseResult> {
   const id = 6;
   const name = "trim";
   try {
-    const { projectId, workspaceId, ownerId } = harnessContext();
+    const { projectId, workspaceId, ownerId } = await harnessContext();
     const src = `/tmp/p5i-trim-src-${randomUUID()}.mp4`;
     await execFileAsync(
       "ffmpeg",
@@ -213,7 +216,7 @@ async function caseTrim(): Promise<CaseResult> {
 }
 
 async function caseVoiceMusic(): Promise<CaseResult[]> {
-  const { projectId, workspaceId, ownerId } = harnessContext();
+  const { projectId, workspaceId, ownerId } = await harnessContext();
   const voice = `/tmp/p5i-voice-${randomUUID()}.wav`;
   const music = `/tmp/p5i-music-${randomUUID()}.wav`;
   await execFileAsync(
@@ -307,7 +310,7 @@ async function caseVoiceMusic(): Promise<CaseResult[]> {
 }
 
 async function caseMissingInvalid(): Promise<CaseResult[]> {
-  const { projectId, workspaceId, ownerId } = harnessContext();
+  const { projectId, workspaceId, ownerId } = await harnessContext();
   const timelineMissing = baseTimeline([
     {
       clipId: "m1",

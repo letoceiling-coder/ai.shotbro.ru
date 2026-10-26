@@ -49,7 +49,12 @@ function mergeCookies(prev, setCookie) {
   await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
   const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "1scene " + Date.now(), mock: true }) }, c);
   const projectId = p.body.id;
-  await j(`/api/v1/projects/${projectId}/scripts`, {}, c);
+  await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Bootstrap" }) }, c);
+  const script = await j(`/api/v1/projects/${projectId}/script`, {}, c);
+  const sceneIds = (script.body?.payload?.scenes ?? []).map((s) => s.id);
+  for (const sid of sceneIds.slice(1)) {
+    await j(`/api/v1/projects/${projectId}/scripts/scenes/${sid}/delete`, { method: "POST", body: "{}" }, c);
+  }
   await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
   await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
   const tl = await j(`/api/v1/projects/${projectId}/timeline`, {}, c);
@@ -121,18 +126,18 @@ function mergeCookies(prev, setCookie) {
   const userId = me.body?.id ?? me.body?.user?.id;
   const workspaceId = detail.body?.workspaceId ?? p.body?.workspaceId;
   const ownerId = detail.body?.ownerId ?? userId;
-  console.log(JSON.stringify({ ok: Boolean(projectId && workspaceId && ownerId), projectId, workspaceId, ownerId }));
+  const ok = Boolean(projectId && workspaceId && ownerId);
+  if (!ok) {
+    console.error(JSON.stringify({ debug: { pStatus: p.status, meStatus: me.status, projectId, workspaceId, ownerId } }));
+  }
+  console.log(JSON.stringify({ ok: Boolean(projectId), projectId, workspaceId, ownerId }));
 })().catch((e) => console.log(JSON.stringify({ ok: false, error: String(e) })));
 NODE
 
-if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harness-ctx.json')).get('ok') else 1)" 2>/dev/null; then
+if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-harness-ctx.json')).get('projectId') else 1)" 2>/dev/null; then
   export PHASE5I_HARNESS_PROJECT_ID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-harness-ctx.json'))['projectId'])")"
-  export PHASE5I_HARNESS_WORKSPACE_ID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-harness-ctx.json'))['workspaceId'])")"
-  export PHASE5I_HARNESS_OWNER_ID="$(python3 -c "import json; print(json.load(open('/tmp/phase5i-matrix-harness-ctx.json'))['ownerId'])")"
   if docker exec \
     -e PHASE5I_HARNESS_PROJECT_ID \
-    -e PHASE5I_HARNESS_WORKSPACE_ID \
-    -e PHASE5I_HARNESS_OWNER_ID \
     -e TIMELINE_MOCK_USE_ASSETS=true \
     ai-shotbro-staging-worker-1 \
     pnpm exec tsx apps/worker/scripts/phase5i-ffmpeg-harness.ts >/tmp/phase5i-matrix-harness.out 2>/tmp/phase5i-matrix-harness.err; then
@@ -176,7 +181,7 @@ function mergeCookies(prev, setCookie) {
   await j("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) }).then((s) => { c = s.cookies; });
   const p = await j("/api/v1/projects", { method: "POST", body: JSON.stringify({ title: "dup " + Date.now(), mock: true }) }, c);
   const projectId = p.body.id;
-  await j(`/api/v1/projects/${projectId}/scripts`, {}, c);
+  await j(`/api/v1/projects/${projectId}/scripts/scenes`, { method: "POST", body: JSON.stringify({ title: "Dup bootstrap" }) }, c);
   await j(`/api/v1/projects/${projectId}/storyboard/sync`, { method: "POST", body: "{}" }, c);
   await j(`/api/v1/projects/${projectId}/timeline/sync-from-storyboard`, { method: "POST", body: "{}" }, c);
   const a = await j(`/api/v1/projects/${projectId}/timeline/prepare-assembly`, { method: "POST", body: "{}" }, c);
@@ -224,8 +229,9 @@ const password = process.env.INTEGRATION_USER_A_PASSWORD ?? process.env.E2E_TEST
   const j1 = await read();
   const j2 = await read();
   const list = (j) => (Array.isArray(j) ? j : j.items ?? []);
-  const hit = (j) => list(j).some((a) => a.id === assetId);
-  console.log(JSON.stringify({ ok: hit(j1) && hit(j2) }));
+  const hit = (j) =>
+    list(j).some((a) => a.id === assetId && (a.mimeType === "video/mp4" || String(a.originalName ?? "").includes("mock")));
+  console.log(JSON.stringify({ ok: hit(j1) && hit(j2), assetId, count1: list(j1).length }));
 })().catch(() => console.log(JSON.stringify({ ok: false })));
 NODE
     if python3 -c "import json; exit(0 if json.load(open('/tmp/phase5i-matrix-persist.json')).get('ok') else 1)" 2>/dev/null; then
