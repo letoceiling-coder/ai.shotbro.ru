@@ -6,6 +6,7 @@ LOG="${2:-/var/log/shotbro-e2e/phase5i-acceptance.log}"
 DIR="$(dirname "$0")"
 mkdir -p "$(dirname "$LOG")"
 : >"$LOG"
+rm -f "$ROOT/apps/web/e2e/.auth/real-user.json"
 
 modes=(
   phase5-timeline

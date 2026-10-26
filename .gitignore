@@ -18,6 +18,7 @@ backups/
 secrets/
 coverage
 playwright-report
+apps/web/e2e/.auth/
 test-results
 storybook-static
 phase2-deploy.tgz
