@@ -76,17 +76,22 @@ test.describe("Phase 5J asset library", () => {
         return;
       }
 
-      await uploadViaLibraryButton(page, {
-        name: "e2e-button.png",
-        mimeType: "image/png",
-        buffer: tinyPngBuffer(),
+      await test.step("Upload via «Загрузить» (file input)", async () => {
+        await expect(page.getByTestId("asset-upload")).toBeEnabled();
+        await uploadViaLibraryButton(page, {
+          name: "e2e-button.png",
+          mimeType: "image/png",
+          buffer: tinyPngBuffer(),
+        });
       });
       await pollAssetReady(page, projectId, "e2e-button.png", "e2e-button", 120_000);
 
-      await uploadViaLibraryDrop(page, {
-        name: "e2e-library.png",
-        mimeType: "image/png",
-        buffer: tinyPngBuffer(),
+      await test.step("Upload via drag-and-drop", async () => {
+        await uploadViaLibraryDrop(page, {
+          name: "e2e-library.png",
+          mimeType: "image/png",
+          buffer: tinyPngBuffer(),
+        });
       });
       await pollAssetReady(page, projectId, "e2e-library.png", "e2e-library", 120_000);
 
