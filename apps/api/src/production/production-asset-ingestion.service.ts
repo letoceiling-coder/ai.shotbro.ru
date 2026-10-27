@@ -7,6 +7,7 @@ import type { Db } from "@shotbro/db/client";
 import { asset, assetVersion } from "@shotbro/db/schema";
 import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
+import { AssetsService } from "../assets/assets.service";
 import { loadApiEnv } from "../env";
 
 @Injectable()
@@ -28,6 +29,7 @@ export class ProductionAssetIngestionService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(AccessPolicyService) private readonly access: AccessPolicyService,
+    @Inject(AssetsService) private readonly assets: AssetsService,
   ) {}
 
   async ingestMockProviderOutput(input: {
@@ -40,6 +42,7 @@ export class ProductionAssetIngestionService {
     originalName: string;
     providerJobId: string;
     graphNodeId?: string;
+    parentAssetIds?: string[];
   }) {
     await this.access.assertProjectAccess(this.db, input.userId, input.projectId);
     const validated = await this.guard.ingestFromFixture(
@@ -87,6 +90,12 @@ export class ProductionAssetIngestionService {
         graphNodeId: input.graphNodeId,
       },
     });
+
+    for (const parentId of input.parentAssetIds ?? []) {
+      if (parentId && parentId !== assetId) {
+        await this.assets.recordRelation(parentId, assetId, "generated_from");
+      }
+    }
 
     return { assetId, storageKey, mock: true as const };
   }

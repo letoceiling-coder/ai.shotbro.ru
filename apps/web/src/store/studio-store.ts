@@ -39,6 +39,9 @@ interface StudioState {
   setCreativeSection: (section: CreativeSection) => void;
   creativePromptSceneId: string | null;
   setCreativePromptSceneId: (id: string | null) => void;
+  /** Asset Library → Timeline: pre-fill clip assignment */
+  pendingTimelineAssetId: string | null;
+  setPendingTimelineAssetId: (id: string | null) => void;
   sidebarCollapsed: boolean;
   qualityStrategy: QualityStrategy;
   adStages: AdStageMap;
@@ -95,6 +98,8 @@ export const useStudioStore = create<StudioState>()(
       setCreativeSection: (creativeSection) => set({ creativeSection }),
       creativePromptSceneId: null,
       setCreativePromptSceneId: (creativePromptSceneId) => set({ creativePromptSceneId }),
+      pendingTimelineAssetId: null,
+      setPendingTimelineAssetId: (pendingTimelineAssetId) => set({ pendingTimelineAssetId }),
       sidebarCollapsed: false,
       qualityStrategy: "balance",
       adStages: { "demo-ad": "initial" },

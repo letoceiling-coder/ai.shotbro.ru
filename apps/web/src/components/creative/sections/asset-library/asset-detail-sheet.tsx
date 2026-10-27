@@ -54,6 +54,7 @@ export function AssetDetailSheet({
   const patchScene = usePatchStoryboardScene(projectId);
   const { data: storyboard } = useActiveStoryboard(projectId);
   const setSection = useStudioStore((s) => s.setCreativeSection);
+  const setPendingTimelineAssetId = useStudioStore((s) => s.setPendingTimelineAssetId);
   const [nameDraft, setNameDraft] = useState("");
   const { data: playUrl } = useQuery({
     queryKey: ["asset-play", assetId],
@@ -228,11 +229,30 @@ export function AssetDetailSheet({
                     >
                       В референсы
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid="asset-add-style-reference"
+                      onClick={() =>
+                        void attachRef.mutateAsync({ assetId: data.id, role: "STYLE" })
+                      }
+                    >
+                      STYLE ref
+                    </Button>
                   </>
                 ) : null}
                 {data.mimeType.startsWith("video/") ? (
-                  <Button size="sm" variant="outline" onClick={() => setSection("timeline")}>
-                    <ExternalLink className="mr-1 h-3 w-3" /> Timeline
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-testid="asset-add-to-timeline"
+                    onClick={() => {
+                      setPendingTimelineAssetId(data.id);
+                      setSection("timeline");
+                      onOpenChange(false);
+                    }}
+                  >
+                    <ExternalLink className="mr-1 h-3 w-3" /> В Timeline
                   </Button>
                 ) : null}
                 <Button

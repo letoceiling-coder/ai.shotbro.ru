@@ -107,6 +107,17 @@ export class ProviderJobsService {
     const [proj] = await this.db.select().from(project).where(eq(project.id, job.projectId)).limit(1);
     if (!proj) return;
     const out = mockProviderOutputBytes(job.providerId);
+    const rawInput = (job.input ?? {}) as Record<string, unknown>;
+    const parentAssetIds: string[] = [];
+    for (const key of ["firstFrameAssetId", "lastFrameAssetId", "image", "sourceAssetId"] as const) {
+      const v = rawInput[key];
+      if (typeof v === "string" && v.length > 0) parentAssetIds.push(v);
+    }
+    if (Array.isArray(rawInput.referenceAssetIds)) {
+      for (const id of rawInput.referenceAssetIds) {
+        if (typeof id === "string" && id.length > 0) parentAssetIds.push(id);
+      }
+    }
     const ingested = await this.ingestion.ingestMockProviderOutput({
       userId,
       projectId: job.projectId,
@@ -117,6 +128,7 @@ export class ProviderJobsService {
       originalName: out.originalName,
       providerJobId: job.id,
       graphNodeId: job.graphNodeId ?? undefined,
+      parentAssetIds: [...new Set(parentAssetIds)],
     });
     const store = new DrizzleProviderJobStore(this.db);
     await store.update(job.id, {

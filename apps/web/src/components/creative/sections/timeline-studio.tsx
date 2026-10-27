@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ type TimelineRow = {
 export function TimelineStudio({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
   const setSection = useStudioStore((s) => s.setCreativeSection);
+  const pendingTimelineAssetId = useStudioStore((s) => s.pendingTimelineAssetId);
+  const setPendingTimelineAssetId = useStudioStore((s) => s.setPendingTimelineAssetId);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [draft, setDraft] = useState<TimelineDocument | null>(null);
@@ -61,6 +63,7 @@ export function TimelineStudio({ projectId }: { projectId: string }) {
       qc.setQueryData(["timeline", projectId], row);
       setDraft(null);
       setDirty(false);
+      setLibraryAssignAssetId(null);
     },
   });
 
@@ -81,6 +84,35 @@ export function TimelineStudio({ projectId }: { projectId: string }) {
   });
 
   const videoAssets = (assets ?? []).filter((a) => a.mimeType.startsWith("video/"));
+
+  const [libraryAssignAssetId, setLibraryAssignAssetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingTimelineAssetId || !data?.payload) return;
+    const base = data.payload;
+    const track = base.tracks.find((t) => t.type === "VIDEO");
+    const clip = track?.clips?.slice().sort((a, b) => a.order - b.order)[0];
+    if (!clip) {
+      setPendingTimelineAssetId(null);
+      return;
+    }
+    setSelectedClipId(clip.clipId);
+    const tracks = base.tracks.map((t) => {
+      if (t.type !== "VIDEO") return t;
+      return {
+        ...t,
+        clips: t.clips.map((c) =>
+          c.clipId === clip.clipId
+            ? { ...c, assetId: pendingTimelineAssetId, status: "ready" as const }
+            : c,
+        ),
+      };
+    });
+    setDraft({ ...base, tracks });
+    setDirty(true);
+    setLibraryAssignAssetId(pendingTimelineAssetId);
+    setPendingTimelineAssetId(null);
+  }, [pendingTimelineAssetId, data?.payload, setPendingTimelineAssetId]);
 
   const updateClip = (patch: Partial<TimelineClip>) => {
     if (!doc || !selected) return;
@@ -139,6 +171,11 @@ export function TimelineStudio({ projectId }: { projectId: string }) {
           <Badge variant="outline" className="border-amber-500/60 text-amber-700 dark:text-amber-400">
             unsaved
           </Badge>
+        ) : null}
+        {libraryAssignAssetId ? (
+          <p className="w-full text-xs text-muted-foreground" data-testid="timeline-pending-asset-hint">
+            Asset из библиотеки назначен первому video-клипу — проверьте клип и нажмите Save.
+          </p>
         ) : null}
         <div className="ml-auto flex flex-wrap gap-2">
           <Button type="button" size="sm" variant="outline" data-testid="timeline-sync-storyboard" onClick={() => sync.mutate()}>

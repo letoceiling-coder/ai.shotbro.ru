@@ -120,8 +120,7 @@ export class AssetsService {
       .select()
       .from(asset)
       .where(and(eq(asset.projectId, projectId), isNull(asset.deletedAt)))
-      .orderBy(desc(asset.createdAt))
-      .limit(500);
+      .orderBy(desc(asset.createdAt));
 
     if (query?.q?.trim()) {
       const q = query.q.trim().toLowerCase();
