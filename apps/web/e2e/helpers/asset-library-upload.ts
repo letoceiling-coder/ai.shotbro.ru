@@ -27,20 +27,14 @@ export async function waitForUploadPipeline(page: Page) {
  * on the same input and dispatch change (browser manual upload uses native chooser + onChange).
  */
 export async function uploadViaLibraryButton(page: Page, file: UploadFilePayload) {
-  const input = page.getByTestId("asset-library-file-input");
   await expect(page.getByTestId("asset-upload")).toBeEnabled();
   const initPromise = uploadInitResponse(page);
   const completePromise = uploadCompleteResponse(page);
-  const chooserDone = page
-    .waitForEvent("filechooser", { timeout: 8_000 })
-    .then(async (chooser) => {
-      await chooser.setFiles(file);
-    })
-    .catch(async () => {
-      await input.setInputFiles(file);
-    });
-  await page.getByTestId("asset-upload").click();
-  await chooserDone;
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: 30_000 }),
+    page.getByTestId("asset-upload").click(),
+  ]);
+  await chooser.setFiles(file);
   await initPromise;
   await completePromise;
 }
