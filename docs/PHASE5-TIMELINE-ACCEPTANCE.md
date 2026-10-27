@@ -1,7 +1,7 @@
 # Phase 5I — Timeline acceptance
 
 **Status:** **ACCEPTED** (2026-10-27)  
-**Branch:** `phase5/creative-studio` · **Git HEAD:** `a2395a9`
+**Branch:** `phase5/creative-studio` · **Git HEAD:** `3eb89d3`
 
 ## Runtime (VPS staging)
 
@@ -9,7 +9,7 @@
 |---------|-------------------------|
 | API | **6aaab0a** |
 | Worker | **6aaab0a** |
-| Web | **a2395a9** |
+| Web | **3eb89d3** |
 
 **Policy:** mock-only AI; no live provider spend.
 

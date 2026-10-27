@@ -1,6 +1,6 @@
 # Phase 5 — Approval revision integrity (Storyboard Sync)
 
-**Status:** **ACCEPTED** on staging 2026-10-27 · API/worker **6aaab0a** · web **a2395a9** · git **a2395a9**
+**Status:** **ACCEPTED** on staging 2026-10-27 · API/worker **6aaab0a** · web **3eb89d3** · git **3eb89d3**
 
 ## Root cause (P0 user journey r2–r4)
 
@@ -48,9 +48,9 @@ Mitigation: `ensureTimelineForProduction` + worker FAILED state. Re-run `regress
 - [x] `phase5-user-journey` **4/4 PASS** — log `phase5-user-journey-b68527c.log` (Sync + scene edit + idempotent sync)
 - [x] `regression-strict` **8/8 PASS** — log `regression-strict-6aaab0a.log` (~9.4m)
 - [x] Full Phase 5 module suites — `phase5i-signoff-suites.log` → **ALL_PASS**
-- [x] Runtime SHA: API/worker **6aaab0a**, web **a2395a9**, git **a2395a9**
+- [x] Runtime SHA: API/worker **6aaab0a**, web **3eb89d3**, git **3eb89d3**
 
-## Approval UX (web a2395a9)
+## Approval UX (web 3eb89d3)
 
 - `ApprovalCard` loads `/api/v1/projects/:id/approvals` and maps **EXPIRED** → badge «Устарело», `data-approval-status="expired"`, disabled buttons.
 - Hint when stale: «Версия документа изменилась — подтвердите актуальную карточку ниже.»

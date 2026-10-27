@@ -3,7 +3,7 @@
 **Status:** **ACCEPTED** (modules 5D–5F, 2026-10-25) · **P0 REAL Creative Workspace ACCEPTED** (2026-10-27)  
 **Site:** https://ai.shotbro.ru/studio  
 **Branch:** `phase5/creative-studio`  
-**Git HEAD:** `a2395a9` · **Runtime web:** `a2395a9` / **API·worker:** `6aaab0a`
+**Git HEAD:** `3eb89d3` · **Runtime web:** `3eb89d3` / **API·worker:** `6aaab0a`
 
 ## P0 REAL user journey (2026-10-27)
 

@@ -1,7 +1,7 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (VPS, 2026-10-27):** `a2395a9`  
+**Git HEAD (VPS, 2026-10-27):** `3eb89d3`  
 **Phase 5I:** **ACCEPTED**  
 **P0 UI Recovery:** **ACCEPTED**
 
@@ -11,11 +11,11 @@
 |---------|-------------------------|--------|
 | API | **6aaab0a** | Storyboard revision → approval integrity, timeline ensure |
 | Worker | **6aaab0a** | `production.run` → **FAILED** on assembly error (no infinite PRODUCING) |
-| Web | **a2395a9** (deploy target) · prior **6aaab0a** | Approval card hydrates **EXPIRED** from API; Creative + Production UI |
+| Web | **3eb89d3** | Approval card hydrates **EXPIRED** from API; Creative + Production UI · deploy log `deploy-web-3eb89d3.log` |
 
 **Mock policy:** `AI_MOCK_MODE=true`, live providers off — **0 paid AI calls**.
 
-**VPS disk (2026-10-27):** `/dev/vda1` **~71%** used, **~35 GB** free.
+**VPS disk (2026-10-27):** `/dev/vda1` **~74%** used, **~31 GB** free.
 
 ## Phase 5I sign-off evidence (`retries=0`)
 
@@ -59,7 +59,9 @@ Runner: `infra/scripts/staging-phase5-signoff-suites.sh` · consolidated log **`
 
 ## Visual acceptance (2026-10-27)
 
-Browser smoke: https://ai.shotbro.ru/studio — DEMO banner + REAL entry; full REAL creative path covered by Playwright journey + module suites. Screenshots optional in `apps/web/test-results/` on VPS after E2E.
+Browser smoke (2026-10-27): https://ai.shotbro.ru/studio — DEMO banner, chat blocks, REAL entry CTA. Full REAL path (Chat → Storyboard → Timeline → Production → Assets, approvals, MP4, F5): **`phase5-user-journey-b68527c.log`**. Manual REAL browser requires login; EXPIRED hydration verified after web **3eb89d3** deploy.
+
+Screenshot: [`phase5i-visual/studio-demo-chat-2026-10-27.png`](phase5i-visual/studio-demo-chat-2026-10-27.png)
 
 ## Remaining blockers
 
