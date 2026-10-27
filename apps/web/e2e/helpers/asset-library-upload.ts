@@ -28,6 +28,10 @@ export async function uploadViaLibraryFilePicker(page: Page, file: UploadFilePay
   const initPromise = uploadInitResponse(page);
   const completePromise = uploadCompleteResponse(page);
   await input.setInputFiles(file);
+  await input.evaluate((el) => {
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   await initPromise;
   await completePromise;
 }
