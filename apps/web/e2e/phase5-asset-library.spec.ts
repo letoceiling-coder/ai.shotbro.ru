@@ -34,12 +34,14 @@ async function expectTimelineClipUsesAsset(page: Page, projectId: string, assetI
   const tl = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
   expect(tl.ok()).toBeTruthy();
   const body = (await tl.json()) as {
-    payload?: { tracks?: Array<{ clips?: Array<{ assetId?: string; clipId?: string }> }> };
-    revision?: number;
+    payload?: {
+      revision?: number;
+      tracks?: Array<{ clips?: Array<{ assetId?: string; clipId?: string }> }>;
+    };
   };
   const clips = body.payload?.tracks?.flatMap((t) => t.clips ?? []) ?? [];
   expect(clips.some((c) => c.assetId === assetId)).toBe(true);
-  expect(typeof body.revision).toBe("number");
+  expect(typeof body.payload?.revision).toBe("number");
 }
 
 test.describe("Phase 5J asset library", () => {
