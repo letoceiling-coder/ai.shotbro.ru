@@ -64,7 +64,17 @@ export class ProviderJobsService {
       input: input.payload,
       userId: input.userId,
     });
-    await this.ingestMockOutputsIfNeeded(await new DrizzleProviderJobStore(this.db).get(job.id));
+    const store = new DrizzleProviderJobStore(this.db);
+    const inserted = await store.get(job.id);
+    if (inserted) {
+      await store.update(job.id, {
+        metadata: { ...(inserted.metadata ?? {}), toolInput: input.payload },
+        expectedVersion: inserted.version,
+        version: inserted.version + 1,
+        updatedAt: new Date(),
+      });
+    }
+    await this.ingestMockOutputsIfNeeded(await store.get(job.id));
     const fresh = await new DrizzleProviderJobStore(this.db).get(job.id);
     return { providerJobId: job.id, status: fresh?.status ?? job.status };
   }
@@ -107,7 +117,8 @@ export class ProviderJobsService {
     const [proj] = await this.db.select().from(project).where(eq(project.id, job.projectId)).limit(1);
     if (!proj) return;
     const out = mockProviderOutputBytes(job.providerId);
-    const rawInput = (job.input ?? {}) as Record<string, unknown>;
+    const rawInput = ((job.metadata as { toolInput?: Record<string, unknown> } | undefined)?.toolInput ??
+      {}) as Record<string, unknown>;
     const parentAssetIds: string[] = [];
     for (const key of ["firstFrameAssetId", "lastFrameAssetId", "image", "sourceAssetId"] as const) {
       const v = rawInput[key];
