@@ -34,10 +34,10 @@ async function expectTimelineClipUsesAsset(page: Page, projectId: string, assetI
   const tl = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
   expect(tl.ok()).toBeTruthy();
   const body = (await tl.json()) as {
-    payload?: { clips?: Array<{ assetId?: string; clipId?: string }> };
+    payload?: { tracks?: Array<{ clips?: Array<{ assetId?: string; clipId?: string }> }> };
     revision?: number;
   };
-  const clips = body.payload?.clips ?? [];
+  const clips = body.payload?.tracks?.flatMap((t) => t.clips ?? []) ?? [];
   expect(clips.some((c) => c.assetId === assetId)).toBe(true);
   expect(typeof body.revision).toBe("number");
 }
@@ -151,6 +151,7 @@ test.describe("Phase 5J asset library", () => {
       await expect(page.getByTestId("asset-detail-sheet")).toBeVisible();
       await page.getByTestId("asset-add-to-timeline").click();
       await expect(page.getByTestId("timeline-pending-asset-hint")).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId("timeline-save")).toBeEnabled({ timeout: 20_000 });
       await Promise.all([
         page.waitForResponse(
           (r) =>
