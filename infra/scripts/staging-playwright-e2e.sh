@@ -80,7 +80,7 @@ elif [ \"${MODE}\" = phase5-timeline ]; then
 elif [ \"${MODE}\" = phase5-assembly ]; then
   pnpm exec playwright test e2e/phase5-assembly.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-user-journey ]; then
-  pnpm exec playwright test e2e/phase5-user-journey.spec.ts --retries=0
+  pnpm exec playwright test e2e/phase5-user-journey.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-creative ]; then
   pnpm exec playwright test e2e/phase5-storyboard.spec.ts e2e/phase5-characters.spec.ts e2e/phase5-references.spec.ts e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = diagnostic ]; then

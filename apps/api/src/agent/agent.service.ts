@@ -352,6 +352,7 @@ export class AgentService {
         const [runRow] = await this.db.select().from(agentRun).where(eq(agentRun.id, input.runId)).limit(1);
         const meta = (runRow?.metadata ?? {}) as { productionEnqueued?: boolean; traceId?: string };
         if (meta.productionEnqueued) return;
+        await this.timeline.ensureTimelineForProduction(input.userId, input.projectId);
         await this.graph.startProductionRun(input.userId, input.projectId, input.runId);
         const [afterStart] = await this.db.select().from(agentRun).where(eq(agentRun.id, input.runId)).limit(1);
         const merged = (afterStart?.metadata ?? meta) as Record<string, unknown>;
