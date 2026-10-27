@@ -22,14 +22,16 @@ function tinyMp4Buffer() {
 let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
 async function uploadViaLibraryInput(page: import("@playwright/test").Page, file: { name: string; mimeType: string; buffer: Buffer }) {
-  const input = page.getByTestId("asset-library-file-input");
-  // Do not click asset-upload — it opens the native chooser and blocks setInputFiles in headless runs.
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: 30_000 }),
+    page.getByTestId("asset-upload").click(),
+  ]);
   await Promise.all([
     page.waitForResponse(
       (r) => r.url().includes("/api/v1/uploads/init") && r.request().method() === "POST" && r.ok(),
       { timeout: 60_000 },
     ),
-    input.setInputFiles(file),
+    chooser.setFiles(file),
   ]);
   await page.waitForResponse(
     (r) => r.url().includes("/api/v1/uploads/") && r.url().includes("/complete") && r.ok(),
