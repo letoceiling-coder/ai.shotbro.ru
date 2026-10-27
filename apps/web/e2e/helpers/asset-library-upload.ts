@@ -13,12 +13,23 @@ export async function waitForUploadPipeline(page: Page) {
   );
 }
 
-/** REAL UI: Assets → «Загрузить» → native file chooser (Playwright filechooser API). */
+/**
+ * REAL UI: Assets → «Загрузить» (button) → file selected on hidden input.
+ * Headless Playwright often does not wire native chooser → React onChange; after click we set files
+ * on the same input and dispatch change (browser manual upload uses native chooser + onChange).
+ */
 export async function uploadViaLibraryButton(page: Page, file: UploadFilePayload) {
-  const chooserPromise = page.waitForEvent("filechooser", { timeout: 30_000 });
-  await page.getByTestId("asset-upload").click();
-  const chooser = await chooserPromise;
-  await Promise.all([waitForUploadPipeline(page), chooser.setFiles(file)]);
+  const input = page.getByTestId("asset-library-file-input");
+  await Promise.all([
+    waitForUploadPipeline(page),
+    (async () => {
+      await page.getByTestId("asset-upload").click();
+      await input.setInputFiles(file);
+      await input.evaluate((el) => {
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    })(),
+  ]);
 }
 
 /** REAL UI: drag-and-drop onto library root (same handler as browser drop). */

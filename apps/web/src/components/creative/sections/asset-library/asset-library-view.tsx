@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { AssetSummary } from "@shotbro/contracts";
 import { Grid2X2, LayoutList, Search, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,7 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploadInputId = useId();
   const upload = useRealUpload(projectId);
   const { data, isLoading, isFetching, refetch } = useAssetLibrary(projectId, filters, cursor);
   const [items, setItems] = useState<AssetSummary[]>([]);
@@ -104,9 +105,10 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
             </Button>
             <input
               ref={fileRef}
+              id={uploadInputId}
               type="file"
               multiple
-              className="hidden"
+              className="sr-only"
               data-testid="asset-library-file-input"
               onChange={(e) => {
                 const files = e.target.files;
@@ -114,14 +116,11 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
                 if (files?.length) void onDrop(files);
               }}
             />
-            <Button
-              size="sm"
-              disabled={upload.isPending}
-              data-testid="asset-upload"
-              onClick={() => fileRef.current?.click()}
-            >
-              <Upload className="mr-1 h-4 w-4" />
-              {upload.isPending ? `Загрузка ${upload.progressPct ?? 0}%` : "Загрузить"}
+            <Button size="sm" disabled={upload.isPending} data-testid="asset-upload" asChild>
+              <label htmlFor={uploadInputId} className="cursor-pointer">
+                <Upload className="mr-1 h-4 w-4" />
+                {upload.isPending ? `Загрузка ${upload.progressPct ?? 0}%` : "Загрузить"}
+              </label>
             </Button>
           </div>
         </div>
