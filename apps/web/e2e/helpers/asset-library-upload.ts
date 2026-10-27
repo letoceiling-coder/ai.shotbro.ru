@@ -21,13 +21,15 @@ export async function waitForUploadPipeline(page: Page) {
   await uploadCompleteResponse(page);
 }
 
-/** REAL UI: «Загрузить» label → `#uploadInput` — setInputFiles on linked input (no DnD). */
+/** REAL UI: «Загрузить» → filechooser (no DnD). */
 export async function uploadViaLibraryFilePicker(page: Page, file: UploadFilePayload) {
-  const input = page.getByTestId("asset-library-file-input");
   await expect(page.getByTestId("asset-upload")).toBeEnabled();
   const initPromise = uploadInitResponse(page);
   const completePromise = uploadCompleteResponse(page);
-  await input.setInputFiles(file, { force: true });
+  const fileChooserPromise = page.waitForEvent("filechooser", { timeout: 30_000 });
+  await page.getByTestId("asset-upload").click();
+  const chooser = await fileChooserPromise;
+  await chooser.setFiles(file);
   await initPromise;
   await completePromise;
 }

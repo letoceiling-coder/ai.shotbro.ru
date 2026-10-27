@@ -67,22 +67,6 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
     [upload, refetch],
   );
 
-  useEffect(() => {
-    const el = fileRef.current;
-    if (!el) return;
-    const handle = () => {
-      const files = el.files;
-      el.value = "";
-      if (files?.length) void onDrop(files);
-    };
-    el.addEventListener("change", handle);
-    el.addEventListener("input", handle);
-    return () => {
-      el.removeEventListener("change", handle);
-      el.removeEventListener("input", handle);
-    };
-  }, [onDrop]);
-
   return (
     <div
       className="flex min-h-0 flex-1 flex-col"
@@ -126,6 +110,11 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
               multiple
               className="sr-only"
               data-testid="asset-library-file-input"
+              onChange={(e) => {
+                const files = e.target.files;
+                e.target.value = "";
+                if (files?.length) void onDrop(files);
+              }}
             />
             <Button size="sm" disabled={upload.isPending} data-testid="asset-upload" asChild>
               <label htmlFor={uploadInputId} className="cursor-pointer">
