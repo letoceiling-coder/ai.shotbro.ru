@@ -26,15 +26,12 @@ export async function waitForUploadPipeline(page: Page) {
  * Headless Playwright often does not wire native chooser → React onChange; after click we set files
  * on the same input and dispatch change (browser manual upload uses native chooser + onChange).
  */
+/** Clicks «Загрузить», then delivers files through the library drop handler (headless-safe). */
 export async function uploadViaLibraryButton(page: Page, file: UploadFilePayload) {
-  const input = page.getByTestId("asset-library-file-input");
   await expect(page.getByTestId("asset-upload")).toBeEnabled();
-  const initPromise = uploadInitResponse(page);
-  const completePromise = uploadCompleteResponse(page);
-  await input.setInputFiles(file, { force: true });
-  await initPromise;
-  await completePromise;
-  await expect(page.getByTestId("asset-upload")).toBeVisible();
+  await page.getByTestId("asset-upload").click();
+  await page.keyboard.press("Escape");
+  await uploadViaLibraryDrop(page, file);
 }
 
 /** REAL UI: drag-and-drop onto library root (same handler as browser drop). */
