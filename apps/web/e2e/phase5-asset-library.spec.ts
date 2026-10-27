@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { test, expect, type BrowserContext } from "@playwright/test";
 import { acceptanceScreenshot } from "./helpers/acceptance-artifacts";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
@@ -11,12 +13,14 @@ const viewports = [
   { name: "mobile390", width: 390, height: 844 },
 ] as const;
 
-/** Minimal valid MP4 (ftyp + empty mdat) for upload MIME validation */
-function tinyMp4Buffer() {
-  return Buffer.from(
-    "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZGF0YQAAAAA=",
-    "base64",
-  );
+/** Real demo clip — minimal synthetic MP4 never reaches READY in worker/ffmpeg. */
+function demoMp4UploadFile() {
+  const demoPath = path.join(process.cwd(), "public/demo-assets/shotbro-demo.mp4");
+  return {
+    name: "e2e-clip.mp4",
+    mimeType: "video/mp4",
+    buffer: fs.readFileSync(demoPath),
+  };
 }
 
 let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
@@ -138,11 +142,7 @@ test.describe("Phase 5J asset library", () => {
       await uploadImageViaPicker(page);
 
       await gotoStudioSection(page, projectId, "assets");
-      await uploadViaLibraryDrop(page, {
-        name: "e2e-clip.mp4",
-        mimeType: "video/mp4",
-        buffer: tinyMp4Buffer(),
-      });
+      await uploadViaLibraryDrop(page, demoMp4UploadFile());
 
       await expect
         .poll(async () => {

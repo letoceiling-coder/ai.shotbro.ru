@@ -1,7 +1,7 @@
 # Phase 5J — Asset Library acceptance
 
 **Status:** **NOT ACCEPTED** (stabilization in progress)  
-**Git (target):** `cc5abbf` · **VPS pulled:** `b076f47` → pending `cc5abbf`  
+**Git (VPS E2E):** `ee0a0b8`+ (upload via DnD; storyboard selector fixes in flight)  
 **Branch:** `phase5/creative-studio`
 
 ## Deployment
@@ -30,7 +30,9 @@
 - **Desktop-only** project for asset-library (viewport smokes still inside spec)
 - Poll **`READY`** via paginated API before UI card assert (180s)
 
-**Re-run log (pending):** `/var/log/shotbro-e2e/phase5-asset-library-cc5abbf.log`
+**Latest E2E logs:** `phase5-asset-library-8411143.log` (upload OK, storyboard selector FAIL) · `ee0a0b8.log`
+
+**Upload RCA:** Native file chooser / hidden `input` did not trigger React upload on staging; **drag-drop `DataTransfer`** on `asset-library` works (`8411143`).
 
 ## Viewport / IDOR coverage (intended)
 
