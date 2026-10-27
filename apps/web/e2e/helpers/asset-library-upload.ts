@@ -31,6 +31,11 @@ export async function uploadViaLibraryFilePicker(page: Page, file: UploadFilePay
     page.getByTestId("asset-upload").click(),
   ]);
   await chooser.setFiles(file);
+  await page.getByTestId("asset-library-file-input").evaluate((el) => {
+    if (el instanceof HTMLInputElement && el.files?.length) {
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
   await initPromise;
   await completePromise;
 }

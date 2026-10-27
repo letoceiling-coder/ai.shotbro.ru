@@ -76,7 +76,11 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
       if (files?.length) void onDrop(files);
     };
     el.addEventListener("change", handle);
-    return () => el.removeEventListener("change", handle);
+    el.addEventListener("input", handle);
+    return () => {
+      el.removeEventListener("change", handle);
+      el.removeEventListener("input", handle);
+    };
   }, [onDrop]);
 
   return (
