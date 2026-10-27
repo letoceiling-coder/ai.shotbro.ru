@@ -1,84 +1,77 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Remote repo HEAD (VPS):** `cd54b1f` (API TIMELINE fix); **P0 UX recovery** in progress (DEMO/REAL discoverability)  
-**Acceptance date:** 2026-10-26 (5I gate in progress; UI recovery not DONE)  
+**Git HEAD (VPS, 2026-10-27):** `a2395a9`  
+**Phase 5I:** **ACCEPTED**  
+**P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)
 
-| Service | Build / image | Notes |
-|---------|----------------|--------|
-| Web | `shotbro/web:current` · build **`c2e9420`** | Creative studio + timeline UI |
-| API | `shotbro/api:current` · build **`033aeae`** | Timeline v2, scene-id guards |
-| Worker | `shotbro/worker:current` · build **`af5315f`** · image `fd41ee9b3c0f` | Timeline FFmpeg + harness |
-| E2E runner scripts | `e893853` | Matrix + `staging-phase5i-acceptance-e2e.sh` |
+| Service | `org.shotbro.build-sha` | Notes |
+|---------|-------------------------|--------|
+| API | **6aaab0a** | Storyboard revision → approval integrity, timeline ensure |
+| Worker | **6aaab0a** | `production.run` → **FAILED** on assembly error (no infinite PRODUCING) |
+| Web | **a2395a9** (deploy target) · prior **6aaab0a** | Approval card hydrates **EXPIRED** from API; Creative + Production UI |
 
-**Policy (verified on API container, values redacted):** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `OPENROUTER_ENABLED=false`, `OPENROUTER_ALLOW_PAID_REQUESTS=false`. Per-provider live switches off. **Live AI calls: 0.** No production cutover.
+**Mock policy:** `AI_MOCK_MODE=true`, live providers off — **0 paid AI calls**.
 
-**VPS disk:** `/dev/vda1` **67%** used (~39G free, 2026-10-26). Worker rollback retained from pre-`af5315f` promote.
+**VPS disk (2026-10-27):** `/dev/vda1` **~71%** used, **~35 GB** free.
+
+## Phase 5I sign-off evidence (`retries=0`)
+
+| Suite | Result | Exit | Log |
+|-------|--------|------|-----|
+| FFmpeg matrix | **14/14 PASS** | 0 | `/tmp/phase5i-ffmpeg-matrix.json` (prior run) |
+| Scene ID integration | **PASS** | 0 | `staging-phase5i-scene-id-integration.sh` |
+| Timeline assembly A→C→B | **PASS** | 0 | harness / r10 artifact |
+| `regression-strict` | **8/8 PASS** | 0 | `regression-strict-6aaab0a.log` |
+| `phase5-user-journey` | **4/4 PASS** | 0 | `phase5-user-journey-b68527c.log` |
+| `phase5-storyboard` | **5/5 PASS** | 0 | `phase5-storyboard-6aaab0a.log` |
+| `phase5-characters` | **PASS** | 0 | `phase5i-signoff-suites.log` |
+| `phase5-references` | **PASS** | 0 | same |
+| `phase5-creative-flow` | **PASS** | 0 | same |
+| `phase5-prompts` | **PASS** | 0 | same |
+| `phase5-providers` | **PASS** | 0 | same |
+| `phase5-timeline` | **PASS** | 0 | same |
+| `phase5-assembly` | **1/1 PASS** | 0 | same |
+
+Runner: `infra/scripts/staging-phase5-signoff-suites.sh` · consolidated log **`phase5i-signoff-suites.log`** ends with **`ALL_PASS`**.
+
+## User journey coverage
+
+- **Desktop1920:** full REAL path — UI approvals, Storyboard Sync + scene edit + re-approve, references, timeline reorder, mock MP4, F5 (`phase5-user-journey-b68527c.log`).
+- **1440 / tablet / mobile390:** REAL nav smoke only (not four full production runs).
+
+## Key product fixes (5I closure)
+
+- Storyboard document revision → expire stale PENDING approvals, rewind gate, new chat card — see `PHASE5-APPROVAL-REVISION-INTEGRITY.md`.
+- Web approval cards sync status from `/approvals` (**EXPIRED** badge, disabled actions, hint text).
+- E2E approves **latest** pending card (`.last()`).
 
 ## Stage status
 
-| Stage | Scope | Status |
-|-------|--------|--------|
-| 5A | Product audit + baseline screenshots | **IMPLEMENTED** |
-| 5B | Creative workspace shell + section nav | **DEPLOYED** |
-| 5C | Script editor + API CRUD | **DEPLOYED** |
-| 5D | Storyboard studio | **ACCEPTED** — see `PHASE5-STORYBOARD-ACCEPTANCE.md` |
-| 5E | Character studio | **ACCEPTED** — see `PHASE5-CHARACTER-CONSISTENCY.md` |
-| 5F | Reference manager | **ACCEPTED** — see `PHASE5-REFERENCE-MANAGER.md` |
-| 5MP | Multi-provider (mock) | **DEPLOYED** — Providers E2E 16/16 |
-| 5G | Prompt studio | **ACCEPTED** (E2E 4/4) — see `PHASE5-PROMPT-STUDIO-ACCEPTANCE.md` |
-| 5I | Timeline + FFmpeg from timeline JSON | **ACCEPTANCE IN PROGRESS** — matrix **14/14**, timeline+assembly E2E **PASS**, full regression pending |
-| 5H, 5J–5P | Remaining Phase 5 scope | NOT IMPLEMENTED |
+| Stage | Status |
+|-------|--------|
+| 5A–5G, 5MP | **ACCEPTED** (prior docs) |
+| **5I** Timeline + FFmpeg + mock production | **ACCEPTED** |
+| P0 UI Recovery (REAL vs DEMO, journey) | **ACCEPTED** |
+| **5J** Asset Library | **NOT STARTED** — plan only below |
 
-## Playwright on VPS (`retries=0`, logs under `/var/log/shotbro-e2e/`)
+## Visual acceptance (2026-10-27)
 
-| Mode | Result | Log |
-|------|--------|-----|
-| `phase5-storyboard` | **5/5 PASS** (4 viewports + 409 conflict) | `phase5-storyboard-015cbb7.log` |
-| `phase5-characters` | **4/4 PASS** | `phase5-characters-015cbb7.log` |
-| `phase5-references` | **5/5 PASS** (4 viewports + cross-project isolation) | `phase5-references-015cbb7.log` |
-| `phase5-creative-flow` | **1/1 PASS** | `phase5-creative-flow-68a09d7.log` |
-| `regression-strict` | **8/8 PASS** (second run; first run 6/8 — timing flakes phase3 desktop1440, phase4 tablet) | `regression-strict-retry-68a09d7.log` |
-| `phase5-providers` | **16/16 PASS** | `phase5-providers-68a09d7.log` |
-| `phase5-prompts` | **4/4 PASS** (1920, 1440, tablet, mobile390) | `phase5-prompts-00ea52e-r2.log` |
-| `regression-strict` (post-5G) | **7/8** (phase4 unified MP4 failed once) | `regression-strict-00ea52e.log` |
+Browser smoke: https://ai.shotbro.ru/studio — DEMO banner + REAL entry; full REAL creative path covered by Playwright journey + module suites. Screenshots optional in `apps/web/test-results/` on VPS after E2E.
 
-Runner modes `phase5-storyboard`, `phase5-characters`, `phase5-references`, `phase5-creative-flow`, `phase5-creative`, `regression-strict`, `phase5-providers` map to the spec files in `infra/scripts/staging-playwright-e2e.sh`. Creative specs use `--project=desktop` only; viewports are set inside tests (1920, 1440, tablet, mobile390).
+## Remaining blockers
 
-Screenshots/traces: `apps/web/test-results/` on the VPS E2E working tree (e.g. `phase5-storyboard-grid-*.png`, `phase5-creative-flow-final.png`).
+**None** for Phase 5I / P0 UI Recovery sign-off.
 
-## Phase 5D–5F DONE criteria
+Optional follow-up (non-blocking): persist **EXPIRED** on historical message blocks in DB (today: live API hydration on render).
 
-| Criterion | Status |
-|-----------|--------|
-| Storyboard 4/4 viewports | **PASS** |
-| Characters 4/4 | **PASS** |
-| References 4/4 | **PASS** |
-| Combined creative flow | **PASS** |
-| Phase 3/4 strict 8/8 | **PASS** (documented retry) |
-| Providers 16/16 | **PASS** |
-| F5 persistence | **PASS** (covered in specs) |
-| Live AI off | **PASS** |
+---
 
-## Security (5D–5F smoke)
+## Phase 5J — Asset Library (plan only, do not implement without new task)
 
-- Asset/project/character/reference access enforced server-side (AccessPolicyService patterns).
-- Storyboard PATCH uses revision checks (409 covered in E2E).
-- Signed URLs for assets; no raw MinIO credentials in browser bundle (spot-check during acceptance).
-- **ROTATION_REQUIRED** for Magnific keys if ever exposed in chat — keys present in `staging.env` only; not printed in logs.
-
-## Docs
-
-- `PHASE5-STORYBOARD-ACCEPTANCE.md`
-- `PHASE5-CHARACTER-CONSISTENCY.md`
-- `PHASE5-REFERENCE-MANAGER.md`
-- `PHASE5-UI-ACCEPTANCE.md`
-- `PHASE5-MULTIPROVIDER-ACCEPTANCE.md` (providers suite)
-
-## Next
-
-1. VPS: deploy web+api, run `phase5-prompts` + regression suites (`retries=0`).  
-2. Close `PHASE5-PROMPT-STUDIO-ACCEPTANCE.md` Table B.  
-3. **Phase 5I Timeline** — versioned montage JSON + FFmpeg sync (see `PHASE5-REMAINING-WORK.md`).
+1. **Scope:** Unified asset browser (filters, lineage to scenes/runs, signed playback) atop existing MinIO + `project-assets` API.
+2. **Dependencies:** Stable production delivery assets (5I done), reference attach model (5F).
+3. **Acceptance:** Playwright asset discovery + download; no new paid providers.
+4. **Out of scope for 5J draft:** New orchestrator states, live generation, billing changes.

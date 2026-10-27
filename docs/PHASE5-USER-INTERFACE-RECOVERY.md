@@ -1,6 +1,6 @@
 # Phase 5 — User Interface Recovery (P0)
 
-**Status:** IN PROGRESS (P0 user journey, 2026-10-27)
+**Status:** **ACCEPTED** (P0 UI Recovery, 2026-10-27)
 
 ## Staging runtime (2026-10-27)
 
@@ -24,7 +24,7 @@
 
 **Viewport:** Playwright `--project=desktop` only — 1× full desktop1920 + 3× nav smoke (1440 / tablet / mobile390). Not four full production runs.
 
-**Blockers remaining:** Regression matrix on VPS (`retries=0`, sequential); optional product fix for storyboard «Sync script» vs approval version.
+**Sign-off:** `phase5i-signoff-suites.log` **ALL_PASS** · `regression-strict-6aaab0a.log` **8/8** · journey **b68527c** **4/4** · storyboard approval fix **6aaab0a** · approval UX **a2395a9**.
 
 ## User journey run (2026-10-26, log `phase5-user-journey.log`)
 

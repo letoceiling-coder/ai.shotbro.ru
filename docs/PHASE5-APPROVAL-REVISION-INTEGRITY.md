@@ -1,6 +1,6 @@
 # Phase 5 — Approval revision integrity (Storyboard Sync)
 
-**Status:** Verified on staging 2026-10-27 · runtime **6aaab0a** (API/worker/web) · E2E helper **b68527c**
+**Status:** **ACCEPTED** on staging 2026-10-27 · API/worker **6aaab0a** · web **a2395a9** · git **a2395a9**
 
 ## Root cause (P0 user journey r2–r4)
 
@@ -47,5 +47,23 @@ Mitigation: `ensureTimelineForProduction` + worker FAILED state. Re-run `regress
 - [x] Storyboard sync + re-approve REAL UI path (`onStoryboardDocumentRevised`)
 - [x] `phase5-user-journey` **4/4 PASS** — log `phase5-user-journey-b68527c.log` (Sync + scene edit + idempotent sync)
 - [x] `regression-strict` **8/8 PASS** — log `regression-strict-6aaab0a.log` (~9.4m)
-- [ ] Full Phase 5 module suites (storyboard → assembly) — queued after strict green
-- [x] Runtime SHA: API/worker/web **6aaab0a**, git VPS **b68527c** (E2E only)
+- [x] Full Phase 5 module suites — `phase5i-signoff-suites.log` → **ALL_PASS**
+- [x] Runtime SHA: API/worker **6aaab0a**, web **a2395a9**, git **a2395a9**
+
+## Approval UX (web a2395a9)
+
+- `ApprovalCard` loads `/api/v1/projects/:id/approvals` and maps **EXPIRED** → badge «Устарело», `data-approval-status="expired"`, disabled buttons.
+- Hint when stale: «Версия документа изменилась — подтвердите актуальную карточку ниже.»
+- Playwright uses **`.last()`** pending card so stale DOM above does not mask the active gate.
+
+## Active production snapshots
+
+| Run state when storyboard revises | Behavior |
+|---------------------------------|----------|
+| `WAITING_STORYBOARD_APPROVAL`, `WAITING_COST_APPROVAL`, `WAITING_PRODUCTION_APPROVAL`, `READY_FOR_PRODUCTION` | Pending downstream approvals **EXPIRED**; run rewound to `WAITING_STORYBOARD_APPROVAL`; new PENDING + chat card |
+| `PRODUCING`, `COMPLETED` | **Not** rewound; in-flight/completed MP4 and graph snapshot preserved for that run |
+| Next run | Uses new storyboard revision after user re-approves |
+
+## Production error handling (worker 6aaab0a)
+
+`production.run` uncaught error → `agentRun.status=FAILED`, `productionState=FAILED`. Replaces prior stuck **PRODUCING** (regression r4 class E).
