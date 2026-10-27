@@ -5,6 +5,11 @@ import { acceptanceScreenshot } from "./helpers/acceptance-artifacts";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
 import { gotoStudioSection, uploadImageViaPicker } from "./helpers/phase5-creative-ui";
 import { seedScriptScene, tinyPngBuffer } from "./helpers/phase5-creative-seed";
+import {
+  pollAssetReady,
+  uploadViaLibraryButton,
+  uploadViaLibraryDrop,
+} from "./helpers/asset-library-upload";
 
 const viewports = [
   { name: "desktop1920", width: 1920, height: 1080 },
@@ -13,7 +18,7 @@ const viewports = [
   { name: "mobile390", width: 390, height: 844 },
 ] as const;
 
-/** Real demo clip — minimal synthetic MP4 never reaches READY in worker/ffmpeg. */
+/** ffprobe-validated on VPS: h264/yuv420p, 5s, no audio. */
 function demoMp4UploadFile() {
   const demoPath = path.join(process.cwd(), "public/demo-assets/shotbro-demo.mp4");
   return {
@@ -25,31 +30,16 @@ function demoMp4UploadFile() {
 
 let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
-async function uploadViaLibraryDrop(
-  page: import("@playwright/test").Page,
-  file: { name: string; mimeType: string; buffer: Buffer },
-) {
-  const b64 = file.buffer.toString("base64");
-  await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes("/api/v1/uploads/init") && r.request().method() === "POST" && r.ok(),
-      { timeout: 60_000 },
-    ),
-    page.getByTestId("asset-library").evaluate(
-      (el, payload) => {
-        const bin = Uint8Array.from(atob(payload.b64), (c) => c.charCodeAt(0));
-        const f = new File([bin], payload.name, { type: payload.mimeType });
-        const dt = new DataTransfer();
-        dt.items.add(f);
-        el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
-      },
-      { name: file.name, mimeType: file.mimeType, b64 },
-    ),
-  ]);
-  await page.waitForResponse(
-    (r) => r.url().includes("/api/v1/uploads/") && r.url().includes("/complete") && r.ok(),
-    { timeout: 120_000 },
-  );
+async function expectTimelineClipUsesAsset(page: Page, projectId: string, assetId: string) {
+  const tl = await page.request.get(`/api/v1/projects/${projectId}/timeline`);
+  expect(tl.ok()).toBeTruthy();
+  const body = (await tl.json()) as {
+    payload?: { clips?: Array<{ assetId?: string; clipId?: string }> };
+    revision?: number;
+  };
+  const clips = body.payload?.clips ?? [];
+  expect(clips.some((c) => c.assetId === assetId)).toBe(true);
+  expect(typeof body.revision).toBe("number");
 }
 
 test.describe("Phase 5J asset library", () => {
@@ -86,22 +76,19 @@ test.describe("Phase 5J asset library", () => {
         return;
       }
 
+      await uploadViaLibraryButton(page, {
+        name: "e2e-button.png",
+        mimeType: "image/png",
+        buffer: tinyPngBuffer(),
+      });
+      await pollAssetReady(page, projectId, "e2e-button.png", "e2e-button", 120_000);
+
       await uploadViaLibraryDrop(page, {
         name: "e2e-library.png",
         mimeType: "image/png",
         buffer: tinyPngBuffer(),
       });
-
-      await expect
-        .poll(async () => {
-          const r = await page.request.get(
-            `/api/v1/projects/${projectId}/assets?limit=24&q=e2e-library`,
-          );
-          if (!r.ok()) return false;
-          const j = (await r.json()) as { items?: Array<{ status: string; originalName: string }> };
-          return (j.items ?? []).some((a) => a.originalName === "e2e-library.png" && a.status === "READY");
-        }, { timeout: 180_000 })
-        .toBe(true);
+      await pollAssetReady(page, projectId, "e2e-library.png", "e2e-library", 120_000);
 
       await page.reload({ waitUntil: "domcontentloaded" });
       await gotoStudioSection(page, projectId, "assets");
@@ -143,17 +130,7 @@ test.describe("Phase 5J asset library", () => {
 
       await gotoStudioSection(page, projectId, "assets");
       await uploadViaLibraryDrop(page, demoMp4UploadFile());
-
-      await expect
-        .poll(async () => {
-          const r = await page.request.get(`/api/v1/projects/${projectId}/assets?limit=24&q=e2e-clip`);
-          if (!r.ok()) return false;
-          const j = (await r.json()) as { items?: Array<{ status: string; originalName: string }> };
-          return (j.items ?? []).some((a) => a.originalName === "e2e-clip.mp4" && a.status === "READY");
-        }, { timeout: 180_000 })
-        .toBe(true);
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await gotoStudioSection(page, projectId, "assets");
+      const clipAssetId = await pollAssetReady(page, projectId, "e2e-clip.mp4", "e2e-clip", 180_000);
 
       await gotoStudioSection(page, projectId, "timeline");
       await page.getByTestId("timeline-sync-storyboard").click();
@@ -169,10 +146,23 @@ test.describe("Phase 5J asset library", () => {
       await expect(page.getByTestId("asset-detail-sheet")).toBeVisible();
       await page.getByTestId("asset-add-to-timeline").click();
       await expect(page.getByTestId("timeline-pending-asset-hint")).toBeVisible({ timeout: 20_000 });
-      await page.getByTestId("timeline-save").click();
+      await Promise.all([
+        page.waitForResponse(
+          (r) =>
+            r.url().includes(`/api/v1/projects/${projectId}/timeline`) &&
+            r.request().method() === "PATCH" &&
+            r.ok(),
+          { timeout: 60_000 },
+        ),
+        page.getByTestId("timeline-save").click(),
+      ]);
       await expect(page.getByTestId("timeline-studio")).toBeVisible();
+      await expectTimelineClipUsesAsset(page, projectId, clipAssetId);
 
       await page.reload({ waitUntil: "domcontentloaded" });
+      await gotoStudioSection(page, projectId, "timeline");
+      await expectTimelineClipUsesAsset(page, projectId, clipAssetId);
+
       await gotoStudioSection(page, projectId, "assets");
       await expect(page.getByText("e2e-library.png")).toBeVisible({ timeout: 30_000 });
 
@@ -180,7 +170,7 @@ test.describe("Phase 5J asset library", () => {
     });
   }
 
-  test("cross-project asset download denied", async ({ page, browser }) => {
+  test("cross-project asset access denied (user B)", async ({ page, browser }) => {
     test.setTimeout(240_000);
     const emailB = process.env.E2E_TEST_EMAIL_B;
     const passwordB = process.env.E2E_TEST_PASSWORD_B;
@@ -194,19 +184,7 @@ test.describe("Phase 5J asset library", () => {
       mimeType: "image/png",
       buffer: tinyPngBuffer(),
     });
-    await expect
-      .poll(async () => {
-        const r = await page.request.get(`/api/v1/projects/${projectA}/assets?limit=5&q=idor`);
-        if (!r.ok()) return false;
-        const j = (await r.json()) as { items?: Array<{ status: string; originalName: string }> };
-        return (j.items ?? []).some((a) => a.originalName === "idor.png" && a.status === "READY");
-      }, { timeout: 180_000 })
-      .toBe(true);
-
-    const listRes = await page.request.get(`/api/v1/projects/${projectA}/assets?limit=5`);
-    const list = (await listRes.json()) as { items?: Array<{ id: string }> };
-    const assetId = list.items?.[0]?.id;
-    expect(assetId).toBeTruthy();
+    const assetId = await pollAssetReady(page, projectA, "idor.png", "idor", 180_000);
 
     const ctxB = await browser.newContext();
     const pageB = await ctxB.newPage();
@@ -217,8 +195,22 @@ test.describe("Phase 5J asset library", () => {
       pageB.waitForURL(/\/studio/, { timeout: 60_000 }),
       pageB.getByRole("button", { name: "Войти" }).click(),
     ]);
-    const deny = await pageB.request.get(`/api/v1/assets/${assetId}/download-url`);
-    expect(deny.status()).toBeGreaterThanOrEqual(400);
+
+    const deny = (status: number) => expect(status).toBeGreaterThanOrEqual(400);
+
+    deny((await pageB.request.get(`/api/v1/projects/${projectA}/assets?limit=5`)).status());
+    deny((await pageB.request.get(`/api/v1/assets/${assetId}`)).status());
+    deny((await pageB.request.get(`/api/v1/assets/${assetId}/preview-url`)).status());
+    deny((await pageB.request.get(`/api/v1/assets/${assetId}/download-url`)).status());
+    deny(
+      (
+        await pageB.request.patch(`/api/v1/assets/${assetId}`, {
+          data: { originalName: "hacked.png" },
+        })
+      ).status(),
+    );
+    deny((await pageB.request.post(`/api/v1/assets/${assetId}/delete`, { data: {} })).status());
+
     await ctxB.close();
   });
 });
