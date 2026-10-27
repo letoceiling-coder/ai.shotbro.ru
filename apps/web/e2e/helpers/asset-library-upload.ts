@@ -35,6 +35,9 @@ export async function uploadViaLibraryButton(page: Page, file: UploadFilePayload
     page.getByTestId("asset-upload").click(),
   ]);
   await chooser.setFiles(file);
+  await page.getByTestId("asset-library-file-input").evaluate((el) => {
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   await initPromise;
   await completePromise;
 }
