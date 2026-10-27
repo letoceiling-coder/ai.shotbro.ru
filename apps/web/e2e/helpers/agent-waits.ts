@@ -69,26 +69,64 @@ function runItems(body: unknown): unknown[] {
   return [];
 }
 
+export type AgentRunRow = {
+  id?: string;
+  productionState?: string;
+  status?: string;
+  metadata?: { productionEnqueued?: boolean };
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function fetchAgentRuns(page: Page, projectId: string): Promise<AgentRunRow[]> {
+  const res = await page.request.get(`/api/v1/projects/${projectId}/agent/runs`);
+  if (!res.ok()) return [];
+  return runItems(await res.json()) as AgentRunRow[];
+}
+
+export function latestAgentRun(runs: AgentRunRow[]): AgentRunRow | undefined {
+  if (!runs.length) return undefined;
+  return [...runs].sort((a, b) => {
+    const ta = Date.parse(String(a.updatedAt ?? a.createdAt ?? 0));
+    const tb = Date.parse(String(b.updatedAt ?? b.createdAt ?? 0));
+    return tb - ta;
+  })[0];
+}
+
+const PRODUCTION_ACTIVE = new Set([
+  "QUEUED",
+  "PRODUCING",
+  "QUALITY_CHECK",
+  "READY_FOR_DELIVERY",
+  "COMPLETED",
+]);
+
+export function isAgentInProductionPipeline(run: AgentRunRow | undefined): boolean {
+  if (!run) return false;
+  if (run.metadata?.productionEnqueued) return true;
+  const st = run.productionState ?? "";
+  return PRODUCTION_ACTIVE.has(st);
+}
+
+function isWaitingGate(state: string) {
+  return state.startsWith("WAITING_");
+}
+
 /** After all approvals, orchestrator should enqueue mock production (metadata flag or state). */
 export async function waitForProductionEnqueued(page: Page, projectId: string, timeoutMs = 180_000) {
   await expect
     .poll(
       async () => {
-        const res = await page.request.get(`/api/v1/projects/${projectId}/agent/runs`);
-        if (!res.ok()) return "";
-        const body = (await res.json()) as {
-          items?: Array<{ productionState?: string; metadata?: { productionEnqueued?: boolean } }>;
-        };
-        const run = body.items?.[0];
+        const run = latestAgentRun(await fetchAgentRuns(page, projectId));
         if (!run) return "";
-        if (run.metadata?.productionEnqueued) return "enqueued";
+        if (isAgentInProductionPipeline(run)) return "enqueued";
         const st = run.productionState ?? "";
-        if (["QUEUED", "PRODUCING", "COMPLETED"].includes(st)) return st;
+        if (isWaitingGate(st)) return "";
         return st;
       },
       { timeout: timeoutMs, intervals: [1000, 2000, 3000] },
     )
-    .not.toBe("");
+    .toBe("enqueued");
 }
 
 /** Waits until mock production graph finished (delivery asset should exist). */
@@ -96,10 +134,7 @@ export async function waitForProductionCompleted(page: Page, projectId: string, 
   await expect
     .poll(
       async () => {
-        const res = await page.request.get(`/api/v1/projects/${projectId}/agent/runs`);
-        if (!res.ok()) return "";
-        const body = (await res.json()) as { items?: Array<{ productionState?: string; status?: string }> };
-        const run = body.items?.[0];
+        const run = latestAgentRun(await fetchAgentRuns(page, projectId));
         if (!run) return "";
         if (run.productionState === "COMPLETED" || run.status === "COMPLETED") return "done";
         return run.productionState ?? run.status ?? "";

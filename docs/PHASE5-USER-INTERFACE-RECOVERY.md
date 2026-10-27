@@ -2,6 +2,30 @@
 
 **Status:** IN PROGRESS (P0 user journey, 2026-10-27)
 
+## Staging runtime (2026-10-27)
+
+| Service | SHA |
+|---------|-----|
+| Web | `853ccda` |
+| API | `61234da` |
+| Worker | `af5315f` |
+
+## User journey runs (`/var/log/shotbro-e2e/`)
+
+| Log | Result | First FAIL / notes |
+|-----|--------|-------------------|
+| `phase5-user-journey.log` | 4 failed, 12 skipped | `PRODUCING` 600s (empty timeline `clipCount: 0`) — pre-`61234da` |
+| `phase5-user-journey-r2.log` | 1 failed, 3 skipped | `storyboard-sync` click on **Timeline** tab (wrong testid) — fixed in `user-journey-ui.ts` |
+| `phase5-user-journey-r3.log` | 1 failed, 3 skipped | `waitForProductionEnqueued` treated `WAITING_STORYBOARD_APPROVAL` as success → 600s wait |
+| `phase5-user-journey-r4.log` | 1 failed, 3 skipped | Storyboard gate stuck after **Sync script** (`storyboard-sync`) bumps doc version vs approval card |
+| `phase5-user-journey-r5.log` | **4/4 PASS** (~5.5m) | Desktop full UI path + 3 viewport smokes; fixes: timeline sync testid, no pre-approve storyboard sync, `latestAgentRun` + production gate helper |
+
+**UI path verified before last failures:** REAL → project → chat → PLAN/SCRIPT approvals → storyboard tab → (optional sync **removed**) → references attach + F5 → timeline sync/reorder UI → chat production gates.
+
+**Viewport:** Playwright `--project=desktop` only — 1× full desktop1920 + 3× nav smoke (1440 / tablet / mobile390). Not four full production runs.
+
+**Blockers remaining:** Regression matrix on VPS (`retries=0`, sequential); optional product fix for storyboard «Sync script» vs approval version.
+
 ## User journey run (2026-10-26, log `phase5-user-journey.log`)
 
 | Item | Result |

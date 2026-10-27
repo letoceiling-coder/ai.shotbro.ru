@@ -10,12 +10,13 @@ export async function attachReferenceViaUi(page: Page, role: "STYLE" | "FIRST_FR
 }
 
 export async function syncTimelineFromStoryboardViaUi(page: Page, projectId: string) {
-  await page.getByTestId("storyboard-sync").click();
   await expect
     .poll(async () => (await page.request.get(`/api/v1/projects/${projectId}/storyboard`)).ok(), {
       timeout: 60_000,
     })
     .toBe(true);
+
+  await expect(page.getByTestId("timeline-sync-storyboard")).toBeVisible({ timeout: 30_000 });
 
   await Promise.all([
     page.waitForResponse((r) => r.url().includes("/timeline/sync-from-storyboard") && r.ok(), { timeout: 90_000 }),

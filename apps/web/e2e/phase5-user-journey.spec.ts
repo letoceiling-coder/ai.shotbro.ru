@@ -7,8 +7,13 @@ import {
   waitForMockDeliveryVisible,
   waitForProductionEnqueued,
   waitForMockMp4Asset,
+  fetchAgentRuns,
+  latestAgentRun,
 } from "./helpers/agent-waits";
-import { approveAllPendingViaUi, approveNextPendingViaUi } from "./helpers/ui-approvals";
+import {
+  approveNextPendingViaUi,
+  ensureAgentReadyForProductionViaUi,
+} from "./helpers/ui-approvals";
 import { gotoStudioSection } from "./helpers/phase5-creative-ui";
 import { pinRealProjectOnReload } from "./helpers/real-studio-state";
 import { waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
@@ -78,12 +83,14 @@ test.describe("Phase 5 full REAL user journey", () => {
     await expect(page.getByTestId("storyboard-studio").or(page.getByTestId("workspace-state"))).toBeVisible({
       timeout: 60_000,
     });
-    if (await page.getByTestId("storyboard-sync").isVisible().catch(() => false)) {
-      await page.getByTestId("storyboard-sync").click();
-    }
 
     await gotoStudioSection(page, projectId, "chat");
     await approveNextPendingViaUi(page, projectId);
+    await expect
+      .poll(async () => latestAgentRun(await fetchAgentRuns(page, projectId))?.productionState ?? "", {
+        timeout: 180_000,
+      })
+      .not.toBe("WAITING_STORYBOARD_APPROVAL");
 
     await gotoStudioSection(page, projectId, "characters");
     await expect(page.getByTestId("character-studio")).toBeVisible({ timeout: 30_000 });
@@ -120,7 +127,7 @@ test.describe("Phase 5 full REAL user journey", () => {
     await expect(page.getByTestId("project-assets")).toBeVisible({ timeout: 30_000 });
 
     await gotoStudioSection(page, projectId, "chat");
-    await approveAllPendingViaUi(page, projectId);
+    await ensureAgentReadyForProductionViaUi(page, projectId);
     await waitForProductionEnqueued(page, projectId);
     await waitForMockDeliveryVisible(page, projectId);
     await waitForMockMp4Asset(page, projectId);
