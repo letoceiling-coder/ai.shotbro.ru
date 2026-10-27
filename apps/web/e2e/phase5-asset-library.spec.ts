@@ -1,0 +1,147 @@
+import { test, expect, type BrowserContext } from "@playwright/test";
+import { acceptanceScreenshot } from "./helpers/acceptance-artifacts";
+import { loginRealUser, openRealNewProject } from "./helpers/real-login";
+import { gotoStudioSection, uploadImageViaPicker } from "./helpers/phase5-creative-ui";
+import { seedScriptScene, tinyPngBuffer } from "./helpers/phase5-creative-seed";
+
+const viewports = [
+  { name: "desktop1920", width: 1920, height: 1080 },
+  { name: "desktop1440", width: 1440, height: 900 },
+  { name: "tablet", width: 834, height: 1194 },
+  { name: "mobile390", width: 390, height: 844 },
+] as const;
+
+/** Minimal valid MP4 (ftyp + empty mdat) for upload MIME validation */
+function tinyMp4Buffer() {
+  return Buffer.from(
+    "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZGF0YQAAAAA=",
+    "base64",
+  );
+}
+
+let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
+
+async function uploadViaLibraryInput(page: import("@playwright/test").Page, file: { name: string; mimeType: string; buffer: Buffer }) {
+  await page.getByTestId("asset-upload").click();
+  const input = page.getByTestId("asset-library-file-input");
+  await input.setInputFiles(file);
+}
+
+test.describe("Phase 5J asset library", () => {
+  test.skip(!process.env.E2E_REAL_BACKEND, "Set E2E_REAL_BACKEND=1");
+  test.describe.configure({ mode: "serial" });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => localStorage.clear());
+    await loginRealUser(page);
+    loggedInStorage = await context.storageState();
+    await context.close();
+  });
+
+  test.beforeEach(async ({ context }) => {
+    if (loggedInStorage?.cookies.length) await context.addCookies(loggedInStorage.cookies);
+  });
+
+  for (const vp of viewports) {
+    test(`REAL asset library UI @ ${vp.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/studio", { waitUntil: "domcontentloaded" });
+      const projectId = await openRealNewProject(page);
+      await seedScriptScene(page, projectId);
+
+      await gotoStudioSection(page, projectId, "assets");
+      await expect(page.getByTestId("asset-library")).toBeVisible({ timeout: 20_000 });
+
+      if (vp.name !== "desktop1920") {
+        await acceptanceScreenshot(page, `phase5-asset-library-${vp.name}.png`);
+        return;
+      }
+
+      await uploadViaLibraryInput(page, {
+        name: "e2e-library.png",
+        mimeType: "image/png",
+        buffer: tinyPngBuffer(),
+      });
+
+      await expect
+        .poll(async () => {
+          const card = page.getByTestId(/asset-card-/).first();
+          return card.isVisible().catch(() => false);
+        }, { timeout: 120_000 })
+        .toBe(true);
+
+      await page.getByTestId("asset-library-search").fill("e2e-library");
+      await expect(page.getByText("e2e-library.png")).toBeVisible({ timeout: 15_000 });
+
+      await page.getByTestId("asset-library-filter").click();
+      await page.getByRole("option", { name: "Изображения" }).click();
+      await expect(page.getByTestId(/asset-card-/).first()).toBeVisible();
+
+      const card = page.getByTestId(/asset-card-/).first();
+      await card.click();
+      await expect(page.getByTestId("asset-detail-sheet")).toBeVisible();
+      await page.getByTestId("asset-download").click();
+
+      await page.getByTestId("asset-add-reference").click();
+      await gotoStudioSection(page, projectId, "references");
+      await expect(page.getByTestId("reference-list")).toBeVisible({ timeout: 20_000 });
+
+      await gotoStudioSection(page, projectId, "storyboard");
+      await page.getByTestId(/storyboard-scene-/).first().click();
+      await page.getByTestId("storyboard-first-frame").getByRole("button", { name: "Назначить" }).click();
+      await uploadImageViaPicker(page);
+
+      await gotoStudioSection(page, projectId, "assets");
+      await uploadViaLibraryInput(page, {
+        name: "e2e-clip.mp4",
+        mimeType: "video/mp4",
+        buffer: tinyMp4Buffer(),
+      });
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await gotoStudioSection(page, projectId, "assets");
+      await expect(page.getByText("e2e-library.png")).toBeVisible({ timeout: 30_000 });
+
+      await acceptanceScreenshot(page, `phase5-asset-library-${vp.name}.png`);
+    });
+  }
+
+  test("cross-project asset download denied", async ({ page, browser }) => {
+    const emailB = process.env.E2E_TEST_EMAIL_B;
+    const passwordB = process.env.E2E_TEST_PASSWORD_B;
+    test.skip(!emailB || !passwordB, "Set E2E_TEST_EMAIL_B / E2E_TEST_PASSWORD_B");
+
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
+    const projectA = await openRealNewProject(page);
+    await gotoStudioSection(page, projectA, "assets");
+    await uploadViaLibraryInput(page, {
+      name: "idor.png",
+      mimeType: "image/png",
+      buffer: tinyPngBuffer(),
+    });
+    await expect
+      .poll(async () => page.getByText("idor.png").isVisible().catch(() => false), { timeout: 120_000 })
+      .toBe(true);
+
+    const listRes = await page.request.get(`/api/v1/projects/${projectA}/assets?limit=5`);
+    const list = (await listRes.json()) as { items?: Array<{ id: string }> };
+    const assetId = list.items?.[0]?.id;
+    expect(assetId).toBeTruthy();
+
+    const ctxB = await browser.newContext();
+    const pageB = await ctxB.newPage();
+    await pageB.goto("/login", { waitUntil: "domcontentloaded" });
+    await pageB.getByPlaceholder("Email").fill(emailB!);
+    await pageB.getByPlaceholder("Пароль").fill(passwordB!);
+    await Promise.all([
+      pageB.waitForURL(/\/studio/, { timeout: 60_000 }),
+      pageB.getByRole("button", { name: "Войти" }).click(),
+    ]);
+    const deny = await pageB.request.get(`/api/v1/assets/${assetId}/download-url`);
+    expect(deny.status()).toBeGreaterThanOrEqual(400);
+    await ctxB.close();
+  });
+});

@@ -18,7 +18,13 @@ import { cn } from "@/lib/utils";
 function AssetThumb({ assetId, mimeType }: { assetId: string; mimeType: string }) {
   const { data } = useQuery({
     queryKey: ["asset-url", assetId],
-    queryFn: () => apiFetch(`/api/v1/assets/${assetId}/download-url`) as Promise<{ url: string }>,
+    queryFn: async () => {
+      try {
+        return (await apiFetch(`/api/v1/assets/${assetId}/preview-url`)) as { url: string };
+      } catch {
+        return (await apiFetch(`/api/v1/assets/${assetId}/download-url`)) as { url: string };
+      }
+    },
     enabled: mimeType.startsWith("image/"),
   });
   if (!data?.url) {
