@@ -1,9 +1,9 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
-import { AgentRuntime, ProductionOrchestrator } from "@shotbro/ai";
+import { AgentRuntime, CreativeAgentRuntime, ProductionOrchestrator } from "@shotbro/ai";
 import { loadEnvFromProcess } from "@shotbro/config/env";
-import { CreateAgentRunBodySchema } from "@shotbro/contracts";
+import { CreateAgentRunBodySchema, CreativeAgentTurnBodySchema } from "@shotbro/contracts";
 import type { Db } from "@shotbro/db/client";
 import {
   agentRun,
@@ -39,6 +39,7 @@ export class AgentService {
   private readonly env = loadEnvFromProcess();
   private readonly orchestrator = new ProductionOrchestrator(this.env);
   private readonly agentRuntime = new AgentRuntime(this.env);
+  private readonly creativeRuntime = new CreativeAgentRuntime(this.env);
 
   constructor(
     @Inject(DB) private readonly db: Db,
@@ -188,6 +189,109 @@ export class AgentService {
     const [row] = await this.db.select().from(agentRun).where(eq(agentRun.id, runId)).limit(1);
     if (!row || row.projectId !== projectId) throw new NotFoundException("Agent run not found");
     return this.toRunDto(row);
+  }
+
+  /** Phase 5K: deterministic mock NL → real creative tools (no production orchestrator). */
+  async runCreativeTurn(userId: string, projectId: string, body: unknown) {
+    const input = CreativeAgentTurnBodySchema.parse(body);
+    const { workspaceId } = await this.access.assertProjectAccess(this.db, userId, projectId);
+    await this.resolveConversation(projectId, input.conversationId);
+
+    const runId = uuid();
+    const now = new Date();
+    await this.db.insert(agentRun).values({
+      id: runId,
+      projectId,
+      conversationId: input.conversationId,
+      status: "RUNNING",
+      productionState: "DRAFT",
+      triggerMessage: input.userMessage,
+      metadata: {
+        phase: "5K-creative",
+        mockAgent: true,
+        idempotencyKey: input.idempotencyKey,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const storage = new DrizzleProductionStorage(this.db, workspaceId, this.events);
+    const delegates = buildAgentToolDelegates({
+      assets: this.assets,
+      approvals: this.approvals,
+      graph: this.graph,
+      providerJobs: this.providerJobs,
+      references: this.references,
+      storyboard: this.storyboard,
+      characters: this.characters,
+      prompts: this.prompts,
+      timeline: this.timeline,
+      conversationId: input.conversationId,
+    });
+
+    const turn = await this.creativeRuntime.runCreativeTurn({
+      runId,
+      projectId,
+      userId,
+      userMessage: input.userMessage,
+      storage,
+      conversationId: input.conversationId,
+      delegates,
+    });
+
+    if (turn.status === "no_intent") {
+      await this.db.delete(agentRun).where(eq(agentRun.id, runId));
+      return { status: "no_intent", mockAgent: true, results: [] };
+    }
+
+    const blocks: Record<string, unknown>[] = [
+      {
+        type: "text",
+        markdown:
+          turn.status === "completed"
+            ? "**Mock-агент Phase 5K** выполнил инструменты в REAL проекте (без live LLM)."
+            : `**Mock-агент Phase 5K** остановлен: ${turn.error ?? "ошибка"}`,
+      },
+      ...turn.results.map((r) => ({
+        type: "agent_tool_result",
+        mockAgent: true,
+        toolName: r.toolName,
+        success: r.success,
+        humanReadableSummary: r.humanReadableSummary,
+        projectId: r.projectId,
+        assetId: r.assetId,
+        sceneId: r.sceneId,
+        revision: r.revision,
+        errorCode: r.errorCode,
+        deepLink: r.deepLink,
+      })),
+    ];
+    await this.postAssistantBlocks(input.conversationId, projectId, blocks);
+
+    const storyboardTools = new Set([
+      "set_scene_first_frame_by_ordinal",
+      "update_storyboard_scene",
+      "sync_storyboard_from_script",
+      "reorder_storyboard_scenes",
+    ]);
+    if (turn.results.some((r) => r.success && storyboardTools.has(r.toolName))) {
+      await this.onStoryboardDocumentRevised(userId, projectId);
+    }
+
+    await this.db
+      .update(agentRun)
+      .set({
+        status: turn.status === "completed" ? "COMPLETED" : "FAILED",
+        updatedAt: new Date(),
+        metadata: {
+          phase: "5K-creative",
+          mockAgent: true,
+          toolResults: turn.results.length,
+        },
+      })
+      .where(eq(agentRun.id, runId));
+
+    return { runId, ...turn };
   }
 
   async createRun(userId: string, projectId: string, body: unknown) {

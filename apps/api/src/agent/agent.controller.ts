@@ -29,6 +29,11 @@ export class AgentController {
     return this.agent.createRun(req.user.id, projectId, body);
   }
 
+  @Post("creative-turn")
+  creativeTurn(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: unknown) {
+    return this.agent.runCreativeTurn(req.user.id, projectId, body);
+  }
+
   @Post("runs/:runId/resume")
   resume(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Param("runId") runId: string) {
     return this.agent.resumeRun(req.user.id, projectId, runId);

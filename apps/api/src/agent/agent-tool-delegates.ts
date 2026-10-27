@@ -37,6 +37,24 @@ export function buildAgentToolDelegates(deps: {
       const list = await deps.assets.listLegacyForProject(userId, projectId);
       return list.map((a) => ({ id: a.id, mimeType: a.mimeType, originalName: a.originalName }));
     },
+    searchAssets: async ({ projectId, userId, filter, status, q, limit }) => {
+      const page = await deps.assets.listLibrary(userId, projectId, {
+        filter: filter === "all" ? "all" : filter,
+        q,
+        limit,
+      });
+      let items = page.items.map((a) => ({
+        id: a.id,
+        mimeType: a.mimeType,
+        originalName: a.originalName,
+        status: a.status,
+        roles: a.roles,
+      }));
+      if (status !== "any") {
+        items = items.filter((a) => a.status === status);
+      }
+      return items;
+    },
     attachReference: async ({ projectId, userId, assetId, sceneId, role, characterId }) => {
       const res = await deps.references.attach(userId, projectId, {
         assetId,

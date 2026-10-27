@@ -220,6 +220,12 @@ export const CreateAgentRunBodySchema = z.object({
   idempotencyKey: z.string().max(128).optional(),
 });
 
+export const CreativeAgentTurnBodySchema = z.object({
+  conversationId: z.string().uuid(),
+  userMessage: z.string().min(1).max(50_000),
+  idempotencyKey: z.string().max(128).optional(),
+});
+
 export const AgentRunResponseSchema = z.object({
   id: z.string().uuid(),
   projectId: z.string().uuid(),

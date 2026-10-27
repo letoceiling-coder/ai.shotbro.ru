@@ -95,6 +95,8 @@ elif [ \"${MODE}\" = phase5-user-journey ]; then
   pnpm exec playwright test e2e/phase5-user-journey.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-asset-library ]; then
   pnpm exec playwright test e2e/phase5-asset-library.spec.ts --project=desktop --retries=0
+elif [ \"${MODE}\" = phase5-agent-integration ]; then
+  pnpm exec playwright test e2e/phase5-agent-integration.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-creative ]; then
   pnpm exec playwright test e2e/phase5-storyboard.spec.ts e2e/phase5-characters.spec.ts e2e/phase5-references.spec.ts e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = diagnostic ]; then

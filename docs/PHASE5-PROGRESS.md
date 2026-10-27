@@ -4,6 +4,7 @@
 **Git HEAD (VPS E2E, 2026-10-28):** `172a4df`  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
+**Phase 5K:** **IN PROGRESS** (creative-turn + mock NL planner)  
 **P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)
@@ -98,4 +99,4 @@ Non-blocking: API Docker label `HEAD` → pin explicit SHA on next deployment; o
 | 5K-C | E2E mock agent → reference + timeline |
 | 5K-D | Sign-off script entry in phase5 acceptance bundle |
 
-**Status:** **Not started** — awaiting explicit Phase 5K task after stakeholder review of this plan.
+**Status:** **In progress** — see `PHASE5-AGENT-INTEGRATION-ARCHITECTURE.md` and `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`.

@@ -241,6 +241,37 @@ export const DeliveryBlockSchema = z.object({
   mockLabel: z.string().default("MOCK RESULT"),
 });
 
+/** Phase 5K: REAL tool outcome from mock creative agent (data from API/DB). */
+export const AgentToolResultBlockSchema = z.object({
+  type: z.literal("agent_tool_result"),
+  mockAgent: z.literal(true),
+  toolName: z.string(),
+  success: z.boolean(),
+  humanReadableSummary: z.string(),
+  projectId: z.string(),
+  assetId: z.string().optional(),
+  sceneId: z.string().optional(),
+  revision: z.number().optional(),
+  errorCode: z.string().optional(),
+  deepLink: z
+    .object({
+      creativeSection: z.enum([
+        "chat",
+        "storyboard",
+        "assets",
+        "timeline",
+        "prompts",
+        "references",
+        "characters",
+        "models",
+      ]),
+      sceneId: z.string().optional(),
+      assetId: z.string().optional(),
+      clipId: z.string().optional(),
+    })
+    .optional(),
+});
+
 export const MessageBlockSchema = z.discriminatedUnion("type", [
   TextBlockSchema,
   GenerationPlanBlockSchema,
@@ -260,6 +291,7 @@ export const MessageBlockSchema = z.discriminatedUnion("type", [
   ProviderStatusBlockSchema,
   ProductionProgressBlockSchema,
   DeliveryBlockSchema,
+  AgentToolResultBlockSchema,
 ]);
 
 export type MessageBlock = z.infer<typeof MessageBlockSchema>;

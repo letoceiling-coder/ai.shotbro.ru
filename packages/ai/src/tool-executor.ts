@@ -11,6 +11,16 @@ export type ToolHandler = (input: Record<string, unknown>, ctx: ToolRunContext) 
 
 export type ToolExecutionDelegates = {
   listAssets?: (projectId: string, userId: string) => Promise<Array<{ id: string; mimeType: string; originalName?: string }>>;
+  searchAssets?: (input: {
+    projectId: string;
+    userId: string;
+    filter: string;
+    status: string;
+    q?: string;
+    limit: number;
+  }) => Promise<
+    Array<{ id: string; mimeType: string; originalName?: string; status?: string; roles?: string[] }>
+  >;
   attachReference?: (input: {
     projectId: string;
     userId: string;

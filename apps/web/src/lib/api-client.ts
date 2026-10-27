@@ -43,6 +43,10 @@ export const api = {
   agent: {
     createRun: (projectId: string, body: { userRequest: string; conversationId?: string }) =>
       apiFetch(`/api/v1/projects/${projectId}/agent/runs`, { method: "POST", body: JSON.stringify(body) }),
+    creativeTurn: (
+      projectId: string,
+      body: { userMessage: string; conversationId: string; idempotencyKey?: string },
+    ) => apiFetch(`/api/v1/projects/${projectId}/agent/creative-turn`, { method: "POST", body: JSON.stringify(body) }),
     listRuns: (projectId: string) => apiFetch(`/api/v1/projects/${projectId}/agent/runs`),
     resume: (projectId: string, runId: string) =>
       apiFetch(`/api/v1/projects/${projectId}/agent/runs/${runId}/resume`, { method: "POST", body: "{}" }),

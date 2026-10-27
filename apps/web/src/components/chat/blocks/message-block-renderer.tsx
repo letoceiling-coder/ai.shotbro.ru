@@ -19,6 +19,7 @@ import { AudioResultCard } from "./audio-result-card";
 import { ProviderStatusCard } from "./provider-status-card";
 import { ProductionProgressCard } from "./production-progress-card";
 import { DeliveryCard } from "./delivery-card";
+import { AgentToolResultCard } from "./agent-tool-result-card";
 
 export function MessageBlockRenderer({
   block,
@@ -64,6 +65,8 @@ export function MessageBlockRenderer({
       return <DeliveryCard block={block} />;
     case "version_history":
       return <VersionHistoryCard block={block} />;
+    case "agent_tool_result":
+      return <AgentToolResultCard block={block} />;
     default:
       return null;
   }

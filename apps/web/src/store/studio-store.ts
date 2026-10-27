@@ -42,6 +42,9 @@ interface StudioState {
   /** Asset Library → Timeline: pre-fill clip assignment */
   pendingTimelineAssetId: string | null;
   setPendingTimelineAssetId: (id: string | null) => void;
+  /** Phase 5K deep links from chat tool cards */
+  agentFocus: { sceneId?: string; assetId?: string; clipId?: string } | null;
+  setAgentFocus: (focus: { sceneId?: string; assetId?: string; clipId?: string } | null) => void;
   sidebarCollapsed: boolean;
   qualityStrategy: QualityStrategy;
   adStages: AdStageMap;
@@ -100,6 +103,8 @@ export const useStudioStore = create<StudioState>()(
       setCreativePromptSceneId: (creativePromptSceneId) => set({ creativePromptSceneId }),
       pendingTimelineAssetId: null,
       setPendingTimelineAssetId: (pendingTimelineAssetId) => set({ pendingTimelineAssetId }),
+      agentFocus: null,
+      setAgentFocus: (agentFocus) => set({ agentFocus }),
       sidebarCollapsed: false,
       qualityStrategy: "balance",
       adStages: { "demo-ad": "initial" },
