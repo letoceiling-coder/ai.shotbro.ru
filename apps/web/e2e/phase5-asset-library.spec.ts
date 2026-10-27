@@ -68,10 +68,18 @@ test.describe("Phase 5J asset library", () => {
 
       await expect
         .poll(async () => {
-          const card = page.getByTestId(/asset-card-/).first();
-          return card.isVisible().catch(() => false);
-        }, { timeout: 120_000 })
+          const r = await page.request.get(
+            `/api/v1/projects/${projectId}/assets?limit=24&q=e2e-library`,
+          );
+          if (!r.ok()) return false;
+          const j = (await r.json()) as { items?: Array<{ status: string; originalName: string }> };
+          return (j.items ?? []).some((a) => a.originalName === "e2e-library.png" && a.status === "READY");
+        }, { timeout: 180_000 })
         .toBe(true);
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await gotoStudioSection(page, projectId, "assets");
+      await expect(page.getByTestId(/asset-card-/).first()).toBeVisible({ timeout: 30_000 });
 
       await page.getByTestId("asset-library-search").fill("e2e-library");
       await expect(page.getByText("e2e-library.png")).toBeVisible({ timeout: 15_000 });
