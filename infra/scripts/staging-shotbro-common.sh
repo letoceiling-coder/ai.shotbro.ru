@@ -192,6 +192,15 @@ shotbro_git_head_sha() {
   git -C "$src" rev-parse --short HEAD
 }
 
+# Resolve deploy ref (HEAD, branch, tag, short/full SHA) to verified short commit for labels.
+shotbro_resolve_deploy_sha() {
+  local src="${1:-$SHOTBRO_SRC}" ref="${2:-HEAD}"
+  [ -d "$src/.git" ] || shotbro_fail "not_a_git_repo ${src}"
+  git -C "$src" rev-parse --verify "${ref}^{commit}" >/dev/null 2>&1 \
+    || shotbro_fail "unknown_git_ref ${ref}"
+  git -C "$src" rev-parse --short "${ref}^{commit}"
+}
+
 shotbro_services_changed_since_deploy() {
   local src="${1:-$SHOTBRO_SRC}"
   local base="${2:-}"

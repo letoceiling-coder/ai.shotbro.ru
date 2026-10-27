@@ -30,6 +30,16 @@ if [ -z "$E2E_TEST_PASSWORD" ]; then
   E2E_TEST_PASSWORD="$(env_val INTEGRATION_USER_A_PASSWORD)"
   export E2E_TEST_PASSWORD
 fi
+export E2E_TEST_EMAIL_B="$(env_val E2E_TEST_EMAIL_B)"
+export E2E_TEST_PASSWORD_B="$(env_val E2E_TEST_PASSWORD_B)"
+if [ -z "$E2E_TEST_EMAIL_B" ]; then
+  E2E_TEST_EMAIL_B="$(env_val INTEGRATION_USER_B_EMAIL)"
+  export E2E_TEST_EMAIL_B
+fi
+if [ -z "$E2E_TEST_PASSWORD_B" ]; then
+  E2E_TEST_PASSWORD_B="$(env_val INTEGRATION_USER_B_PASSWORD)"
+  export E2E_TEST_PASSWORD_B
+fi
 
 if [ -z "$E2E_TEST_EMAIL" ] || [ -z "$E2E_TEST_PASSWORD" ]; then
   echo "E2E_TEST_EMAIL/PASSWORD or INTEGRATION_USER_A_* required in staging.env" >&2
@@ -49,6 +59,8 @@ docker run --rm \
   -e E2E_STAGING_URL \
   -e E2E_TEST_EMAIL \
   -e E2E_TEST_PASSWORD \
+  -e E2E_TEST_EMAIL_B \
+  -e E2E_TEST_PASSWORD_B \
   -e CI=1 \
   -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
   "$PW_IMAGE" \
@@ -81,6 +93,8 @@ elif [ \"${MODE}\" = phase5-assembly ]; then
   pnpm exec playwright test e2e/phase5-assembly.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-user-journey ]; then
   pnpm exec playwright test e2e/phase5-user-journey.spec.ts --project=desktop --retries=0
+elif [ \"${MODE}\" = phase5-asset-library ]; then
+  pnpm exec playwright test e2e/phase5-asset-library.spec.ts --project=desktop --project=desktop1440 --project=tablet --project=mobile --retries=0
 elif [ \"${MODE}\" = phase5-creative ]; then
   pnpm exec playwright test e2e/phase5-storyboard.spec.ts e2e/phase5-characters.spec.ts e2e/phase5-references.spec.ts e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = diagnostic ]; then

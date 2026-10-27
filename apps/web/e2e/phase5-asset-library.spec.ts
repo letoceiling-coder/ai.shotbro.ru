@@ -85,9 +85,15 @@ test.describe("Phase 5J asset library", () => {
       await expect(page.getByTestId("asset-detail-sheet")).toBeVisible();
       await page.getByTestId("asset-download").click();
 
-      await page.getByTestId("asset-add-reference").click();
+      await page.getByTestId("asset-add-style-reference").click();
       await gotoStudioSection(page, projectId, "references");
-      await expect(page.getByTestId("reference-list")).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId("reference-list")).toContainText("STYLE", { timeout: 20_000 });
+
+      await gotoStudioSection(page, projectId, "assets");
+      await page.getByTestId("asset-library-search").fill("e2e-library");
+      await page.getByTestId(/asset-card-/).first().click();
+      await page.getByTestId("asset-use-first-frame").click();
+      await page.getByTestId("asset-use-last-frame").click();
 
       await gotoStudioSection(page, projectId, "storyboard");
       await page.getByTestId(/storyboard-scene-/).first().click();
@@ -100,6 +106,27 @@ test.describe("Phase 5J asset library", () => {
         mimeType: "video/mp4",
         buffer: tinyMp4Buffer(),
       });
+
+      await expect
+        .poll(async () => page.getByText("e2e-clip.mp4").isVisible().catch(() => false), { timeout: 120_000 })
+        .toBe(true);
+
+      await gotoStudioSection(page, projectId, "timeline");
+      await page.getByTestId("timeline-sync-storyboard").click();
+      await expect(page.getByTestId("timeline-studio")).toBeVisible({ timeout: 60_000 });
+
+      await gotoStudioSection(page, projectId, "assets");
+      await page.getByTestId("asset-library-search").fill("e2e-clip");
+      await page
+        .getByTestId(/asset-card-/)
+        .filter({ hasText: "e2e-clip.mp4" })
+        .first()
+        .click();
+      await expect(page.getByTestId("asset-detail-sheet")).toBeVisible();
+      await page.getByTestId("asset-add-to-timeline").click();
+      await expect(page.getByTestId("timeline-pending-asset-hint")).toBeVisible({ timeout: 20_000 });
+      await page.getByTestId("timeline-save").click();
+      await expect(page.getByTestId("timeline-studio")).toBeVisible();
 
       await page.reload({ waitUntil: "domcontentloaded" });
       await gotoStudioSection(page, projectId, "assets");

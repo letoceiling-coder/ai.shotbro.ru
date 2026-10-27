@@ -31,8 +31,9 @@ while [ $# -gt 0 ]; do
 done
 
 [ -d "$ROOT" ] || shotbro_fail "missing ${ROOT}"
-SHA="${SHA:-$(shotbro_git_head_sha "$ROOT")}"
-shotbro_log "git_head=${SHA} service=${SERVICE} dry_run=${DRY_RUN} verify=${VERIFY_ONLY}"
+RAW_SHA="${SHA:-HEAD}"
+SHA="$(shotbro_resolve_deploy_sha "$ROOT" "$RAW_SHA")"
+shotbro_log "git_ref=${RAW_SHA} deploy_sha=${SHA} service=${SERVICE} dry_run=${DRY_RUN} verify=${VERIFY_ONLY}"
 
 run() {
   if [ "$DRY_RUN" -eq 1 ]; then

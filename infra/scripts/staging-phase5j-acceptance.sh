@@ -20,7 +20,7 @@ run_pw() {
 
 run_pw phase5-asset-library
 
-for mode in regression-strict phase5-user-journey phase5-storyboard phase5-references phase5-timeline phase5-assembly phase5-prompts phase5-providers; do
+for mode in regression-strict phase5-user-journey phase5-storyboard phase5-characters phase5-references phase5-creative-flow phase5-timeline phase5-assembly phase5-prompts phase5-providers; do
   run_pw "$mode"
 done
 
