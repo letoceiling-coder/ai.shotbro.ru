@@ -20,7 +20,11 @@ export class AssetsController {
     @Query("sort") sort?: AssetListQuery["sort"],
     @Query("filter") filter?: string,
   ) {
-    return this.assets.listForProject(req.user.id, projectId, {
+    const hasLibraryQuery = Boolean(limit || cursor || q || filter || sort);
+    if (!hasLibraryQuery) {
+      return this.assets.listLegacyForProject(req.user.id, projectId);
+    }
+    return this.assets.listLibrary(req.user.id, projectId, {
       limit: limit ? Number(limit) : undefined,
       cursor,
       q,

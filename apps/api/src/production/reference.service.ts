@@ -36,7 +36,7 @@ export class ReferenceService {
   }
 
   private async assertAssetInProject(userId: string, projectId: string, assetId: string) {
-    const list = await this.assets.listForProject(userId, projectId);
+    const list = await this.assets.listLegacyForProject(userId, projectId);
     const hit = list.find((a) => a.id === assetId);
     if (!hit) throw new NotFoundException("asset_not_in_project");
     return hit;

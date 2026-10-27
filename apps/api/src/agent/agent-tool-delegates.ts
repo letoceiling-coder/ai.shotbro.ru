@@ -34,7 +34,7 @@ export function buildAgentToolDelegates(deps: {
 
   return {
     listAssets: async (projectId, userId) => {
-      const list = await deps.assets.listForProject(userId, projectId);
+      const list = await deps.assets.listLegacyForProject(userId, projectId);
       return list.map((a) => ({ id: a.id, mimeType: a.mimeType, originalName: a.originalName }));
     },
     attachReference: async ({ projectId, userId, assetId, sceneId, role, characterId }) => {

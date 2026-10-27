@@ -103,7 +103,7 @@ export async function loadProjectAssetIndex(db: Db, projectId: string): Promise<
         for (const clip of track.clips) {
           if (!clip.assetId) continue;
           const arr = timelineByAsset.get(clip.assetId) ?? [];
-          arr.push({ clipId: clip.id });
+          arr.push({ clipId: clip.clipId });
           timelineByAsset.set(clip.assetId, arr);
         }
       }

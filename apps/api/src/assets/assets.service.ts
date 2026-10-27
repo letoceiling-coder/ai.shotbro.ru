@@ -94,22 +94,26 @@ export class AssetsService {
     };
   }
 
-  async listForProject(userId: string, projectId: string, query?: AssetListQuery) {
+  async listLegacyForProject(userId: string, projectId: string) {
     await this.access.assertProjectAccess(this.db, userId, projectId);
-    const isLibraryQuery =
-      Boolean(query?.limit || query?.cursor || query?.q || query?.filter || query?.sort);
+    const rows = await this.db
+      .select()
+      .from(asset)
+      .where(and(eq(asset.projectId, projectId), isNull(asset.deletedAt)))
+      .orderBy(desc(asset.createdAt))
+      .limit(100);
+    return rows.map((a) => this.mapLegacy(a));
+  }
 
-    if (!isLibraryQuery) {
-      const rows = await this.db
-        .select()
-        .from(asset)
-        .where(and(eq(asset.projectId, projectId), isNull(asset.deletedAt)))
-        .orderBy(desc(asset.createdAt))
-        .limit(100);
-      return rows.map((a) => this.mapLegacy(a));
-    }
+  /** @deprecated alias for internal callers */
+  async listForProject(userId: string, projectId: string) {
+    return this.listLegacyForProject(userId, projectId);
+  }
 
-    const limit = Math.min(Math.max(query?.limit ?? 24, 1), 100);
+  async listLibrary(userId: string, projectId: string, query: AssetListQuery) {
+    await this.access.assertProjectAccess(this.db, userId, projectId);
+
+    const limit = Math.min(Math.max(query.limit ?? 24, 1), 100);
     const index = await loadProjectAssetIndex(this.db, projectId);
 
     let rows = await this.db
