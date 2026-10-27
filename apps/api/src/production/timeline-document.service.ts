@@ -152,14 +152,17 @@ export class TimelineDocumentService {
 
   /** Ensures v2 timeline has video clips before mock assembly (sync from storyboard when empty). */
   async ensureTimelineForProduction(userId: string, projectId: string): Promise<TimelineActiveView> {
-    const current = await this.ensureTimeline(userId, projectId);
-    const videoClips = current.payload.tracks.find((t) => t.type === "VIDEO")?.clips ?? [];
+    let current = await this.ensureTimeline(userId, projectId);
+    let videoClips = current.payload.tracks.find((t) => t.type === "VIDEO")?.clips ?? [];
     if (videoClips.length > 0) return current;
     try {
-      return await this.syncFromStoryboard(userId, projectId, true);
+      current = await this.syncFromStoryboard(userId, projectId, true);
+      videoClips = current.payload.tracks.find((t) => t.type === "VIDEO")?.clips ?? [];
+      if (videoClips.length > 0) return current;
     } catch {
-      return current;
+      /* fall through — storyboard may not be ready yet */
     }
+    return current;
   }
 
   async patchDocument(userId: string, projectId: string, body: { payload: TimelineDocument; expectedRevision?: number }) {

@@ -57,6 +57,36 @@ export class AgentService {
     @Inject(TimelineDocumentService) private readonly timeline: TimelineDocumentService,
   ) {}
 
+  /** Storyboard document revision invalidates downstream gates; re-open STORYBOARD approval in chat. */
+  async onStoryboardDocumentRevised(userId: string, projectId: string) {
+    await this.approvals.expirePendingForTargetTypes(projectId, ["STORYBOARD", "COST", "PRODUCTION"]);
+    const { workspaceId } = await this.access.assertProjectAccess(this.db, userId, projectId);
+    const rewindFrom = new Set<AgentProductionState>([
+      "WAITING_STORYBOARD_APPROVAL",
+      "WAITING_COST_APPROVAL",
+      "WAITING_PRODUCTION_APPROVAL",
+      "READY_FOR_PRODUCTION",
+    ]);
+    const runs = await this.db
+      .select()
+      .from(agentRun)
+      .where(and(eq(agentRun.projectId, projectId), eq(agentRun.status, "RUNNING")));
+    for (const run of runs) {
+      if (!rewindFrom.has(run.productionState as AgentProductionState)) continue;
+      if (!run.conversationId) continue;
+      await this.db
+        .update(agentRun)
+        .set({ productionState: "WAITING_STORYBOARD_APPROVAL", updatedAt: new Date() })
+        .where(eq(agentRun.id, run.id));
+      const storage = new DrizzleProductionStorage(this.db, workspaceId, this.events);
+      await this.orchestrator.refreshWaitingGateRequest(
+        run.id,
+        userId,
+        this.ports(storage, workspaceId, run.conversationId, userId, projectId),
+      );
+    }
+  }
+
   async resumeAfterApproval(projectId: string, userId: string, targetType: string) {
     const stateByType: Record<string, AgentProductionState> = {
       PLAN: "WAITING_PLAN_APPROVAL",

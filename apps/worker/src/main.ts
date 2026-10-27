@@ -7,6 +7,9 @@ import { runMediaCleanup } from "./cleanup.js";
 import { processAssetMetadata } from "./process-asset.js";
 import { runStorageReconcile } from "./reconcile.js";
 import { runProductionNode } from "./production-node.js";
+import { eq } from "drizzle-orm";
+import { agentRun } from "@shotbro/db/schema";
+import { getWorkerDb } from "./db.js";
 import { executeProductionRun } from "./production-run.js";
 
 loadEnv({ path: resolve(process.cwd(), "../../.env.production") });
@@ -67,7 +70,21 @@ new Worker(
 
 new Worker(
   "production.run",
-  async (job) => executeProductionRun(job.data as never, log),
+  async (job) => {
+    const data = job.data as { runId: string; projectId: string };
+    try {
+      return await executeProductionRun(job.data as never, log);
+    } catch (err) {
+      const db = getWorkerDb();
+      const msg = err instanceof Error ? err.message : "production_run_failed";
+      await db
+        .update(agentRun)
+        .set({ status: "FAILED", productionState: "FAILED", updatedAt: new Date() })
+        .where(eq(agentRun.id, data.runId));
+      log.error({ err, runId: data.runId, projectId: data.projectId }, msg);
+      throw err;
+    }
+  },
   { ...workerOpts, concurrency: 1 },
 );
 

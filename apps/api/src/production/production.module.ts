@@ -1,4 +1,5 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
+import { AgentModule } from "../agent/agent.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { QueueModule } from "../queue/queue.module";
 import { CostReservationService } from "./cost-reservation.service";
@@ -15,7 +16,7 @@ import { ReferenceService } from "./reference.service";
 import { AssetsModule } from "../assets/assets.module";
 
 @Module({
-  imports: [QueueModule, AssetsModule],
+  imports: [QueueModule, AssetsModule, forwardRef(() => AgentModule)],
   controllers: [ProductionController],
   providers: [
     ProductionGraphService,

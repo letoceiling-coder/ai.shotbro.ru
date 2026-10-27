@@ -1,4 +1,5 @@
-import { Body, ConflictException, Controller, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, ConflictException, Controller, Get, Inject, Param, Patch, Post, Query, Req, UseGuards, forwardRef } from "@nestjs/common";
+import { AgentService } from "../agent/agent.service";
 import { ApiTags } from "@nestjs/swagger";
 import type { AuthedRequest } from "../auth/session.guard";
 import { SessionGuard } from "../auth/session.guard";
@@ -28,7 +29,13 @@ export class ProductionController {
     @Inject(StoryboardDocumentService) private readonly storyboard: StoryboardDocumentService,
     @Inject(ReferenceService) private readonly references: ReferenceService,
     @Inject(TimelineDocumentService) private readonly timeline: TimelineDocumentService,
+    @Inject(forwardRef(() => AgentService)) private readonly agent: AgentService,
   ) {}
+
+  private async notifyStoryboardRevision(userId: string, projectId: string, revised?: boolean) {
+    if (revised === false) return;
+    await this.agent.onStoryboardDocumentRevised(userId, projectId);
+  }
 
   @Get("timeline")
   getTimeline(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
@@ -293,23 +300,29 @@ export class ProductionController {
   }
 
   @Post("storyboard/sync")
-  syncStoryboard(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
-    return this.storyboard.syncFromScript(req.user.id, projectId);
+  async syncStoryboard(@Req() req: AuthedRequest, @Param("projectId") projectId: string) {
+    const result = await this.storyboard.syncFromScript(req.user.id, projectId);
+    await this.notifyStoryboardRevision(req.user.id, projectId, result?.revised);
+    return result;
   }
 
   @Patch("storyboard/scenes/:sceneId")
-  patchStoryboardScene(
+  async patchStoryboardScene(
     @Req() req: AuthedRequest,
     @Param("projectId") projectId: string,
     @Param("sceneId") sceneId: string,
     @Body() body: Record<string, unknown>,
   ) {
-    return this.storyboard.patchScene(req.user.id, projectId, sceneId, body);
+    const result = await this.storyboard.patchScene(req.user.id, projectId, sceneId, body);
+    await this.notifyStoryboardRevision(req.user.id, projectId, result?.revised);
+    return result;
   }
 
   @Post("storyboard/scenes/reorder")
-  reorderStoryboard(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: { sceneIds: string[] }) {
-    return this.storyboard.reorderScenes(req.user.id, projectId, body.sceneIds ?? []);
+  async reorderStoryboard(@Req() req: AuthedRequest, @Param("projectId") projectId: string, @Body() body: { sceneIds: string[] }) {
+    const result = await this.storyboard.reorderScenes(req.user.id, projectId, body.sceneIds ?? []);
+    await this.notifyStoryboardRevision(req.user.id, projectId, result?.revised);
+    return result;
   }
 
   @Post("characters/:characterId/assign-scene")

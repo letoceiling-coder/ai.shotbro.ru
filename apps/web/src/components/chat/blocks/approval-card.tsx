@@ -48,6 +48,11 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
         await qc.invalidateQueries({ queryKey: ["approvals", projectId] });
         await qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
         setTimeout(() => qc.invalidateQueries({ queryKey: ["messages"] }), 800);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "approval_failed";
+        if (/version mismatch|409|Conflict/i.test(msg)) {
+          setStatus("revision");
+        }
       } finally {
         setPending(false);
       }

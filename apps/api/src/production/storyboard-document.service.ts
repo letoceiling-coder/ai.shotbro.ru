@@ -67,6 +67,15 @@ export class StoryboardDocumentService {
     }
   }
 
+  private payloadUnchanged(
+    existing: { payload: { scriptDocumentVersion?: number; scenes: StoryboardScene[] }; version: number },
+    scriptVersion: number,
+    scenes: StoryboardScene[],
+  ) {
+    if (existing.payload.scriptDocumentVersion !== scriptVersion) return false;
+    return JSON.stringify(existing.payload.scenes) === JSON.stringify(scenes);
+  }
+
   async syncFromScript(userId: string, projectId: string) {
     const scriptRow = await this.documents.getActiveScript(userId, projectId);
     const script = ScriptDocumentSchema.parse(scriptRow.payload);
@@ -78,6 +87,9 @@ export class StoryboardDocumentService {
       scriptDocumentVersion: scriptRow.version,
       scenes,
     };
+    if (existing && this.payloadUnchanged(existing, scriptRow.version, scenes)) {
+      return { ...existing, revised: false as const, invalidation: [] as { sceneId: string; invalidatedNodeIds: string[] }[] };
+    }
     if (!existing) {
       const id = uuid();
       await this.db.insert(productionDocument).values({
@@ -90,9 +102,11 @@ export class StoryboardDocumentService {
         payload,
         createdBy: userId,
       });
-      return this.getActive(userId, projectId);
+      const created = await this.getActive(userId, projectId);
+      return { ...created!, revised: true as const, invalidation: [] as { sceneId: string; invalidatedNodeIds: string[] }[] };
     }
-    return this.publishRevision(userId, projectId, existing, payload, script.scenes.map((s) => s.id));
+    const published = await this.publishRevision(userId, projectId, existing, payload, script.scenes.map((s) => s.id));
+    return { ...published, revised: true as const };
   }
 
   private async publishRevision(
@@ -153,13 +167,14 @@ export class StoryboardDocumentService {
     });
     const scenes = [...parsed.scenes];
     scenes[idx] = nextScene;
-    return this.publishRevision(
+    const published = await this.publishRevision(
       userId,
       projectId,
       active,
       { ...parsed, scenes, schemaVersion: 2 },
       [sceneId],
     );
+    return { ...published, revised: true as const };
   }
 
   async reorderScenes(userId: string, projectId: string, sceneIds: string[]) {
@@ -173,6 +188,7 @@ export class StoryboardDocumentService {
       if (!s) throw new BadRequestException("unknown_scene_id");
       return { ...s, order: i + 1, revision: s.revision + 1 };
     });
-    return this.publishRevision(userId, projectId, active, { ...parsed, scenes, schemaVersion: 2 }, sceneIds);
+    const published = await this.publishRevision(userId, projectId, active, { ...parsed, scenes, schemaVersion: 2 }, sceneIds);
+    return { ...published, revised: true as const };
   }
 }

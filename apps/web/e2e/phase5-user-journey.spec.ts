@@ -20,6 +20,7 @@ import { waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
 import {
   attachReferenceViaUi,
   reorderTimelineClipViaUi,
+  reviseStoryboardViaUi,
   syncTimelineFromStoryboardViaUi,
 } from "./helpers/user-journey-ui";
 
@@ -91,6 +92,34 @@ test.describe("Phase 5 full REAL user journey", () => {
         timeout: 180_000,
       })
       .not.toBe("WAITING_STORYBOARD_APPROVAL");
+
+    await gotoStudioSection(page, projectId, "storyboard");
+    await reviseStoryboardViaUi(page, projectId, "journey");
+    await gotoStudioSection(page, projectId, "chat");
+    await approveNextPendingViaUi(page, projectId);
+    await expect
+      .poll(async () => latestAgentRun(await fetchAgentRuns(page, projectId))?.productionState ?? "", {
+        timeout: 180_000,
+      })
+      .not.toBe("WAITING_STORYBOARD_APPROVAL");
+
+    await gotoStudioSection(page, projectId, "storyboard");
+    const pendingBefore = await page.request.get(`/api/v1/projects/${projectId}/approvals`);
+    const pendingCountBefore =
+      pendingBefore.ok() ?
+        ((await pendingBefore.json()) as { items?: Array<{ status: string }> }).items?.filter((a) => a.status === "PENDING")
+          .length ?? 0
+      : 0;
+    await page.getByTestId("storyboard-sync").click();
+    await page.waitForTimeout(1500);
+    await gotoStudioSection(page, projectId, "chat");
+    const pendingAfter = await page.request.get(`/api/v1/projects/${projectId}/approvals`);
+    const pendingCountAfter =
+      pendingAfter.ok() ?
+        ((await pendingAfter.json()) as { items?: Array<{ status: string }> }).items?.filter((a) => a.status === "PENDING")
+          .length ?? 0
+      : 0;
+    expect(pendingCountAfter).toBe(pendingCountBefore);
 
     await gotoStudioSection(page, projectId, "characters");
     await expect(page.getByTestId("character-studio")).toBeVisible({ timeout: 30_000 });

@@ -10,7 +10,7 @@ import { AgentService } from "./agent.service";
 import { AgentRuntimeRolloutService } from "./agent-runtime-rollout.service";
 
 @Module({
-  imports: [EventsModule, forwardRef(() => ApprovalsModule), ProductionModule, AssetsModule, ProvidersModule],
+  imports: [EventsModule, forwardRef(() => ApprovalsModule), forwardRef(() => ProductionModule), AssetsModule, ProvidersModule],
   controllers: [AgentController],
   providers: [AgentService, AgentRuntimeRolloutService, AccessPolicyService],
   exports: [AgentService, AgentRuntimeRolloutService],

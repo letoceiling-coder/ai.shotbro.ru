@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable, NotFoundException, forwardRef } from "@nestjs/common";
 import { AgentService } from "../agent/agent.service";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { v4 as uuid } from "uuid";
 import type { Db } from "@shotbro/db/client";
@@ -98,6 +98,33 @@ export class ApprovalsService {
     });
 
     return { approvalId, messageId, payloadHash, targetVersion: input.targetVersion };
+  }
+
+  /** Pending approvals for a target type no longer apply after document revision (storyboard sync, etc.). */
+  async expirePendingForTargetTypes(projectId: string, targetTypes: string[]) {
+    if (!targetTypes.length) return { expired: 0 };
+    const pending = await this.db
+      .select({ id: approval.id })
+      .from(approval)
+      .where(
+        and(
+          eq(approval.projectId, projectId),
+          inArray(approval.targetType, targetTypes),
+          eq(approval.status, "PENDING"),
+        ),
+      );
+    if (!pending.length) return { expired: 0 };
+    await this.db
+      .update(approval)
+      .set({ status: "EXPIRED", decidedAt: new Date() })
+      .where(
+        and(
+          eq(approval.projectId, projectId),
+          inArray(approval.targetType, targetTypes),
+          eq(approval.status, "PENDING"),
+        ),
+      );
+    return { expired: pending.length };
   }
 
   async list(userId: string, projectId: string) {

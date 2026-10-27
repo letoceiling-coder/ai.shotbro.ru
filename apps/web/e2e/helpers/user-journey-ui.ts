@@ -1,6 +1,37 @@
 import { expect, type Page } from "@playwright/test";
 import { uploadImageViaPicker } from "./phase5-creative-ui";
 
+export async function reviseStoryboardViaUi(page: Page, projectId: string, titleSuffix: string) {
+  await page.getByTestId("storyboard-sync").click();
+  await expect
+    .poll(async () => (await page.request.get(`/api/v1/projects/${projectId}/storyboard`)).ok(), {
+      timeout: 60_000,
+    })
+    .toBe(true);
+
+  const boardRes = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
+  expect(boardRes.ok()).toBeTruthy();
+  const board = (await boardRes.json()) as { payload?: { scenes?: Array<{ sceneId: string; title?: string }> } };
+  const first = board.payload?.scenes?.[0];
+  expect(first?.sceneId).toBeTruthy();
+
+  await page.getByTestId(`storyboard-scene-${first!.sceneId}`).click();
+  const titleInput = page.getByTestId("storyboard-scene-title");
+  await expect(titleInput).toBeVisible({ timeout: 30_000 });
+  const nextTitle = `${first!.title ?? "Scene"} ${titleSuffix}`.trim();
+  await titleInput.fill(nextTitle);
+  await titleInput.blur();
+
+  await expect
+    .poll(async () => {
+      const r = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
+      if (!r.ok()) return "";
+      const j = (await r.json()) as { payload?: { scenes?: Array<{ sceneId: string; title?: string }> } };
+      return j.payload?.scenes?.find((s) => s.sceneId === first!.sceneId)?.title ?? "";
+    }, { timeout: 60_000 })
+    .toContain(titleSuffix);
+}
+
 export async function attachReferenceViaUi(page: Page, role: "STYLE" | "FIRST_FRAME") {
   await page.getByTestId("reference-role").click();
   await page.getByRole("option", { name: role }).click();

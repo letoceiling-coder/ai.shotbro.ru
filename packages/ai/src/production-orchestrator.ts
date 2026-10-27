@@ -49,6 +49,17 @@ const WAITING: AgentProductionState[] = [
 export class ProductionOrchestrator {
   constructor(private readonly env: AppEnv) {}
 
+  /** Re-posts approval chat block when gate is waiting but document revision changed (e.g. storyboard sync). */
+  async refreshWaitingGateRequest(
+    runId: string,
+    userId: string,
+    ports: OrchestratorPorts,
+  ): Promise<void> {
+    const run = await ports.storage.getRun(runId);
+    if (!run || !WAITING.includes(run.productionState)) return;
+    await this.executeState(run.productionState, run, userId, ports, run.triggerMessage ?? "");
+  }
+
   async advance(runId: string, userId: string, ports: OrchestratorPorts): Promise<AgentProductionState> {
     const run = await ports.storage.getRun(runId);
     if (!run) throw new Error("Run not found");
@@ -258,7 +269,15 @@ export class ProductionOrchestrator {
         break;
       }
       case "WAITING_STORYBOARD_APPROVAL": {
-        await this.requestApproval(run, ports, userId, "STORYBOARD", "STORYBOARD", "Утвердите раскадровку");
+        await this.requestApproval(
+          run,
+          ports,
+          userId,
+          "STORYBOARD",
+          "STORYBOARD",
+          "Утвердите раскадровку",
+          "После Sync script или правок сцен нужно подтвердить актуальную версию.",
+        );
         const sb = await ports.storage.getActiveDocument(run.projectId, "STORYBOARD");
         const storyboard = sb?.payload as { title?: string; frames?: Array<{ sceneId: string; sequence: number; durationSeconds: number }> };
         if (storyboard?.frames) {
@@ -364,6 +383,7 @@ export class ProductionOrchestrator {
     targetType: string,
     docType: string,
     title: string,
+    description?: string,
   ) {
     let doc = await ports.storage.getActiveDocument(run.projectId, docType);
     if (!doc && docType === "TIMELINE") {
@@ -383,6 +403,7 @@ export class ProductionOrchestrator {
       targetVersion: String(doc.version),
       payload: doc.payload,
       title,
+      description,
     });
     await ports.storage.emitEvent("approval.required", { runId: run.id, targetType, targetId: doc.id });
   }
