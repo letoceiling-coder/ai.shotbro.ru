@@ -128,7 +128,11 @@ test.describe("Phase 5J asset library", () => {
 
       await gotoStudioSection(page, projectId, "storyboard");
       await expect(page.getByTestId("storyboard-scene-grid")).toBeVisible({ timeout: 30_000 });
-      await page.getByTestId(/storyboard-scene-/).first().click();
+      await page
+        .getByTestId("storyboard-scene-grid")
+        .locator("button[data-testid^='storyboard-scene-']")
+        .first()
+        .click();
       await expect(page.getByTestId("storyboard-scene-detail")).toBeVisible({ timeout: 20_000 });
       await page.getByTestId("storyboard-first-frame").getByRole("button", { name: "Назначить" }).click();
       await uploadImageViaPicker(page);
