@@ -21,17 +21,26 @@ function tinyMp4Buffer() {
 
 let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
-async function uploadViaLibraryInput(page: import("@playwright/test").Page, file: { name: string; mimeType: string; buffer: Buffer }) {
-  const [chooser] = await Promise.all([
-    page.waitForEvent("filechooser", { timeout: 30_000 }),
-    page.getByTestId("asset-upload").click(),
-  ]);
+async function uploadViaLibraryDrop(
+  page: import("@playwright/test").Page,
+  file: { name: string; mimeType: string; buffer: Buffer },
+) {
+  const b64 = file.buffer.toString("base64");
   await Promise.all([
     page.waitForResponse(
       (r) => r.url().includes("/api/v1/uploads/init") && r.request().method() === "POST" && r.ok(),
       { timeout: 60_000 },
     ),
-    chooser.setFiles(file),
+    page.getByTestId("asset-library").evaluate(
+      (el, payload) => {
+        const bin = Uint8Array.from(atob(payload.b64), (c) => c.charCodeAt(0));
+        const f = new File([bin], payload.name, { type: payload.mimeType });
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      },
+      { name: file.name, mimeType: file.mimeType, b64 },
+    ),
   ]);
   await page.waitForResponse(
     (r) => r.url().includes("/api/v1/uploads/") && r.url().includes("/complete") && r.ok(),
@@ -73,7 +82,7 @@ test.describe("Phase 5J asset library", () => {
         return;
       }
 
-      await uploadViaLibraryInput(page, {
+      await uploadViaLibraryDrop(page, {
         name: "e2e-library.png",
         mimeType: "image/png",
         buffer: tinyPngBuffer(),
@@ -122,7 +131,7 @@ test.describe("Phase 5J asset library", () => {
       await uploadImageViaPicker(page);
 
       await gotoStudioSection(page, projectId, "assets");
-      await uploadViaLibraryInput(page, {
+      await uploadViaLibraryDrop(page, {
         name: "e2e-clip.mp4",
         mimeType: "video/mp4",
         buffer: tinyMp4Buffer(),
@@ -173,7 +182,7 @@ test.describe("Phase 5J asset library", () => {
     await page.goto("/studio", { waitUntil: "domcontentloaded" });
     const projectA = await openRealNewProject(page);
     await gotoStudioSection(page, projectA, "assets");
-    await uploadViaLibraryInput(page, {
+    await uploadViaLibraryDrop(page, {
       name: "idor.png",
       mimeType: "image/png",
       buffer: tinyPngBuffer(),
