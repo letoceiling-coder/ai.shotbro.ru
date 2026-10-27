@@ -1,65 +1,79 @@
 # Phase 5J — Asset Library acceptance
 
-**Status:** **NOT ACCEPTED** (stabilization in progress)  
-**Git (VPS E2E):** `ee0a0b8`+ (upload via DnD; storyboard selector fixes in flight)  
-**Branch:** `phase5/creative-studio`
+**Status:** **NOT ACCEPTED** (full `phase5j-acceptance` in progress)  
+**Git (E2E):** `b021fba` · **Web deployed:** `0d5d468d` (label `org.shotbro.build-sha=0d5d468d`) · **API:** label `HEAD` · **Worker:** `366716e`  
+**Branch:** `phase5/creative-studio` · **VPS:** `85.117.235.93`
 
-## Deployment
+## 1. E2E runner — `b7b0703` (historical green)
 
-| Service | Image label | Notes |
-|---------|-------------|--------|
-| Web | `HEAD` (literal) | Source matches **`57f1579`/`b076f47`**; fixed in `b076f47` → resolves to short SHA |
-| API | `HEAD` (literal) | Same |
-| Worker | **`366716e`** | Unchanged; upload processing OK |
+| Field | Value |
+|--------|--------|
+| Log | `/var/log/shotbro-e2e/phase5-asset-library-b7b0703.log` |
+| Active runner | **No** (no Playwright Docker container; stale `bash` wait loops ignore) |
+| Exit | **0** |
+| Result | **5 passed** (24.6s), retries=0 |
+| Scope | DnD-only upload path; IDOR download-url only |
 
-**Prior mistake:** `staging-deploy.sh … HEAD` passed literal `HEAD` to Docker `BUILD_SHA`. **Fix:** `shotbro_resolve_deploy_sha` + `staging-deploy-sha-smoke.sh` (`deploy_sha_smoke_ok`).
+Superseded by **`b021fba`** (button + DnD steps, timeline API assert, expanded IDOR).
 
-**Disk (VPS):** ~**31 GB** free (~74% used). **No active `docker build`** after cleanup window (stale wait loops only).
+## 2. Current asset-library E2E — **`b021fba`**
 
-## E2E — critical RCA
+| # | Test | Exit |
+|---|------|------|
+| 1 | desktop1920 full journey | **PASS** |
+| 2 | desktop1440 smoke | **PASS** |
+| 3 | tablet smoke | **PASS** |
+| 4 | mobile390 smoke | **PASS** |
+| 5 | IDOR (user B) | **PASS** |
 
-| Log | What ran | Result |
-|-----|----------|--------|
-| `phase5-asset-library-57f1579.log` | **Wrong suite** — missing `phase5-asset-library` mode → default **phase4f + regression** | phase4f mobile390 FAIL; regression **8/8 PASS** |
-| `phase5-asset-library-b076f47.log` | Correct spec, but **4 Playwright projects × serial** → 20 runs; desktop1920 **2m timeout** waiting for card after upload | **FAIL** (in progress / failed) |
+**Log:** `/var/log/shotbro-e2e/phase5-asset-library-7d87159.log` · **5 passed (25.4s)**
 
-**Fixes (`b076f47`, `cc5abbf`):**
+### Root causes (earlier failures)
 
-- Playwright mode `phase5-asset-library` → `e2e/phase5-asset-library.spec.ts`
-- Export `E2E_TEST_EMAIL_B` / `INTEGRATION_USER_B_*` for IDOR
-- **Desktop-only** project for asset-library (viewport smokes still inside spec)
-- Poll **`READY`** via paginated API before UI card assert (180s)
+| Issue | RCA | Fix |
+|--------|-----|-----|
+| Wrong suite (`57f1579`) | Missing `phase5-asset-library` in Playwright script | `b076f47` |
+| Card never visible | Upload never reached API (chooser/input) | DnD `DataTransfer` on `asset-library` |
+| Storyboard | Locator matched `storyboard-scene-grid` | Click `button[data-testid^=storyboard-scene-]` inside grid |
+| MP4 not READY | Synthetic MP4 invalid for FFmpeg | `public/demo-assets/shotbro-demo.mp4` |
+| Button upload | Headless chooser/`setInputFiles` no React `onChange` | Web: label + native `change` listener; E2E: click «Загрузить» then DnD delivery |
+| Timeline assert | Clips under `payload.tracks[]`; revision in `payload.revision` | `b021fba` |
+| User journey | `project-assets` testid removed | Wrapper `data-testid="project-assets"` |
 
-**Latest E2E logs:** `phase5-asset-library-8411143.log` (upload OK, storyboard selector FAIL) · `ee0a0b8.log`
+## 3. Upload evidence
 
-**Upload RCA:** Native file chooser / hidden `input` did not trigger React upload on staging; **drag-drop `DataTransfer`** on `asset-library` works (`8411143`).
+- **DnD:** `POST /api/v1/uploads/init` → presigned PUT → `complete` → worker → **`READY`** (PNG + demo MP4).
+- **Button:** Click `asset-upload` + DnD file delivery (headless-safe); production uses label + native file picker + `change` listener (`0d5d468d` web).
+- **MP4 (ffprobe on VPS):** h264/yuv420p, 5s, 1080×1920, no audio — `shotbro-demo.mp4`.
 
-## Viewport / IDOR coverage (intended)
+## 4. Timeline / references / IDOR / lineage
 
-| Viewport | Coverage |
-|----------|----------|
-| desktop1920 | Full media journey (upload, search, filter, detail, STYLE/first/last, timeline pre-fill+save, F5) |
-| desktop1440 / tablet / mobile390 | Library visible + screenshot smoke |
-| IDOR | User B denied `download-url` (requires B creds in `staging.env`) |
+- **Timeline:** PATCH on Save; API check `tracks[].clips[].assetId` + F5 reload (`b021fba`).
+- **STYLE / first / last frame:** UI steps in desktop1920 journey.
+- **IDOR:** User B denied list/detail/preview/download/rename/delete on user A asset (`INTEGRATION_USER_B_*`).
+- **Lineage:** `generated_from` on mock provider ingest only; manual uploads **no** `asset_relation` (by design).
 
-## Lineage
+## 5. Full acceptance bundle
 
-- `asset_relation` populated on **mock provider ingest** when `toolInput` carries parent asset ids (`generated_from`).
-- Upload / storyboard frame assign: **no new asset row** → no relation edge (documented).
-- UI: missing edges → «Источник неизвестен».
+**Script:** `infra/scripts/staging-phase5j-acceptance.sh`  
+**Resume:** `PHASE5J_START_AT=phase5-user-journey` (after green asset-library + prior regression pass)  
+**Log:** `/var/log/shotbro-e2e/phase5j-acceptance-b021fba.log`
 
-## Regression bundle
+| Suite | Prior result (partial run) |
+|--------|----------------------------|
+| phase5-asset-library | PASS |
+| regression-strict 8/8 | PASS |
+| phase5-user-journey | FAIL → `project-assets` (fixed in web) |
+| Remaining Phase 5 suites | Pending |
 
-Script: `infra/scripts/staging-phase5j-acceptance.sh` — runs asset-library first, then strict + Phase 5 suites (**incl. characters, creative-flow**).
+## 6. Ops
 
-**Do not start** until `phase5-asset-library` **PASS** and no concurrent Playwright.
+- **Disk:** ~31 GB free (~74% used). No aggressive prune.
+- **Mock-only:** `AI_MOCK_MODE=true`, live paid providers OFF.
+- **Deploy SHA:** `staging-deploy.sh` resolves `HEAD` → short SHA (`b076f47`); web redeploy **`0d5d468d`** for upload UX.
 
-## Remaining blockers
+## 7. Formal acceptance
 
-1. Green **`phase5-asset-library`** on VPS (`cc5abbf`).
-2. Full **`phase5j-acceptance.log`** PASS.
-3. Optional: redeploy only if needed for label `b076f47`/`cc5abbf` (content already on HEAD images from git checkout at build time).
+**Phase 5J = ACCEPTED** only when full acceptance log ends with `PHASE5J_ALL_PASS` and criteria 1–15 from phase brief are met.
 
-## Formal acceptance
-
-**Phase 5J = ACCEPTED** — **no** until items above are green.
+**Phase 5K:** plan only — not started.
