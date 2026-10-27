@@ -1,6 +1,6 @@
 # Phase 5 — Approval revision integrity (Storyboard Sync)
 
-**Status:** Implemented 2026-10-27 · staging deploy pending verification
+**Status:** Verified on staging 2026-10-27 · runtime **6aaab0a** (API/worker/web) · E2E helper **b68527c**
 
 ## Root cause (P0 user journey r2–r4)
 
@@ -44,8 +44,8 @@ Mitigation: `ensureTimelineForProduction` + worker FAILED state. Re-run `regress
 
 ## Verification checklist
 
-- [ ] Storyboard sync + re-approve REAL UI path
-- [ ] `phase5-user-journey` PASS with Sync steps
-- [ ] `regression-strict` 8/8
-- [ ] Phase 5 module suites
-- [ ] Runtime SHA recorded on VPS
+- [x] Storyboard sync + re-approve REAL UI path (`onStoryboardDocumentRevised`)
+- [x] `phase5-user-journey` **4/4 PASS** — log `phase5-user-journey-b68527c.log` (Sync + scene edit + idempotent sync)
+- [x] `regression-strict` **8/8 PASS** — log `regression-strict-6aaab0a.log` (~9.4m)
+- [ ] Full Phase 5 module suites (storyboard → assembly) — queued after strict green
+- [x] Runtime SHA: API/worker/web **6aaab0a**, git VPS **b68527c** (E2E only)
