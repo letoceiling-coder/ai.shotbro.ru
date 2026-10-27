@@ -1,52 +1,50 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (VPS, 2026-10-27):** `3eb89d3`  
+**Git HEAD (VPS E2E, 2026-10-28):** `172a4df`  
 **Phase 5I:** **ACCEPTED**  
+**Phase 5J:** **ACCEPTED**  
 **P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)
 
-| Service | `org.shotbro.build-sha` | Notes |
-|---------|-------------------------|--------|
-| API | **6aaab0a** | Storyboard revision → approval integrity, timeline ensure |
-| Worker | **6aaab0a** | `production.run` → **FAILED** on assembly error (no infinite PRODUCING) |
-| Web | **3eb89d3** | Approval card hydrates **EXPIRED** from API; Creative + Production UI · deploy log `deploy-web-3eb89d3.log` |
+| Service | `org.shotbro.build-sha` | Image (runtime) | Notes |
+|---------|-------------------------|-----------------|--------|
+| Web | **3374efcb** | `infra-web-1` | Asset library upload UX (label + input) |
+| API | **HEAD** (label) | `ai-shotbro-staging-api-1` | Pin SHA on next deploy; tree **`57f1579`** at acceptance |
+| Worker | **366716e** | `ai-shotbro-staging-worker-1` | Upload processing → READY |
 
-**Mock policy:** `AI_MOCK_MODE=true`, live providers off — **0 paid AI calls**.
+**Mock policy:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false` — **0 paid AI calls**.
 
-**VPS disk (2026-10-27):** `/dev/vda1` **~74%** used, **~31 GB** free.
+**VPS disk:** `/dev/vda1` **~74%** used, **~31 GB** free.
 
-## Phase 5I sign-off evidence (`retries=0`)
+**Health:** `/api/v1/health/live` ok, `/ready` ready.
 
-| Suite | Result | Exit | Log |
-|-------|--------|------|-----|
-| FFmpeg matrix | **14/14 PASS** | 0 | `/tmp/phase5i-ffmpeg-matrix.json` (prior run) |
-| Scene ID integration | **PASS** | 0 | `staging-phase5i-scene-id-integration.sh` |
-| Timeline assembly A→C→B | **PASS** | 0 | harness / r10 artifact |
-| `regression-strict` | **8/8 PASS** | 0 | `regression-strict-6aaab0a.log` |
-| `phase5-user-journey` | **4/4 PASS** | 0 | `phase5-user-journey-b68527c.log` |
-| `phase5-storyboard` | **5/5 PASS** | 0 | `phase5-storyboard-6aaab0a.log` |
-| `phase5-characters` | **PASS** | 0 | `phase5i-signoff-suites.log` |
-| `phase5-references` | **PASS** | 0 | same |
-| `phase5-creative-flow` | **PASS** | 0 | same |
-| `phase5-prompts` | **PASS** | 0 | same |
-| `phase5-providers` | **PASS** | 0 | same |
-| `phase5-timeline` | **PASS** | 0 | same |
-| `phase5-assembly` | **1/1 PASS** | 0 | same |
+## Phase 5J sign-off evidence (`retries=0`)
 
-Runner: `infra/scripts/staging-phase5-signoff-suites.sh` · consolidated log **`phase5i-signoff-suites.log`** ends with **`ALL_PASS`**.
+**Runner:** `infra/scripts/staging-phase5j-acceptance.sh`  
+**Log:** `/var/log/shotbro-e2e/phase5j-acceptance-172a4df.log`  
+**Result:** **`PHASE5J_ALL_PASS`**, exit **0**
 
-## User journey coverage
+| Suite | Result |
+|-------|--------|
+| phase5-asset-library (6 incl. picker + IDOR) | PASS |
+| regression-strict 8/8 | PASS |
+| phase5-user-journey | PASS |
+| phase5-storyboard | PASS |
+| phase5-characters | PASS |
+| phase5-references | PASS |
+| phase5-creative-flow | PASS |
+| phase5-timeline | PASS |
+| phase5-assembly | PASS |
+| phase5-prompts | PASS |
+| phase5-providers | PASS |
 
-- **Desktop1920:** full REAL path — UI approvals, Storyboard Sync + scene edit + re-approve, references, timeline reorder, mock MP4, F5 (`phase5-user-journey-b68527c.log`).
-- **1440 / tablet / mobile390:** REAL nav smoke only (not four full production runs).
+Detail: `PHASE5-ASSET-LIBRARY-ACCEPTANCE.md`, architecture: `PHASE5-ASSET-LIBRARY-ARCHITECTURE.md`.
 
-## Key product fixes (5I closure)
+## Phase 5I sign-off (unchanged)
 
-- Storyboard document revision → expire stale PENDING approvals, rewind gate, new chat card — see `PHASE5-APPROVAL-REVISION-INTEGRITY.md`.
-- Web approval cards sync status from `/approvals` (**EXPIRED** badge, disabled actions, hint text).
-- E2E approves **latest** pending card (`.last()`).
+See prior table in git history; **5I remains ACCEPTED** (`6aaab0a` era). 5J full acceptance re-ran **regression-strict** and **user-journey** on current E2E checkout — not resume-skipped.
 
 ## Stage status
 
@@ -54,26 +52,50 @@ Runner: `infra/scripts/staging-phase5-signoff-suites.sh` · consolidated log **`
 |-------|--------|
 | 5A–5G, 5MP | **ACCEPTED** (prior docs) |
 | **5I** Timeline + FFmpeg + mock production | **ACCEPTED** |
-| P0 UI Recovery (REAL vs DEMO, journey) | **ACCEPTED** |
-| **5J** Asset Library | **NOT ACCEPTED** — asset-library **5/5 @ b021fba**; full acceptance running (`PHASE5-ASSET-LIBRARY-ACCEPTANCE.md`) |
-
-## Visual acceptance (2026-10-27)
-
-Browser smoke (2026-10-27): https://ai.shotbro.ru/studio — DEMO banner, chat blocks, REAL entry CTA. Full REAL path (Chat → Storyboard → Timeline → Production → Assets, approvals, MP4, F5): **`phase5-user-journey-b68527c.log`**. Manual REAL browser requires login; EXPIRED hydration verified after web **3eb89d3** deploy.
-
-Screenshot: [`phase5i-visual/studio-demo-chat-2026-10-27.png`](phase5i-visual/studio-demo-chat-2026-10-27.png)
+| P0 UI Recovery | **ACCEPTED** |
+| **5J** Asset Library | **ACCEPTED** |
 
 ## Remaining blockers
 
-**None** for Phase 5I / P0 UI Recovery sign-off.
+**None** for Phase 5J.
 
-Optional follow-up (non-blocking): persist **EXPIRED** on historical message blocks in DB (today: live API hydration on render).
+Non-blocking: API Docker label `HEAD` → pin explicit SHA on next deployment; optional DB hydration for historical EXPIRED blocks (5I note).
 
 ---
 
-## Phase 5J — Asset Library (plan only, do not implement without new task)
+## Phase 5K — Agent Integration (plan only — do not implement)
 
-1. **Scope:** Unified asset browser (filters, lineage to scenes/runs, signed playback) atop existing MinIO + `project-assets` API.
-2. **Dependencies:** Stable production delivery assets (5I done), reference attach model (5F).
-3. **Acceptance:** Playwright asset discovery + download; no new paid providers.
-4. **Out of scope for 5J draft:** New orchestrator states, live generation, billing changes.
+**Goal:** Connect unified **AgentRuntime** / chat tools to **project assets** and **Asset Library** picks so agent turns can reference, attach, and reason about READY media without new paid provider paths.
+
+### In scope (draft)
+
+1. **Tool contracts:** Structured tool results that return `assetId`, `projectId`, mime, and relation hints (`STYLE`, `FIRST_FRAME`, `LAST_FRAME`, timeline clip targets) aligned with existing API — no parallel asset model.
+2. **UI:** Chat blocks that surface “use in storyboard / reference / timeline” actions deep-linking into Creative sections already built in 5F–5J.
+3. **Orchestrator:** Mock-only execution path unchanged; agent proposes actions → existing approval / production gates where required (5I patterns).
+4. **Security:** Same session + project guards as library IDOR tests; no cross-tenant asset ids in tool payloads.
+5. **Acceptance:** New Playwright suite `phase5-agent-integration` (or extend journey): mock agent attaches asset to reference + timeline, F5 persistence, regression-strict still green, `retries=0`.
+
+### Dependencies
+
+- **5J ACCEPTED** (library list, upload, preview, timeline binding).  
+- **5I** production mock MP4 path.  
+- **5E/5F** references + characters.  
+- Staging mock policy unchanged until explicit product decision.
+
+### Out of scope (5K draft)
+
+- Live OpenRouter/Fal/Magnific/ElevenLabs billing paths  
+- New MinIO buckets or public URLs  
+- Replacing AssetLibraryService or upload pipeline  
+- ProductionOrchestrator state machine redesign  
+
+### Suggested milestones (implementation TBD)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| 5K-A | Agent tool schema + API validation for asset ids |
+| 5K-B | Chat UI asset pickers wired to agent suggestions |
+| 5K-C | E2E mock agent → reference + timeline |
+| 5K-D | Sign-off script entry in phase5 acceptance bundle |
+
+**Status:** **Not started** — awaiting explicit Phase 5K task after stakeholder review of this plan.

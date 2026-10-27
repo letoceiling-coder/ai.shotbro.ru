@@ -66,4 +66,8 @@ Session guard, project access on every asset id, presigned TTL, sanitized filena
 
 - ProductionOrchestrator / approval / budget changes  
 - Paid AI thumbnails  
-- Phase 5K
+- Phase 5K agent wiring (see progress doc)
+
+## Acceptance (2026-10-28)
+
+Phase **5J ACCEPTED** on staging: full `staging-phase5j-acceptance.sh` @ git **`172a4df`**, log `phase5j-acceptance-172a4df.log`, **`PHASE5J_ALL_PASS`**. Web runtime **`3374efcb`**, worker **`366716e`**, API label **`HEAD`** (source **`57f1579`**). Dual upload paths verified in E2E (DnD + native file input). Details: `PHASE5-ASSET-LIBRARY-ACCEPTANCE.md`.
