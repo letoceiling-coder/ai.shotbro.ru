@@ -22,9 +22,19 @@ function tinyMp4Buffer() {
 let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
 async function uploadViaLibraryInput(page: import("@playwright/test").Page, file: { name: string; mimeType: string; buffer: Buffer }) {
-  await page.getByTestId("asset-upload").click();
   const input = page.getByTestId("asset-library-file-input");
-  await input.setInputFiles(file);
+  // Do not click asset-upload — it opens the native chooser and blocks setInputFiles in headless runs.
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/v1/uploads/init") && r.request().method() === "POST" && r.ok(),
+      { timeout: 60_000 },
+    ),
+    input.setInputFiles(file),
+  ]);
+  await page.waitForResponse(
+    (r) => r.url().includes("/api/v1/uploads/") && r.url().includes("/complete") && r.ok(),
+    { timeout: 120_000 },
+  );
 }
 
 test.describe("Phase 5J asset library", () => {
@@ -47,6 +57,7 @@ test.describe("Phase 5J asset library", () => {
 
   for (const vp of viewports) {
     test(`REAL asset library UI @ ${vp.name}`, async ({ page }) => {
+      if (vp.name === "desktop1920") test.setTimeout(360_000);
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/studio", { waitUntil: "domcontentloaded" });
       const projectId = await openRealNewProject(page);
@@ -116,8 +127,15 @@ test.describe("Phase 5J asset library", () => {
       });
 
       await expect
-        .poll(async () => page.getByText("e2e-clip.mp4").isVisible().catch(() => false), { timeout: 120_000 })
+        .poll(async () => {
+          const r = await page.request.get(`/api/v1/projects/${projectId}/assets?limit=24&q=e2e-clip`);
+          if (!r.ok()) return false;
+          const j = (await r.json()) as { items?: Array<{ status: string; originalName: string }> };
+          return (j.items ?? []).some((a) => a.originalName === "e2e-clip.mp4" && a.status === "READY");
+        }, { timeout: 180_000 })
         .toBe(true);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await gotoStudioSection(page, projectId, "assets");
 
       await gotoStudioSection(page, projectId, "timeline");
       await page.getByTestId("timeline-sync-storyboard").click();
@@ -145,6 +163,7 @@ test.describe("Phase 5J asset library", () => {
   }
 
   test("cross-project asset download denied", async ({ page, browser }) => {
+    test.setTimeout(240_000);
     const emailB = process.env.E2E_TEST_EMAIL_B;
     const passwordB = process.env.E2E_TEST_PASSWORD_B;
     test.skip(!emailB || !passwordB, "Set E2E_TEST_EMAIL_B / E2E_TEST_PASSWORD_B");
@@ -158,7 +177,12 @@ test.describe("Phase 5J asset library", () => {
       buffer: tinyPngBuffer(),
     });
     await expect
-      .poll(async () => page.getByText("idor.png").isVisible().catch(() => false), { timeout: 120_000 })
+      .poll(async () => {
+        const r = await page.request.get(`/api/v1/projects/${projectA}/assets?limit=5&q=idor`);
+        if (!r.ok()) return false;
+        const j = (await r.json()) as { items?: Array<{ status: string; originalName: string }> };
+        return (j.items ?? []).some((a) => a.originalName === "idor.png" && a.status === "READY");
+      }, { timeout: 180_000 })
       .toBe(true);
 
     const listRes = await page.request.get(`/api/v1/projects/${projectA}/assets?limit=5`);

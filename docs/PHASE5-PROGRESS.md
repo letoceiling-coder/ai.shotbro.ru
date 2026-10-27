@@ -55,7 +55,7 @@ Runner: `infra/scripts/staging-phase5-signoff-suites.sh` · consolidated log **`
 | 5A–5G, 5MP | **ACCEPTED** (prior docs) |
 | **5I** Timeline + FFmpeg + mock production | **ACCEPTED** |
 | P0 UI Recovery (REAL vs DEMO, journey) | **ACCEPTED** |
-| **5J** Asset Library | **IN PROGRESS** — see `PHASE5-ASSET-LIBRARY-ARCHITECTURE.md` |
+| **5J** Asset Library | **NOT ACCEPTED** — E2E/regression pending (`PHASE5-ASSET-LIBRARY-ACCEPTANCE.md`) |
 
 ## Visual acceptance (2026-10-27)
 
