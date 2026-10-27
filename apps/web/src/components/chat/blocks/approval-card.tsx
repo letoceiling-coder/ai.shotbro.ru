@@ -30,7 +30,8 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
     staleTime: 5_000,
   });
 
-  const serverRow = approvalsList?.items?.find((row) => row.id === block.approvalId);
+  type ApprovalRow = { id: string; status: string };
+  const serverRow = approvalsList?.items?.find((row: ApprovalRow) => row.id === block.approvalId);
   const serverMapped =
     serverRow?.status === "APPROVED"
       ? "approved"

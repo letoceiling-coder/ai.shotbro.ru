@@ -49,9 +49,9 @@ export const api = {
   },
   approvals: {
     list: (projectId: string) =>
-      apiFetch<{ items: Array<{ id: string; status: string; targetType?: string; targetVersion?: string }> }>(
-        `/api/v1/projects/${projectId}/approvals`,
-      ),
+      apiFetch(`/api/v1/projects/${projectId}/approvals`) as Promise<{
+        items: Array<{ id: string; status: string; targetType?: string; targetVersion?: string }>;
+      }>,
     create: (
       projectId: string,
       body: {
