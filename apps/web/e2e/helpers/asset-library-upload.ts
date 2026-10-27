@@ -21,18 +21,22 @@ export async function waitForUploadPipeline(page: Page) {
   await uploadCompleteResponse(page);
 }
 
-/**
- * REAL UI: Assets → «Загрузить» (button) → file selected on hidden input.
- * Headless Playwright often does not wire native chooser → React onChange; after click we set files
- * on the same input and dispatch change (browser manual upload uses native chooser + onChange).
- */
-/** Clicks «Загрузить», then delivers files through the library drop handler (headless-safe). */
-export async function uploadViaLibraryButton(page: Page, file: UploadFilePayload) {
+/** REAL UI: «Загрузить» → Playwright filechooser → native input (no DnD). */
+export async function uploadViaLibraryFilePicker(page: Page, file: UploadFilePayload) {
   await expect(page.getByTestId("asset-upload")).toBeEnabled();
-  await page.getByTestId("asset-upload").click();
-  await page.keyboard.press("Escape");
-  await uploadViaLibraryDrop(page, file);
+  const initPromise = uploadInitResponse(page);
+  const completePromise = uploadCompleteResponse(page);
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: 30_000 }),
+    page.getByTestId("asset-upload").click(),
+  ]);
+  await chooser.setFiles(file);
+  await initPromise;
+  await completePromise;
 }
+
+/** @deprecated alias */
+export const uploadViaLibraryButton = uploadViaLibraryFilePicker;
 
 /** REAL UI: drag-and-drop onto library root (same handler as browser drop). */
 export async function uploadViaLibraryDrop(page: Page, file: UploadFilePayload) {
@@ -40,15 +44,15 @@ export async function uploadViaLibraryDrop(page: Page, file: UploadFilePayload) 
   const initPromise = uploadInitResponse(page);
   const completePromise = uploadCompleteResponse(page);
   await page.getByTestId("asset-library").evaluate(
-      (el, payload) => {
-        const bin = Uint8Array.from(atob(payload.b64), (c) => c.charCodeAt(0));
-        const f = new File([bin], payload.name, { type: payload.mimeType });
-        const dt = new DataTransfer();
-        dt.items.add(f);
-        el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
-      },
-      { name: file.name, mimeType: file.mimeType, b64 },
-    );
+    (el, payload) => {
+      const bin = Uint8Array.from(atob(payload.b64), (c) => c.charCodeAt(0));
+      const f = new File([bin], payload.name, { type: payload.mimeType });
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+    },
+    { name: file.name, mimeType: file.mimeType, b64 },
+  );
   await initPromise;
   await completePromise;
 }

@@ -74,10 +74,21 @@ test.describe("Phase 5F reference manager", () => {
     const assetId = await uploadTinyImage(page, projectA);
     await seedScriptScene(page, projectA);
 
+    await expect
+      .poll(async () => {
+        const r = await page.request.get(`/api/v1/projects/${projectA}/assets`);
+        if (!r.ok()) return false;
+        const list = (await r.json()) as Array<{ id: string; status: string }>;
+        return list.some((a) => a.id === assetId && a.status === "READY");
+      }, { timeout: 120_000 })
+      .toBe(true);
+
     await gotoStudioSection(page, projectA, "references");
     await page.getByTestId("reference-role").click();
     await page.getByRole("option", { name: "GENERAL" }).click();
     await page.getByTestId("reference-attach-open").click();
+    await expect(page.getByTestId("asset-picker-dialog")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId(`asset-pick-${assetId}`)).toBeVisible({ timeout: 60_000 });
     await page.getByTestId(`asset-pick-${assetId}`).click();
 
     const links = (await (await page.request.get(`/api/v1/projects/${projectA}/references`)).json()) as {

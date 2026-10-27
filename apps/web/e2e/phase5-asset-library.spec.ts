@@ -7,7 +7,7 @@ import { gotoStudioSection, uploadImageViaPicker } from "./helpers/phase5-creati
 import { seedScriptScene, tinyPngBuffer } from "./helpers/phase5-creative-seed";
 import {
   pollAssetReady,
-  uploadViaLibraryButton,
+  uploadViaLibraryFilePicker,
   uploadViaLibraryDrop,
 } from "./helpers/asset-library-upload";
 
@@ -78,9 +78,8 @@ test.describe("Phase 5J asset library", () => {
         return;
       }
 
-      await test.step("Upload via «Загрузить» (file input)", async () => {
-        await expect(page.getByTestId("asset-upload")).toBeEnabled();
-        await uploadViaLibraryButton(page, {
+      await test.step("Upload via «Загрузить» (file picker)", async () => {
+        await uploadViaLibraryFilePicker(page, {
           name: "e2e-button.png",
           mimeType: "image/png",
           buffer: tinyPngBuffer(),
@@ -177,6 +176,23 @@ test.describe("Phase 5J asset library", () => {
       await acceptanceScreenshot(page, `phase5-asset-library-${vp.name}.png`);
     });
   }
+
+  test("native file picker upload only (no DnD)", async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
+    const projectId = await openRealNewProject(page);
+    await gotoStudioSection(page, projectId, "assets");
+    await uploadViaLibraryFilePicker(page, {
+      name: "e2e-picker.png",
+      mimeType: "image/png",
+      buffer: tinyPngBuffer(),
+    });
+    await pollAssetReady(page, projectId, "e2e-picker.png", "e2e-picker", 120_000);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await gotoStudioSection(page, projectId, "assets");
+    await expect(page.getByText("e2e-picker.png")).toBeVisible({ timeout: 30_000 });
+  });
 
   test("cross-project asset access denied (user B)", async ({ page, browser }) => {
     test.setTimeout(240_000);
