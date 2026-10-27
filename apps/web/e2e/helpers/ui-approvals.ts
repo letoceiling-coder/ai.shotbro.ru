@@ -40,7 +40,7 @@ export async function approveNextPendingViaUi(page: Page, projectId: string, tim
   await resyncRealThreadFromApi(page, projectId);
   await scrollRealThreadToBottom(page);
 
-  const card = page.locator('[data-testid="approval-card"][data-approval-status="pending"]').first();
+  const card = page.locator('[data-testid="approval-card"][data-approval-status="pending"]').last();
   await expect(card).toBeVisible({ timeout: 60_000 });
 
   const approveBtn = card.getByTestId("approval-action-approve").or(card.getByRole("button", { name: /Утверд/i }));
