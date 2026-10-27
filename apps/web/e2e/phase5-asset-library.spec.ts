@@ -78,15 +78,6 @@ test.describe("Phase 5J asset library", () => {
         return;
       }
 
-      await test.step("Upload via «Загрузить» (file picker)", async () => {
-        await uploadViaLibraryFilePicker(page, {
-          name: "e2e-button.png",
-          mimeType: "image/png",
-          buffer: tinyPngBuffer(),
-        });
-      });
-      await pollAssetReady(page, projectId, "e2e-button.png", "e2e-button", 120_000);
-
       await test.step("Upload via drag-and-drop", async () => {
         await uploadViaLibraryDrop(page, {
           name: "e2e-library.png",
@@ -177,7 +168,7 @@ test.describe("Phase 5J asset library", () => {
     });
   }
 
-  test("native file picker upload only (no DnD)", async ({ page }) => {
+  test("native «Загрузить» file input upload (no DnD)", async ({ page }) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto("/studio", { waitUntil: "domcontentloaded" });

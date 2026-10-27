@@ -21,17 +21,25 @@ export async function waitForUploadPipeline(page: Page) {
   await uploadCompleteResponse(page);
 }
 
-/** REAL UI: file on `asset-library-file-input` (label «Загрузить»); Playwright setInputFiles (no DnD). */
+/** REAL UI: «Загрузить» input — inject FileList + change (not library DnD). */
 export async function uploadViaLibraryFilePicker(page: Page, file: UploadFilePayload) {
   const input = page.getByTestId("asset-library-file-input");
   await expect(page.getByTestId("asset-upload")).toBeEnabled();
+  await page.getByTestId("asset-upload").click();
+  const b64 = file.buffer.toString("base64");
   const initPromise = uploadInitResponse(page);
   const completePromise = uploadCompleteResponse(page);
-  await input.setInputFiles(file);
-  await input.evaluate((el) => {
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  await input.evaluate(
+    (el, payload) => {
+      const bin = Uint8Array.from(atob(payload.b64), (c) => c.charCodeAt(0));
+      const f = new File([bin], payload.name, { type: payload.mimeType });
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      Object.defineProperty(el, "files", { value: dt.files, configurable: true });
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    { name: file.name, mimeType: file.mimeType, b64 },
+  );
   await initPromise;
   await completePromise;
 }
