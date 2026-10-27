@@ -2,15 +2,23 @@ import { expect, type Page } from "@playwright/test";
 
 export type UploadFilePayload = { name: string; mimeType: string; buffer: Buffer };
 
-export async function waitForUploadPipeline(page: Page) {
-  await page.waitForResponse(
+function uploadInitResponse(page: Page) {
+  return page.waitForResponse(
     (r) => r.url().includes("/api/v1/uploads/init") && r.request().method() === "POST" && r.ok(),
     { timeout: 60_000 },
   );
-  await page.waitForResponse(
+}
+
+function uploadCompleteResponse(page: Page) {
+  return page.waitForResponse(
     (r) => r.url().includes("/api/v1/uploads/") && r.url().includes("/complete") && r.ok(),
     { timeout: 120_000 },
   );
+}
+
+export async function waitForUploadPipeline(page: Page) {
+  await uploadInitResponse(page);
+  await uploadCompleteResponse(page);
 }
 
 /**
@@ -20,24 +28,23 @@ export async function waitForUploadPipeline(page: Page) {
  */
 export async function uploadViaLibraryButton(page: Page, file: UploadFilePayload) {
   const input = page.getByTestId("asset-library-file-input");
-  await Promise.all([
-    waitForUploadPipeline(page),
-    (async () => {
-      await page.getByTestId("asset-upload").click();
-      await input.setInputFiles(file);
-      await input.evaluate((el) => {
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-    })(),
-  ]);
+  const initPromise = uploadInitResponse(page);
+  const completePromise = uploadCompleteResponse(page);
+  await page.getByTestId("asset-upload").click({ noWaitAfter: true });
+  await input.setInputFiles(file);
+  await input.evaluate((el) => {
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await initPromise;
+  await completePromise;
 }
 
 /** REAL UI: drag-and-drop onto library root (same handler as browser drop). */
 export async function uploadViaLibraryDrop(page: Page, file: UploadFilePayload) {
   const b64 = file.buffer.toString("base64");
-  await Promise.all([
-    waitForUploadPipeline(page),
-    page.getByTestId("asset-library").evaluate(
+  const initPromise = uploadInitResponse(page);
+  const completePromise = uploadCompleteResponse(page);
+  await page.getByTestId("asset-library").evaluate(
       (el, payload) => {
         const bin = Uint8Array.from(atob(payload.b64), (c) => c.charCodeAt(0));
         const f = new File([bin], payload.name, { type: payload.mimeType });
@@ -46,8 +53,9 @@ export async function uploadViaLibraryDrop(page: Page, file: UploadFilePayload) 
         el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
       },
       { name: file.name, mimeType: file.mimeType, b64 },
-    ),
-  ]);
+    );
+  await initPromise;
+  await completePromise;
 }
 
 type AssetListItem = { id: string; status: string; originalName: string };
