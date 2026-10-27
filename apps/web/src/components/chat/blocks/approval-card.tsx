@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApprovalBlockSchema } from "@shotbro/contracts";
 import { useState } from "react";
 import type { z } from "zod";
@@ -21,11 +21,32 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
   const qc = useQueryClient();
   const [status, setStatus] = useState(block.status);
   const [pending, setPending] = useState(false);
+  const isRealApproval = mode === "REAL" && UUID_RE.test(block.approvalId);
+
+  const { data: approvalsList } = useQuery({
+    queryKey: ["approvals", projectId],
+    queryFn: () => api.approvals.list(projectId),
+    enabled: isRealApproval,
+    staleTime: 5_000,
+  });
+
+  const serverRow = approvalsList?.items?.find((row) => row.id === block.approvalId);
+  const serverMapped =
+    serverRow?.status === "APPROVED"
+      ? "approved"
+      : serverRow?.status === "REJECTED"
+        ? "rejected"
+        : serverRow?.status === "REQUIRES_REVISION"
+          ? "revision"
+          : serverRow?.status === "EXPIRED"
+            ? "expired"
+            : serverRow?.status === "PENDING"
+              ? "pending"
+              : undefined;
 
   async function onAction(actionId: string) {
     const apiAction =
       actionId === "approve" ? "approve" : actionId === "reject" ? "reject" : "request-revision";
-    const isRealApproval = mode === "REAL" && UUID_RE.test(block.approvalId);
     const meta = block as Block & { expectedVersion?: string; payloadHash?: string };
     if (isRealApproval && meta.expectedVersion && meta.payloadHash) {
       setPending(true);
@@ -61,7 +82,13 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
     handleApproval(projectId, block.approvalId, actionId);
   }
 
-  const displayStatus = status;
+  const displayStatus = serverMapped ?? status;
+  const staleHint =
+    displayStatus === "expired" ?
+      "Версия документа изменилась — подтвердите актуальную карточку ниже."
+    : displayStatus === "revision" ?
+      "Согласование устарело — дождитесь новой карточки с актуальной версией."
+    : null;
 
   return (
     <div data-testid="approval-card" data-approval-status={displayStatus}>
@@ -77,9 +104,12 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
               ? "Утверждено"
               : displayStatus === "rejected"
                 ? "Отклонено"
-                : "Нужны правки"}
+                : displayStatus === "expired"
+                  ? "Устарело"
+                  : "Нужны правки"}
           </Badge>
         ) : null}
+        {staleHint ? <p className="text-xs text-amber-600 dark:text-amber-400">{staleHint}</p> : null}
         {block.tags?.length ? (
           <div className="flex flex-wrap gap-1.5">
             {block.tags.map((tag) => (

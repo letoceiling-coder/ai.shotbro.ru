@@ -48,6 +48,10 @@ export const api = {
       apiFetch(`/api/v1/projects/${projectId}/agent/runs/${runId}/resume`, { method: "POST", body: "{}" }),
   },
   approvals: {
+    list: (projectId: string) =>
+      apiFetch<{ items: Array<{ id: string; status: string; targetType?: string; targetVersion?: string }> }>(
+        `/api/v1/projects/${projectId}/approvals`,
+      ),
     create: (
       projectId: string,
       body: {
