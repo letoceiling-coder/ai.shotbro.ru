@@ -21,21 +21,13 @@ export async function waitForUploadPipeline(page: Page) {
   await uploadCompleteResponse(page);
 }
 
-/** REAL UI: «Загрузить» → Playwright filechooser → native input (no DnD). */
+/** REAL UI: «Загрузить» label → `#uploadInput` — setInputFiles on linked input (no DnD). */
 export async function uploadViaLibraryFilePicker(page: Page, file: UploadFilePayload) {
+  const input = page.getByTestId("asset-library-file-input");
   await expect(page.getByTestId("asset-upload")).toBeEnabled();
   const initPromise = uploadInitResponse(page);
   const completePromise = uploadCompleteResponse(page);
-  const [chooser] = await Promise.all([
-    page.waitForEvent("filechooser", { timeout: 30_000 }),
-    page.getByTestId("asset-upload").click(),
-  ]);
-  await chooser.setFiles(file);
-  await page.getByTestId("asset-library-file-input").evaluate((el) => {
-    if (el instanceof HTMLInputElement && el.files?.length) {
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  });
+  await input.setInputFiles(file, { force: true });
   await initPromise;
   await completePromise;
 }
