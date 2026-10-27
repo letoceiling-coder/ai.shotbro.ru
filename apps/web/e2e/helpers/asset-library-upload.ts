@@ -28,13 +28,19 @@ export async function waitForUploadPipeline(page: Page) {
  */
 export async function uploadViaLibraryButton(page: Page, file: UploadFilePayload) {
   const input = page.getByTestId("asset-library-file-input");
+  await expect(page.getByTestId("asset-upload")).toBeEnabled();
   const initPromise = uploadInitResponse(page);
   const completePromise = uploadCompleteResponse(page);
-  await page.getByTestId("asset-upload").click({ noWaitAfter: true });
-  await input.setInputFiles(file);
-  await input.evaluate((el) => {
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  const chooserDone = page
+    .waitForEvent("filechooser", { timeout: 8_000 })
+    .then(async (chooser) => {
+      await chooser.setFiles(file);
+    })
+    .catch(async () => {
+      await input.setInputFiles(file);
+    });
+  await page.getByTestId("asset-upload").click();
+  await chooserDone;
   await initPromise;
   await completePromise;
 }
