@@ -1,21 +1,21 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (VPS E2E, 2026-10-28):** `172a4df`  
+**Git HEAD (VPS src, 2026-10-28):** `4d3872a9`  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
-**Phase 5K:** **IN PROGRESS** (creative-turn + mock NL planner)  
+**Phase 5K:** **NOT ACCEPTED** (LLM configured; live smoke + agent E2E open)  
 **P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)
 
 | Service | `org.shotbro.build-sha` | Image (runtime) | Notes |
 |---------|-------------------------|-----------------|--------|
-| Web | **3374efcb** | `infra-web-1` | Asset library upload UX (label + input) |
-| API | **HEAD** (label) | `ai-shotbro-staging-api-1` | Pin SHA on next deploy; tree **`57f1579`** at acceptance |
+| Web | **4d3872a9** | `infra-web-1` | Phase 5K chat routing |
+| API | **4d3872a9** | `ai-shotbro-staging-api-1` | Creative LLM + hotfixes on VPS |
 | Worker | **366716e** | `ai-shotbro-staging-worker-1` | Upload processing → READY |
 
-**Mock policy:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false` — **0 paid AI calls**.
+**Mock policy:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_GENERATION_ENABLED=false` — **0 live media jobs**. OpenRouter allowed for **creative LLM only** when configured.
 
 **VPS disk:** `/dev/vda1` **~74%** used, **~31 GB** free.
 
@@ -58,13 +58,11 @@ See prior table in git history; **5I remains ACCEPTED** (`6aaab0a` era). 5J full
 
 ## Remaining blockers
 
-**None** for Phase 5J.
-
-Non-blocking: API Docker label `HEAD` → pin explicit SHA on next deployment; optional DB hydration for historical EXPIRED blocks (5I note).
+**Phase 5K:** live OpenRouter egress/proxy, green agent E2E, full regression queue — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`.
 
 ---
 
-## Phase 5K — Agent Integration (plan only — do not implement)
+## Phase 5K — Agent Integration (implementation)
 
 **Goal:** Connect unified **AgentRuntime** / chat tools to **project assets** and **Asset Library** picks so agent turns can reference, attach, and reason about READY media without new paid provider paths.
 

@@ -1,6 +1,6 @@
 # Phase 5K — Agent Integration architecture
 
-**Status:** IN PROGRESS (audit + initial implementation)  
+**Status:** IN PROGRESS (OpenRouter LLM tool loop wired)  
 **Branch:** `phase5/creative-studio`
 
 ## 1. Audit summary (2026-10-28)
@@ -19,7 +19,9 @@
 | Component | Location | Role today | 5K gap |
 |-----------|----------|------------|--------|
 | **AgentRuntime** | `packages/ai/src/agent/agent-runtime.ts` | Mock LLM loop; **7 tools** in `allowedTools` (brief/plan/script/storyboard/cost/approval) | Phase 5 creative tools **registered but not routed** by LLM |
-| **CreativeAgentRuntime** | `packages/ai/src/agent/creative-agent-runtime.ts` | **NEW** deterministic NL → tool plan → executor | Primary 5K path |
+| **CreativeAgentRuntime** | `creative-agent-runtime.ts` | Mock planner **or** `runCreativeLlmLoop` (OpenRouter) | LLM when `LLM_LIVE_EXECUTION_ENABLED=true` |
+| **OpenRouterLlmAdapter** | `openrouter-llm-adapter.ts` | Chat completions + `tools` / `tool_calls` | Policy `CREATIVE_LLM_LIVE` |
+| **Media guard** | `packages/config/src/media-guard.ts` | Blocks `generate.*` unless explicit flags | Default **blocked** |
 | **ToolExecutor** | `packages/ai/src/tool-executor.ts` | Zod validate, idempotency, DB audit via `ProductionStoragePort` | OK |
 | **Tool catalog** | `phase4-tool-catalog.ts` + handlers | ~50 tools declared; handlers in `register.ts`, `phase5-*-tools.ts` | Composite 5K tools added |
 | **ToolRegistry (legacy)** | `tool-registry.ts` | Phase 2 builtins; **not** used by AgentRuntime | Ignore for 5K |

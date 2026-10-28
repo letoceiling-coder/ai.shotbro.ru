@@ -17,8 +17,11 @@ loadEnv({ path: resolve(process.cwd(), "../../.env.example") });
 
 async function bootstrap() {
   const env = loadApiEnv();
-  if (env.OPENROUTER_ENABLED) {
-    throw new Error("OpenRouter must remain disabled in Phase 2");
+  if (env.OPENROUTER_ENABLED && !env.LLM_LIVE_EXECUTION_ENABLED) {
+    throw new Error("OPENROUTER_ENABLED requires LLM_LIVE_EXECUTION_ENABLED (Phase 5K creative agent only)");
+  }
+  if (env.OPENROUTER_ENABLED && env.MEDIA_GENERATION_ENABLED) {
+    throw new Error("OpenRouter LLM cannot run with MEDIA_GENERATION_ENABLED=true (Phase 5K)");
   }
 
   const s3 = createS3Client({

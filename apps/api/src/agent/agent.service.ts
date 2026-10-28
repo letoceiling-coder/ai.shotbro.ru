@@ -265,8 +265,14 @@ export class AgentService {
         ? "**Mock-планировщик Phase 5K** — инструменты выполнены (E2E/fallback)."
         : `**Mock-планировщик Phase 5K** — ${turn.error ?? "ошибка"}`;
 
+    const usageLine =
+      turn.llmLive && turn.usage
+        ? `_LLM usage (OpenRouter): in=${turn.usage.inputTokens} out=${turn.usage.outputTokens} tokens_`
+        : undefined;
+
     const blocks: Record<string, unknown>[] = [
       { type: "text", markdown: header },
+      ...(usageLine ? [{ type: "text", markdown: usageLine }] : []),
       ...(turn.assistantMessage ? [{ type: "text", markdown: turn.assistantMessage }] : []),
       ...turn.results.map((r) => ({
         type: "agent_tool_result",
@@ -330,6 +336,7 @@ export class AgentService {
           llmLive: turn.llmLive ?? false,
           toolResults: turn.results.length,
           usage: turn.usage,
+          error: turn.error,
         },
       })
       .where(eq(agentRun.id, runId));

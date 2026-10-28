@@ -12,6 +12,14 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
+  LLM_LIVE_EXECUTION_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+  MEDIA_GENERATION_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
   S3_ENDPOINT: z.string().url(),
   S3_PUBLIC_ENDPOINT: z.string().url().optional(),
   S3_REGION: z.string(),

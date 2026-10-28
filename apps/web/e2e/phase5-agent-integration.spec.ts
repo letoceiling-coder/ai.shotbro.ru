@@ -34,14 +34,14 @@ test.describe("Phase 5K agent integration", () => {
       mimeType: "image/png",
       buffer: tinyPngBuffer(),
     });
-    await expect(page.getByTestId("asset-card").first()).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByTestId(/asset-card-/).first()).toBeVisible({ timeout: 120_000 });
 
     await uploadViaLibraryFilePicker(page, {
       name: "phase5k-demo.mp4",
       mimeType: "video/mp4",
       buffer: demoMp4(),
     });
-    await expect(page.getByTestId("asset-card").filter({ hasText: /mp4/i }).first()).toBeVisible({
+    await expect(page.getByTestId(/asset-card-/).filter({ hasText: /mp4/i }).first()).toBeVisible({
       timeout: 180_000,
     });
 
@@ -100,6 +100,7 @@ test.describe("Phase 5K agent integration", () => {
       mimeType: "image/png",
       buffer: tinyPngBuffer(),
     });
+    await expect(page.getByTestId(/asset-card-/).first()).toBeVisible({ timeout: 120_000 });
     await gotoStudioSection(page, projectId, "chat");
     await sendRealComposerMessage(page, "phase5k найди фото в библиотеке и первым кадром второй сцены");
     await expect(page.getByTestId("agent-tool-result-search_project_assets").first()).toBeVisible({

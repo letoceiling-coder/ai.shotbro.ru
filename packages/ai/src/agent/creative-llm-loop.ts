@@ -66,6 +66,9 @@ export async function runCreativeLlmLoop(input: {
   let outputTokens = 0;
   const started = Date.now();
 
+  const estimateRunCostUsd = () =>
+    inputTokens * 0.000_000_15 + outputTokens * 0.000_000_6;
+
   while (iterations < limits.maxIterations) {
     if (Date.now() - started > limits.maxDurationMs) {
       return { status: "stopped", llmLive: true, results, usage: { inputTokens, outputTokens }, error: "Time limit" };
@@ -85,6 +88,15 @@ export async function runCreativeLlmLoop(input: {
 
     inputTokens += llmRes.usage?.inputTokens ?? 0;
     outputTokens += llmRes.usage?.outputTokens ?? 0;
+    if (limits.runMaxCostUsd > 0 && estimateRunCostUsd() > limits.runMaxCostUsd) {
+      return {
+        status: "stopped",
+        llmLive: true,
+        results,
+        usage: { inputTokens, outputTokens },
+        error: "Run cost limit exceeded",
+      };
+    }
 
     if (llmRes.error) {
       return {

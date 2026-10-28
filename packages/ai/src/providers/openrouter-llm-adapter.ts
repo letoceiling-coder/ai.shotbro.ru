@@ -31,6 +31,15 @@ export class OpenRouterLlmAdapter {
 
     const cfg = getOpenRouterConfig(this.env);
     const model = req.modelId || cfg.defaultModel || "openai/gpt-4o-mini";
+    if (cfg.modelAllowlist.length > 0 && !cfg.modelAllowlist.includes(model)) {
+      return {
+        requestId: req.requestId,
+        modelId: model,
+        providerId: this.id,
+        finishReason: "error",
+        error: { code: "model_not_allowed", message: "Model not in OPENROUTER_MODEL_ALLOWLIST" },
+      };
+    }
 
     const body: Record<string, unknown> = {
       model,
@@ -48,26 +57,45 @@ export class OpenRouterLlmAdapter {
       body.tool_choice = "auto";
     }
 
-    const res = await this.http.request({
-      method: "POST",
-      url: `${cfg.baseUrl}/chat/completions`,
-      headers: {
-        Authorization: this.env.OPENROUTER_API_KEY ? `Bearer ${this.env.OPENROUTER_API_KEY}` : "",
-        "Content-Type": "application/json",
-        "HTTP-Referer": this.env.APP_URL ?? "https://ai.shotbro.ru",
-        "X-Title": "SHOTBRO Creative Agent",
-      },
-      body,
-      timeoutMs: req.timeoutMs ?? 90_000,
-    });
-
-    if (res.status >= 400) {
+    let res: Awaited<ReturnType<HttpTransport["request"]>>;
+    try {
+      res = await this.http.request({
+        method: "POST",
+        url: `${cfg.baseUrl}/chat/completions`,
+        headers: {
+          Authorization: this.env.OPENROUTER_API_KEY ? `Bearer ${this.env.OPENROUTER_API_KEY}` : "",
+          "Content-Type": "application/json",
+          "HTTP-Referer": this.env.APP_URL ?? "https://ai.shotbro.ru",
+          "X-Title": "SHOTBRO Creative Agent",
+        },
+        body,
+        timeoutMs: req.timeoutMs ?? 90_000,
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "OpenRouter network error";
       return {
         requestId: req.requestId,
         modelId: model,
         providerId: this.id,
         finishReason: "error",
-        error: { code: String(res.status), message: "OpenRouter error" },
+        error: { code: "network", message },
+      };
+    }
+
+    if (res.status >= 400) {
+      const errBody = res.body as { error?: { message?: string } } | string;
+      const detail =
+        typeof errBody === "object" && errBody?.error?.message
+          ? errBody.error.message
+          : typeof errBody === "string"
+            ? errBody.slice(0, 200)
+            : "OpenRouter error";
+      return {
+        requestId: req.requestId,
+        modelId: model,
+        providerId: this.id,
+        finishReason: "error",
+        error: { code: String(res.status), message: detail },
       };
     }
 

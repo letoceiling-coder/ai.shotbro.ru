@@ -18,6 +18,7 @@ export function shouldTryCreativeTurn(content: string): boolean {
     lower.includes("раскадров") ||
     lower.includes("timeline") ||
     lower.includes("монтаж") ||
+    (lower.includes("покажи") && (lower.includes("фото") || lower.includes("фотограф") || lower.includes("изображ"))) ||
     (lower.includes("найди") && (lower.includes("фото") || lower.includes("изображ") || lower.includes("видео"))) ||
     (lower.includes("улучши") && (lower.includes("промпт") || lower.includes("prompt") || lower.includes("видео")))
   );
