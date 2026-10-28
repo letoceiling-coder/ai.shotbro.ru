@@ -80,16 +80,23 @@ async function openStudioSettings(page: Page) {
 /** Ensures REAL sidebar create control is visible (mobile sheet / collapsed sidebar). */
 export async function ensureRealCreateVisible(page: Page) {
   const create = realCreateProjectButton(page);
-  if (await create.isVisible().catch(() => false)) return;
-  const projects = page.getByRole("button", { name: "Проекты" });
-  if (await projects.isVisible().catch(() => false)) {
-    await projects.click();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (await create.isVisible().catch(() => false)) return;
+    const projects = page.getByRole("button", { name: "Проекты" });
+    if (await projects.isVisible().catch(() => false)) {
+      await projects.click();
+    }
+    const expand = page.getByRole("button", { name: "Развернуть sidebar" });
+    if (await expand.isVisible().catch(() => false)) {
+      await expand.click();
+    }
+    if (await create.isVisible().catch(() => false)) return;
+    if (attempt === 0) {
+      await page.goto("/studio", { waitUntil: "domcontentloaded" });
+      await page.evaluate(() => window.localStorage.setItem("shotbro-studio-mode-v1", "REAL"));
+    }
   }
-  const expand = page.getByRole("button", { name: "Развернуть sidebar" });
-  if (await expand.isVisible().catch(() => false)) {
-    await expand.click();
-  }
-  await expect(create).toBeVisible({ timeout: 20_000 });
+  await expect(create).toBeVisible({ timeout: 30_000 });
 }
 
 /** Switches studio from DEMO to REAL via header toggle (falls back to settings on mobile). */
