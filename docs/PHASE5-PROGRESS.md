@@ -1,18 +1,18 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (VPS src, 2026-10-28):** `4d3872a9`  
+**Git HEAD (VPS src, 2026-10-28):** `41e3f8bc`  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
-**Phase 5K:** **NOT ACCEPTED** (LLM configured; live smoke + agent E2E open)  
+**Phase 5K:** **NOT ACCEPTED** (OpenRouter + agent E2E green; **regression-strict** red on phase3/4 MP4)  
 **P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)
 
 | Service | `org.shotbro.build-sha` | Image (runtime) | Notes |
 |---------|-------------------------|-----------------|--------|
-| Web | **4d3872a9** | `infra-web-1` | Phase 5K chat routing |
-| API | **4d3872a9** | `ai-shotbro-staging-api-1` | Creative LLM + hotfixes on VPS |
+| Web | **23b00c83** | `infra-web-1` | asset-card testids (redeploy optional at `41e3f8bc`) |
+| API | **41e3f8bc** | `ai-shotbro-staging-api-1` | OpenRouter proxy + creative tools |
 | Worker | **366716e** | `ai-shotbro-staging-worker-1` | Upload processing → READY |
 
 **Mock policy:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_GENERATION_ENABLED=false` — **0 live media jobs**. OpenRouter allowed for **creative LLM only** when configured.

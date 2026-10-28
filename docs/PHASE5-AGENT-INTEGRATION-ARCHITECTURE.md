@@ -1,18 +1,24 @@
 # Phase 5K — Agent Integration architecture
 
-**Status:** IN PROGRESS (OpenRouter LLM tool loop wired)  
-**Branch:** `phase5/creative-studio`
+**Status:** NOT ACCEPTED — live LLM + agent E2E pass; full acceptance blocked on regression-strict  
+**Branch:** `phase5/creative-studio` · **Git:** `41e3f8bc`
 
 ## 1. Audit summary (2026-10-28)
 
-### Runtime baseline (VPS check)
+### Runtime baseline (VPS `85.117.235.93`)
 
 | Item | Value |
 |------|--------|
-| Git checkout (VPS src) | `172a4df` (pre-5K deploy) |
-| Web image label | `3374efcb` |
+| Git checkout (VPS src) | `41e3f8bc` |
+| API image label | `41e3f8bc` — OpenRouter via `FetchHttpTransport` + proxy fallback |
+| Web image label | `23b00c83` (E2E asset cards) |
 | Worker | `366716e` |
-| API label | `HEAD` (pin SHA on next deploy) |
+
+### OpenRouter egress
+
+- Datacenter direct → OpenRouter **403** (security policy).
+- Staging uses **`OPENROUTER_HTTPS_PROXY`** with `OPENROUTER_CONNECT_MODE=auto`.
+- Multi-turn tool results require OpenAI-shaped assistant `tool_calls` (`creative-llm-loop` + adapter).
 
 ### Core components
 
