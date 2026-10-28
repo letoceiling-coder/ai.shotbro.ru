@@ -1,13 +1,13 @@
 # Phase 5K — Agent Integration acceptance
 
-**Status:** **NOT ACCEPTED** (2026-10-28) — P0 OpenRouter + agent E2E **fixed**; full acceptance **blocked on regression-strict**
+**Status:** **NOT ACCEPTED** (2026-10-28) — regression routing **fixed** (`b6e19bf`); full acceptance **running**
 
 ## Runtime (VPS `85.117.235.93`)
 
 | Service | `org.shotbro.build-sha` | Image ID (short) | Notes |
 |---------|-------------------------|------------------|--------|
-| API | **41e3f8bc** | `sha256:d1a00cd3…` | OpenRouter proxy transport + multi-turn tool messages |
-| Web | **23b00c83** (prior deploy) | `infra-web-1` | E2E `asset-card-{id}` testids in tree |
+| API | **b6e19bf5** | `ai-shotbro-staging-api-1` | Production bootstrap isolation from live LLM |
+| Web | **b6e19bf5** | `infra-web-1` | Direct `createRun` for mock production NL |
 | Worker | **366716e** | unchanged | mock media / upload READY |
 | Git (VPS src) | **41e3f8bc** | `/var/www/ai.shotbro.ru-src` | branch `phase5/creative-studio` |
 
@@ -44,7 +44,9 @@ Configured by `infra/scripts/phase5k-configure-staging-llm.sh` (secrets not logg
 | Media guards | **PASS** | `phase5k-media-guard-smoke.sh` → `PHASE5K_MEDIA_GUARD_PASS` |
 | Live OpenRouter smoke | **PASS** | `phase5k-live-llm-smoke.sh` → `PHASE5K_LIVE_LLM_SMOKE_PASS` (vitest integration, tokens > 0, `search_project_assets`, 0 provider jobs) |
 | `phase5-agent-integration` | **PASS 2/2** | `/var/log/shotbro-e2e/phase5-agent-integration-41e3f8b.log` |
-| Full `phase5k-acceptance-e2e.sh` | **FAIL** (in progress / stopped on regression) | `/var/log/shotbro-e2e/phase5k-acceptance-41e3f8bc.log` — `regression-strict` phase3/phase4 mock MP4 chain **8× FAIL @ 4.5m** |
+| Production regression RCA | **Fixed** | `docs/PHASE5K-PRODUCTION-REGRESSION-RCA.md` — bootstrap misrouted to OpenRouter |
+| Targeted phase3 desktop | **PASS** | `/var/log/shotbro-e2e/phase3-desktop-strict-b6e19bf.log` |
+| Full `phase5k-acceptance-e2e.sh` | _running_ | `/var/log/shotbro-e2e/phase5k-acceptance-b6e19bf*.log` |
 | External media generation | **0** | provider jobs mock-only in live smoke |
 
 ## Git commits (5K recovery chain)

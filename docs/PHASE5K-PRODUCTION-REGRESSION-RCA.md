@@ -55,11 +55,13 @@ With `LLM_LIVE_EXECUTION_ENABLED=true`:
 3. `phase5k-live-llm-smoke.sh` — LLM still PASS, media jobs 0.
 4. Full `phase5k-acceptance-e2e.sh` after targeted green.
 
-## Evidence slots (post-fix deploy)
+## Post-fix evidence (`b6e19bf5`)
 
-| Check | Status |
+| Check | Result |
 |-------|--------|
-| Targeted desktop phase3 | _pending_ |
-| regression-strict 8/8 | _pending_ |
-| PHASE5K_ALL_PASS | _pending_ |
-| Runtime SHA | _pending_ |
+| Fix commit | `b6e19bf` — production bootstrap → `no_intent` / direct `createRun` |
+| API / Web runtime | **`b6e19bf5`** |
+| Worker | **`366716e`** (unchanged) |
+| `PHASE5K_LIVE_LLM_SMOKE_PASS` | **PASS** (after deploy) |
+| Targeted `phase3-desktop-strict` | **PASS** (22.8s) — `/var/log/shotbro-e2e/phase3-desktop-strict-b6e19bf.log` |
+| Full `phase5k-acceptance-e2e.sh` | _in progress_ — `/var/log/shotbro-e2e/phase5k-acceptance-b6e19bf*.log` |

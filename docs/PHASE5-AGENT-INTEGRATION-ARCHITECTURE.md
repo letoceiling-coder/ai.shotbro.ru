@@ -1,7 +1,7 @@
 # Phase 5K — Agent Integration architecture
 
-**Status:** NOT ACCEPTED — live LLM + agent E2E pass; full acceptance blocked on regression-strict  
-**Branch:** `phase5/creative-studio` · **Git:** `41e3f8bc`
+**Status:** NOT ACCEPTED — routing fix deployed; full acceptance in progress  
+**Branch:** `phase5/creative-studio` · **Git:** `b6e19bf`
 
 ## 1. Audit summary (2026-10-28)
 
@@ -9,9 +9,9 @@
 
 | Item | Value |
 |------|--------|
-| Git checkout (VPS src) | `41e3f8bc` |
-| API image label | `41e3f8bc` — OpenRouter via `FetchHttpTransport` + proxy fallback |
-| Web image label | `23b00c83` (E2E asset cards) |
+| Git checkout (VPS src) | `b6e19bf` |
+| API image label | `b6e19bf` — creative + production routing isolation |
+| Web image label | `b6e19bf` — bootstrap → `createRun` |
 | Worker | `366716e` |
 
 ### OpenRouter egress
@@ -19,6 +19,16 @@
 - Datacenter direct → OpenRouter **403** (security policy).
 - Staging uses **`OPENROUTER_HTTPS_PROXY`** with `OPENROUTER_CONNECT_MODE=auto`.
 - Multi-turn tool results require OpenAI-shaped assistant `tool_calls` (`creative-llm-loop` + adapter).
+
+### Chat routing (production vs creative)
+
+| User intent | Path |
+|-------------|------|
+| Mock production bootstrap («рекламный ролик 15 сек TestCo») | Web **`createRun`** → AgentRuntime → ProductionOrchestrator (creative-turn returns **`no_intent`** immediately on API) |
+| Creative NL (`phase5k:`, library, frames, timeline) | **`creative-turn`** → mock planner or OpenRouter |
+| Default / ambiguous | **`createRun`** after `no_intent`, or production path |
+
+See `isProductionBootstrapUserMessage()` in `creative-intent-planner.ts` and `apps/web/src/lib/agent-message-routing.ts`.
 
 ### Core components
 
