@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shotbro/ai/studio-intent": ["../../packages/ai/src/agent/studio-intent.ts"]
     }
   },
   "include": [

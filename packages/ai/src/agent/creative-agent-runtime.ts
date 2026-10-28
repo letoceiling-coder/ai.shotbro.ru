@@ -8,8 +8,8 @@ import { registerPhase5CreativeStudioTools } from "./tool-handlers/phase5-creati
 import { registerPhase5PromptStudioTools } from "./tool-handlers/phase5-prompt-tools.js";
 import { registerPhase5TimelineTools } from "./tool-handlers/phase5-timeline-tools.js";
 import { isCreativeLlmLiveEnabled } from "@shotbro/config";
+import { isProductionBootstrapUserMessage } from "./studio-intent.js";
 import {
-  isProductionBootstrapUserMessage,
   planCreativeIntent,
   shouldUseMockCreativePlanner,
 } from "./creative-intent-planner.js";

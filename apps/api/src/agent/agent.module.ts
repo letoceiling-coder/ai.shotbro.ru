@@ -8,11 +8,12 @@ import { ProvidersModule } from "../providers/providers.module";
 import { AgentController } from "./agent.controller";
 import { AgentService } from "./agent.service";
 import { AgentRuntimeRolloutService } from "./agent-runtime-rollout.service";
+import { IdempotencyService } from "../common/idempotency.service";
 
 @Module({
   imports: [EventsModule, forwardRef(() => ApprovalsModule), forwardRef(() => ProductionModule), AssetsModule, ProvidersModule],
   controllers: [AgentController],
-  providers: [AgentService, AgentRuntimeRolloutService, AccessPolicyService],
+  providers: [AgentService, AgentRuntimeRolloutService, AccessPolicyService, IdempotencyService],
   exports: [AgentService, AgentRuntimeRolloutService],
 })
 export class AgentModule {}

@@ -23,6 +23,7 @@ export * from "./agent/phase4-tool-catalog.js";
 export * from "./agent/context-builder.js";
 export * from "./agent/agent-runtime.js";
 export * from "./agent/creative-agent-runtime.js";
+export * from "./agent/studio-intent.js";
 export * from "./agent/creative-intent-planner.js";
 export * from "./agent/creative-llm-loop.js";
 export * from "./agent/creative-llm-tools.js";

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ChatMessage } from "@shotbro/contracts";
 import { api, apiFetch } from "@/lib/api-client";
-import { isProductionBootstrapMessage, shouldTryCreativeTurn } from "@/lib/agent-message-routing";
+import { resolveStudioMessageIntent } from "@/lib/agent-message-routing";
 import { authClient } from "@/lib/auth-client";
 
 export function useAuthSession() {
@@ -66,19 +66,19 @@ export function useSendRealMessage(conversationId: string | undefined, projectId
       });
       if (projectId && conversationId) {
         try {
-          if (isProductionBootstrapMessage(content)) {
+          const intent = resolveStudioMessageIntent(content);
+          if (intent === "production_bootstrap" || intent === "production_default") {
             await api.agent.createRun(projectId, { userRequest: content, conversationId });
-          } else if (shouldTryCreativeTurn(content)) {
+          } else {
+            const idempotencyKey = crypto.randomUUID();
             const creative = await api.agent.creativeTurn(projectId, {
               userMessage: content,
               conversationId,
-              idempotencyKey: crypto.randomUUID(),
+              idempotencyKey,
             });
             if (creative.status === "no_intent") {
               await api.agent.createRun(projectId, { userRequest: content, conversationId });
             }
-          } else {
-            await api.agent.createRun(projectId, { userRequest: content, conversationId });
           }
         } catch {
           /* agent may stop at approval — still ok */

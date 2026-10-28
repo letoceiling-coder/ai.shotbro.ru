@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     const api = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:3001";
     return [{ source: "/api/:path*", destination: `${api}/api/:path*` }];
   },
-  transpilePackages: ["@shotbro/contracts", "@shotbro/agent-core"],
+  transpilePackages: ["@shotbro/contracts", "@shotbro/agent-core", "@shotbro/ai"],
   images: {
     localPatterns: [{ pathname: "/demo-assets/**" }],
   },

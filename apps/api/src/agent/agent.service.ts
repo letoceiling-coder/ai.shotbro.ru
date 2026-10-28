@@ -33,6 +33,13 @@ import { ReferenceService } from "../production/reference.service";
 import { CharacterContinuityService } from "../production/character-continuity.service";
 import { PromptVersionService } from "../production/prompt-version.service";
 import { TimelineDocumentService } from "../production/timeline-document.service";
+import { IdempotencyService } from "../common/idempotency.service";
+
+export function creativeTurnIdempotencyStorageKey(userId: string, projectId: string, clientKey: string) {
+  return `creative-turn:${userId}:${projectId}:${clientKey}`;
+}
+
+const CREATIVE_TURN_ROUTE = "POST /api/v1/projects/:projectId/agent/creative-turn";
 
 @Injectable()
 export class AgentService {
@@ -56,6 +63,7 @@ export class AgentService {
     @Inject(CharacterContinuityService) private readonly characters: CharacterContinuityService,
     @Inject(PromptVersionService) private readonly prompts: PromptVersionService,
     @Inject(TimelineDocumentService) private readonly timeline: TimelineDocumentService,
+    @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
   ) {}
 
   /** Storyboard document revision invalidates downstream gates; re-open STORYBOARD approval in chat. */
@@ -191,11 +199,27 @@ export class AgentService {
     return this.toRunDto(row);
   }
 
-  /** Phase 5K: deterministic mock NL → real creative tools (no production orchestrator). */
+  /** Phase 5K / 5L-A: mock or live NL → creative tools (no production orchestrator). */
   async runCreativeTurn(userId: string, projectId: string, body: unknown) {
     const input = CreativeAgentTurnBodySchema.parse(body);
-    const { workspaceId } = await this.access.assertProjectAccess(this.db, userId, projectId);
+    await this.access.assertProjectAccess(this.db, userId, projectId);
     await this.resolveConversation(projectId, input.conversationId);
+
+    const storageKey = input.idempotencyKey
+      ? creativeTurnIdempotencyStorageKey(userId, projectId, input.idempotencyKey)
+      : undefined;
+
+    return this.idempotency.runWithClaim(storageKey, userId, CREATIVE_TURN_ROUTE, () =>
+      this.executeCreativeTurn(userId, projectId, input),
+    );
+  }
+
+  private async executeCreativeTurn(
+    userId: string,
+    projectId: string,
+    input: { conversationId: string; userMessage: string; idempotencyKey?: string },
+  ) {
+    const { workspaceId } = await this.access.assertProjectAccess(this.db, userId, projectId);
 
     const runId = uuid();
     const now = new Date();

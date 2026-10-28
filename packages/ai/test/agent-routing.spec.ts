@@ -4,6 +4,7 @@ import {
   planCreativeIntent,
   shouldUseMockCreativePlanner,
 } from "../src/agent/creative-intent-planner.js";
+import { resolveStudioMessageIntent } from "../src/agent/studio-intent.js";
 import { CreativeAgentRuntime } from "../src/agent/creative-agent-runtime.js";
 
 const PRODUCTION_PROMPT =
@@ -14,6 +15,8 @@ describe("agent message routing (5K + production isolation)", () => {
     expect(isProductionBootstrapUserMessage(PRODUCTION_PROMPT)).toBe(true);
     expect(isProductionBootstrapUserMessage("phase5k найди фото")).toBe(false);
     expect(isProductionBootstrapUserMessage("Измени второй кадр сцены")).toBe(false);
+    expect(resolveStudioMessageIntent(PRODUCTION_PROMPT)).toBe("production_bootstrap");
+    expect(resolveStudioMessageIntent("phase5k: библиотека")).toBe("creative_nl");
   });
 
   it("mock planner returns null for production bootstrap", () => {
