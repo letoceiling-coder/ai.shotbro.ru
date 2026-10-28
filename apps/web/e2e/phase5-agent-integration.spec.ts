@@ -56,18 +56,33 @@ test.describe("Phase 5K agent integration", () => {
       blocks.some(
         (b) =>
           b.type === "agent_tool_result" &&
-          (b as { toolName?: string }).toolName === "set_scene_first_frame_by_ordinal",
+          (b as { toolName?: string; success?: boolean }).toolName ===
+            "set_scene_first_frame_by_ordinal" &&
+          (b as { success?: boolean }).success === true,
       ),
     );
 
-    const storyboard = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
-    expect(storyboard.ok()).toBeTruthy();
-    const sb = (await storyboard.json()) as {
-      payload?: { scenes?: Array<{ sceneId: string; firstFrameAssetId?: string }> };
-      scenes?: Array<{ sceneId: string; firstFrameAssetId?: string }>;
+    type StoryboardScene = { sceneId: string; firstFrameAssetId?: string };
+    const readStoryboardScenes = async (): Promise<StoryboardScene[]> => {
+      const storyboard = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
+      expect(storyboard.ok()).toBeTruthy();
+      const sb = (await storyboard.json()) as {
+        payload?: { scenes?: StoryboardScene[] };
+        scenes?: StoryboardScene[];
+      };
+      return sb.payload?.scenes ?? sb.scenes ?? [];
     };
-    const scenes = sb.payload?.scenes ?? sb.scenes ?? [];
-    expect(scenes.length).toBeGreaterThan(1);
+
+    let scenes: StoryboardScene[] = [];
+    await expect
+      .poll(
+        async () => {
+          scenes = await readStoryboardScenes();
+          return scenes.length > 1 && Boolean(scenes[1]?.firstFrameAssetId);
+        },
+        { timeout: 120_000, intervals: [500, 1000, 2000] },
+      )
+      .toBe(true);
     expect(scenes[1]?.firstFrameAssetId).toBeTruthy();
 
     const sceneId = scenes[1]!.sceneId;

@@ -85,11 +85,30 @@ export class CreativeAgentRuntime {
           })
           .parse(input);
         const session = getSession(ctx);
+        if (!session.scenes.length && ctx.delegates?.getStoryboard) {
+          const board = await ctx.delegates.getStoryboard({
+            projectId: ctx.projectId,
+            userId: ctx.userId,
+          });
+          const scenes = (board.storyboard as { scenes?: TurnSession["scenes"] } | null)?.scenes;
+          if (scenes?.length) session.scenes = scenes;
+        }
         const scene = session.scenes[parsed.sceneOrdinal - 1];
         if (!scene) throw new Error(`scene ordinal ${parsed.sceneOrdinal} not found`);
-        const assetId =
+        let assetId =
           parsed.assetId ??
           session.assets.filter((a) => a.mimeType.startsWith("image/"))[parsed.pickAssetIndex]?.id;
+        if (!assetId && ctx.delegates?.searchAssets) {
+          const found = await ctx.delegates.searchAssets({
+            projectId: ctx.projectId,
+            userId: ctx.userId,
+            filter: "image",
+            status: "READY",
+            limit: 12,
+          });
+          if (found.length) session.assets = found;
+          assetId = found[parsed.pickAssetIndex]?.id;
+        }
         if (!assetId) throw new Error("no READY image asset in session context");
         if (!ctx.delegates?.setSceneFrame) throw new Error("set_scene_first_frame: delegate missing");
         const res = await ctx.delegates.setSceneFrame({
