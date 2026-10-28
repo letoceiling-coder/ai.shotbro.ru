@@ -7,7 +7,9 @@ import { registerMultiproviderTools } from "./tool-handlers/multiprovider-tools.
 import { registerPhase5CreativeStudioTools } from "./tool-handlers/phase5-creative-tools.js";
 import { registerPhase5PromptStudioTools } from "./tool-handlers/phase5-prompt-tools.js";
 import { registerPhase5TimelineTools } from "./tool-handlers/phase5-timeline-tools.js";
-import { planCreativeIntent } from "./creative-intent-planner.js";
+import { isCreativeLlmLiveEnabled } from "@shotbro/config";
+import { planCreativeIntent, shouldUseMockCreativePlanner } from "./creative-intent-planner.js";
+import { runCreativeLlmLoop } from "./creative-llm-loop.js";
 import {
   type AgentToolResultEnvelope,
   toolError,
@@ -21,10 +23,13 @@ type TurnSession = {
 };
 
 export type CreativeAgentTurnResult = {
-  status: "completed" | "no_intent" | "failed";
-  mockAgent: true;
+  status: "completed" | "no_intent" | "failed" | "stopped";
+  mockAgent: boolean;
+  llmLive?: boolean;
   planIntent?: string;
+  assistantMessage?: string;
   results: AgentToolResultEnvelope[];
+  usage?: { inputTokens: number; outputTokens: number };
   error?: string;
 };
 
@@ -99,20 +104,50 @@ export class CreativeAgentRuntime {
     );
 
     this.executor.register(
-      "improve_scene_video_prompt",
-      z.object({ sceneOrdinal: z.number().int().positive() }),
+      "pick_asset_from_last_search",
+      z.object({
+        index: z.number().int().positive(),
+        assetId: z.string().optional(),
+      }),
       async (input, ctx) => {
-        const { sceneOrdinal } = z.object({ sceneOrdinal: z.number().int().positive() }).parse(input);
+        const parsed = z
+          .object({ index: z.number().int().positive(), assetId: z.string().optional() })
+          .parse(input);
         const session = getSession(ctx);
-        const scene = session.scenes[sceneOrdinal - 1];
-        if (!scene) throw new Error(`scene ordinal ${sceneOrdinal} not found`);
+        if (parsed.assetId) return { assetId: parsed.assetId, picked: true };
+        const hit = session.assets[parsed.index - 1];
+        if (!hit) throw new Error(`asset index ${parsed.index} not in last search (${session.assets.length} items)`);
+        return { assetId: hit.id, mimeType: hit.mimeType, originalName: hit.originalName, picked: true };
+      },
+    );
+
+    this.executor.register(
+      "improve_scene_video_prompt",
+      z.object({
+        sceneOrdinal: z.number().int().positive().optional(),
+        sceneId: z.string().optional(),
+      }),
+      async (input, ctx) => {
+        const parsed = z
+          .object({
+            sceneOrdinal: z.number().int().positive().optional(),
+            sceneId: z.string().optional(),
+          })
+          .parse(input);
+        const session = getSession(ctx);
+        let sceneId = parsed.sceneId;
+        if (!sceneId && parsed.sceneOrdinal) {
+          sceneId = session.scenes[parsed.sceneOrdinal - 1]?.sceneId;
+        }
+        if (!sceneId) throw new Error("sceneId or sceneOrdinal required");
+        const scene = session.scenes.find((s) => s.sceneId === sceneId);
         if (!ctx.delegates?.prepareScenePrompt || !ctx.delegates?.saveScenePrompt) {
           throw new Error("improve_scene_video_prompt: delegate missing");
         }
         const prep = await ctx.delegates.prepareScenePrompt({
           projectId: ctx.projectId,
           userId: ctx.userId,
-          sceneId: scene.sceneId,
+          sceneId,
           focus: "video",
         });
         const bundle = (prep.bundle ?? {}) as Record<string, unknown>;
@@ -121,18 +156,18 @@ export class CreativeAgentRuntime {
           ...bundle,
           video: {
             ...video,
-            sceneAction: `${String(video.sceneAction ?? scene.title ?? "Scene")} · улучшено mock-агентом Phase 5K`,
+            sceneAction: `${String(video.sceneAction ?? scene?.title ?? "Scene")} · улучшено агентом`,
             motionNotes: "Плавное движение камеры, акцент на героине кадра",
           },
         };
         const saved = await ctx.delegates.saveScenePrompt({
           projectId: ctx.projectId,
           userId: ctx.userId,
-          sceneId: scene.sceneId,
+          sceneId,
           bundle: improved,
-          changeNote: "Phase 5K mock agent video prompt improve",
+          changeNote: "Creative agent video prompt improve",
         });
-        return { sceneId: scene.sceneId, ...saved, mockAgent: true };
+        return { sceneId, ...saved, mockAgent: true };
       },
     );
 
@@ -178,6 +213,61 @@ export class CreativeAgentRuntime {
     );
   }
 
+  async executeToolCall(input: {
+    runId: string;
+    projectId: string;
+    userId: string;
+    userMessage?: string;
+    storage: ProductionStoragePort;
+    conversationId?: string;
+    delegates?: ToolExecutionDelegates;
+    toolName: string;
+    arguments: Record<string, unknown>;
+    idempotencyKey: string;
+    session?: TurnSession;
+  }): Promise<AgentToolResultEnvelope> {
+    const session = input.session ?? { assets: [], scenes: [] };
+    const sessionCtx = { session };
+    try {
+      const toolCtx = {
+        env: this.env,
+        storage: input.storage,
+        runId: input.runId,
+        projectId: input.projectId,
+        userId: input.userId,
+        conversationId: input.conversationId,
+        delegates: input.delegates,
+        [SESSION]: sessionCtx,
+      } as Parameters<ToolExecutor["execute"]>[2];
+      const raw = await this.executor.execute(input.toolName, input.arguments, toolCtx, {
+        idempotencyKey: input.idempotencyKey,
+        timeoutMs: 45_000,
+      });
+      await this.refreshSession(session, input.toolName, raw, input);
+      return toolSuccess({
+        projectId: input.projectId,
+        toolName: input.toolName,
+        humanReadableSummary: summarizeTool(input.toolName, raw),
+        assetId: typeof raw.assetId === "string" ? raw.assetId : undefined,
+        sceneId: typeof raw.sceneId === "string" ? raw.sceneId : undefined,
+        revision: typeof raw.revision === "number" ? raw.revision : undefined,
+        documentId: typeof raw.documentId === "string" ? raw.documentId : undefined,
+        resultingAction: input.toolName,
+        deepLink: deepLinkFor(input.toolName, raw),
+        payload: raw,
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Tool failed";
+      return toolError({
+        projectId: input.projectId,
+        toolName: input.toolName,
+        errorCode: "TOOL_FAILED",
+        humanReadableSummary: message,
+        resultingAction: input.toolName,
+      });
+    }
+  }
+
   async runCreativeTurn(input: {
     runId: string;
     projectId: string;
@@ -186,63 +276,79 @@ export class CreativeAgentRuntime {
     storage: ProductionStoragePort;
     conversationId?: string;
     delegates?: ToolExecutionDelegates;
+    memoryContext?: string;
+    sessionSeed?: TurnSession;
   }): Promise<CreativeAgentTurnResult> {
-    const plan = planCreativeIntent(input.userMessage);
-    if (!plan) return { status: "no_intent", mockAgent: true, results: [] };
+    const session: TurnSession = input.sessionSeed ?? { assets: [], scenes: [] };
 
-    const session: TurnSession = { assets: [], scenes: [] };
-    const sessionCtx = { session };
-    const results: AgentToolResultEnvelope[] = [];
-
-    for (const tc of plan.toolCalls) {
-      try {
-        const toolCtx = {
-          env: this.env,
-          storage: input.storage,
-          runId: input.runId,
-          projectId: input.projectId,
-          userId: input.userId,
-          conversationId: input.conversationId,
-          delegates: input.delegates,
-          [SESSION]: sessionCtx,
-        } as Parameters<ToolExecutor["execute"]>[2];
-        const raw = await this.executor.execute(tc.name, tc.arguments, toolCtx, {
-          idempotencyKey: `${input.runId}:creative:${tc.id}`,
-          timeoutMs: 45_000,
-        });
-
-        await this.refreshSession(session, tc.name, raw, input);
-
-        results.push(
-          toolSuccess({
-            projectId: input.projectId,
-            toolName: tc.name,
-            humanReadableSummary: summarizeTool(tc.name, raw),
-            assetId: typeof raw.assetId === "string" ? raw.assetId : undefined,
-            sceneId: typeof raw.sceneId === "string" ? raw.sceneId : undefined,
-            revision: typeof raw.revision === "number" ? raw.revision : undefined,
-            documentId: typeof raw.documentId === "string" ? raw.documentId : undefined,
-            resultingAction: tc.name,
-            deepLink: deepLinkFor(tc.name, raw),
-            payload: raw,
-          }),
-        );
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Tool failed";
-        results.push(
-          toolError({
-            projectId: input.projectId,
-            toolName: tc.name,
-            errorCode: "TOOL_FAILED",
-            humanReadableSummary: message,
-            resultingAction: tc.name,
-          }),
-        );
-        return { status: "failed", mockAgent: true, planIntent: plan.intent, results, error: message };
-      }
+    if (!shouldUseMockCreativePlanner(this.env, input.userMessage)) {
+      const llm = await runCreativeLlmLoop({
+        env: this.env,
+        runtime: this,
+        runId: input.runId,
+        projectId: input.projectId,
+        userId: input.userId,
+        userMessage: input.userMessage,
+        storage: input.storage,
+        conversationId: input.conversationId,
+        delegates: input.delegates,
+        memoryContext: input.memoryContext,
+      });
+      return {
+        status: llm.status,
+        mockAgent: false,
+        llmLive: true,
+        assistantMessage: llm.assistantMessage,
+        results: llm.results,
+        usage: llm.usage,
+        error: llm.error,
+      };
     }
 
+    const plan = planCreativeIntent(input.userMessage);
+    if (!plan) {
+      return {
+        status: "no_intent",
+        mockAgent: !isCreativeLlmLiveEnabled(this.env),
+        results: [],
+        assistantMessage: isCreativeLlmLiveEnabled(this.env)
+          ? undefined
+          : "Не удалось распознать задачу (mock planner). Включите LLM_LIVE_EXECUTION_ENABLED для свободного текста.",
+      };
+    }
+
+    const results: AgentToolResultEnvelope[] = [];
+    for (const tc of plan.toolCalls) {
+      const envelope = await this.executeToolCall({
+        ...input,
+        toolName: tc.name,
+        arguments: tc.arguments,
+        idempotencyKey: `${input.runId}:creative:${tc.id}`,
+        session,
+      });
+      results.push(envelope);
+      if (!envelope.success) {
+        return { status: "failed", mockAgent: true, planIntent: plan.intent, results, error: envelope.humanReadableSummary };
+      }
+    }
     return { status: "completed", mockAgent: true, planIntent: plan.intent, results };
+  }
+
+  buildMemoryContext(session: TurnSession): string {
+    const lines: string[] = [];
+    if (session.assets.length) {
+      lines.push(
+        "Last asset search:",
+        ...session.assets.slice(0, 12).map((a, i) => `${i + 1}. ${a.id} ${a.originalName ?? ""} ${a.mimeType}`),
+      );
+    }
+    if (session.scenes.length) {
+      lines.push(
+        "Storyboard scenes:",
+        ...session.scenes.map((s, i) => `${i + 1}. ${s.sceneId} ${s.title ?? ""}`),
+      );
+    }
+    return lines.join("\n");
   }
 
   private async refreshSession(

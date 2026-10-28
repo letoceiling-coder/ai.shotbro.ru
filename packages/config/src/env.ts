@@ -57,6 +57,15 @@ export const envSchema = z
     /** Phase 3: when false, EXTERNAL_PAID tools still require explicit owner enable + approvals */
     PROVIDER_LIVE_EXECUTION_ENABLED: boolFromEnv.default(false),
 
+    /** Phase 5K: OpenRouter LLM for creative agent (independent of media providers) */
+    LLM_LIVE_EXECUTION_ENABLED: boolFromEnv.default(false),
+    /** Phase 5K: all live AI media off by default */
+    MEDIA_GENERATION_ENABLED: boolFromEnv.default(false),
+    IMAGE_GENERATION_ENABLED: boolFromEnv.default(false),
+    VIDEO_GENERATION_ENABLED: boolFromEnv.default(false),
+    IMAGE_UPSCALE_ENABLED: boolFromEnv.default(false),
+    MEDIA_PROVIDER_LIVE_EXECUTION_ENABLED: boolFromEnv.default(false),
+
     /** Phase 5 multi-provider: per-vendor switches (ignored unless PROVIDER_LIVE_EXECUTION_ENABLED and !AI_MOCK_MODE) */
     FAL_PROVIDER_ENABLED: boolFromEnv.default(false),
     ELEVENLABS_PROVIDER_ENABLED: boolFromEnv.default(false),

@@ -229,6 +229,17 @@ export class AgentService {
       conversationId: input.conversationId,
     });
 
+    const [projRow] = await this.db.select().from(project).where(eq(project.id, projectId)).limit(1);
+    const settings = (projRow?.settings ?? {}) as Record<string, unknown>;
+    const mem = (settings.creativeAgentMemory ?? {}) as {
+      assets?: Array<{ id: string; mimeType: string; originalName?: string; status?: string }>;
+      scenes?: Array<{ sceneId: string; title?: string }>;
+    };
+    const memoryContext = this.creativeRuntime.buildMemoryContext({
+      assets: mem.assets ?? [],
+      scenes: mem.scenes ?? [],
+    });
+
     const turn = await this.creativeRuntime.runCreativeTurn({
       runId,
       projectId,
@@ -237,24 +248,29 @@ export class AgentService {
       storage,
       conversationId: input.conversationId,
       delegates,
+      memoryContext,
+      sessionSeed: { assets: mem.assets ?? [], scenes: mem.scenes ?? [] },
     });
 
     if (turn.status === "no_intent") {
       await this.db.delete(agentRun).where(eq(agentRun.id, runId));
-      return { status: "no_intent", mockAgent: true, results: [] };
+      return { status: "no_intent", mockAgent: turn.mockAgent, results: [], assistantMessage: turn.assistantMessage };
     }
 
+    const header = turn.llmLive
+      ? turn.status === "completed"
+        ? "**Creative Agent (OpenRouter LLM)** — инструменты выполнены в REAL проекте. Генерация фото/видео отключена."
+        : `**Creative Agent (OpenRouter LLM)** — ${turn.error ?? "ошибка"}`
+      : turn.status === "completed"
+        ? "**Mock-планировщик Phase 5K** — инструменты выполнены (E2E/fallback)."
+        : `**Mock-планировщик Phase 5K** — ${turn.error ?? "ошибка"}`;
+
     const blocks: Record<string, unknown>[] = [
-      {
-        type: "text",
-        markdown:
-          turn.status === "completed"
-            ? "**Mock-агент Phase 5K** выполнил инструменты в REAL проекте (без live LLM)."
-            : `**Mock-агент Phase 5K** остановлен: ${turn.error ?? "ошибка"}`,
-      },
+      { type: "text", markdown: header },
+      ...(turn.assistantMessage ? [{ type: "text", markdown: turn.assistantMessage }] : []),
       ...turn.results.map((r) => ({
         type: "agent_tool_result",
-        mockAgent: true,
+        mockAgent: turn.mockAgent,
         toolName: r.toolName,
         success: r.success,
         humanReadableSummary: r.humanReadableSummary,
@@ -270,12 +286,37 @@ export class AgentService {
 
     const storyboardTools = new Set([
       "set_scene_first_frame_by_ordinal",
+      "set_scene_first_frame",
+      "set_scene_last_frame",
       "update_storyboard_scene",
       "sync_storyboard_from_script",
       "reorder_storyboard_scenes",
     ]);
     if (turn.results.some((r) => r.success && storyboardTools.has(r.toolName))) {
       await this.onStoryboardDocumentRevised(userId, projectId);
+    }
+
+    const searchHit = turn.results.find((r) => r.toolName === "search_project_assets" && r.success);
+    const items = (searchHit?.payload as { items?: typeof mem.assets } | undefined)?.items;
+    const boardHit = turn.results.find((r) => r.toolName === "get_storyboard" && r.success);
+    const boardScenes = (boardHit?.payload as { storyboard?: { scenes?: typeof mem.scenes } } | undefined)
+      ?.storyboard?.scenes;
+    if (items?.length || boardScenes?.length) {
+      await this.db
+        .update(project)
+        .set({
+          settings: {
+            ...settings,
+            creativeAgentMemory: {
+              assets: items ?? mem.assets ?? [],
+              scenes: boardScenes ?? mem.scenes ?? [],
+              conversationId: input.conversationId,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(project.id, projectId));
     }
 
     await this.db
@@ -285,8 +326,10 @@ export class AgentService {
         updatedAt: new Date(),
         metadata: {
           phase: "5K-creative",
-          mockAgent: true,
+          mockAgent: turn.mockAgent,
+          llmLive: turn.llmLive ?? false,
           toolResults: turn.results.length,
+          usage: turn.usage,
         },
       })
       .where(eq(agentRun.id, runId));

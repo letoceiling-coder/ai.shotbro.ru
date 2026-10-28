@@ -24,7 +24,9 @@ export const LlmRequestSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   stream: z.boolean().optional(),
   timeoutMs: z.number().int().positive().optional(),
-  executionPolicy: z.enum(["MOCK_ONLY", "LIVE_CONFIGURED_DISABLED", "LIVE_APPROVED"]).default("MOCK_ONLY"),
+  executionPolicy: z
+    .enum(["MOCK_ONLY", "LIVE_CONFIGURED_DISABLED", "LIVE_APPROVED", "CREATIVE_LLM_LIVE"])
+    .default("MOCK_ONLY"),
 });
 
 export const LlmUsageSchema = z.object({

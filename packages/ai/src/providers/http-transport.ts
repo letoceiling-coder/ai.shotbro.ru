@@ -23,6 +23,36 @@ export class BlockedHttpTransport implements HttpTransport {
   }
 }
 
+/** Node fetch — used only when creative LLM policy allows outbound calls. */
+export class FetchHttpTransport implements HttpTransport {
+  async request(req: HttpRequest): Promise<HttpResponse> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), req.timeoutMs ?? 60_000);
+    try {
+      const res = await fetch(req.url, {
+        method: req.method,
+        headers: req.headers,
+        body: req.body != null ? JSON.stringify(req.body) : undefined,
+        signal: ctrl.signal,
+      });
+      const text = await res.text();
+      let body: unknown = text;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        /* plain text */
+      }
+      const headers: Record<string, string> = {};
+      res.headers.forEach((v, k) => {
+        headers[k] = v;
+      });
+      return { status: res.status, headers, body };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
 export class MockHttpTransport implements HttpTransport {
   constructor(private readonly fixtures: Record<string, HttpResponse>) {}
 

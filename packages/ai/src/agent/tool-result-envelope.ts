@@ -12,7 +12,7 @@ export const AgentToolResultEnvelopeSchema = z.object({
   revision: z.number().optional(),
   approvalState: z.string().optional(),
   resultingAction: z.string().optional(),
-  mockAgent: z.literal(true),
+  mockAgent: z.boolean().optional(),
   deepLink: z
     .object({
       creativeSection: z.enum([
@@ -36,9 +36,9 @@ export const AgentToolResultEnvelopeSchema = z.object({
 export type AgentToolResultEnvelope = z.infer<typeof AgentToolResultEnvelopeSchema>;
 
 export function toolSuccess(
-  partial: Omit<AgentToolResultEnvelope, "success" | "mockAgent">,
+  partial: Omit<AgentToolResultEnvelope, "success"> & { mockAgent?: boolean },
 ): AgentToolResultEnvelope {
-  return { ...partial, success: true, mockAgent: true };
+  return { ...partial, success: true, mockAgent: partial.mockAgent ?? true };
 }
 
 export function toolError(

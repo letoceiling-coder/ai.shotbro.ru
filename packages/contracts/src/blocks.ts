@@ -244,7 +244,7 @@ export const DeliveryBlockSchema = z.object({
 /** Phase 5K: REAL tool outcome from mock creative agent (data from API/DB). */
 export const AgentToolResultBlockSchema = z.object({
   type: z.literal("agent_tool_result"),
-  mockAgent: z.literal(true),
+  mockAgent: z.boolean().optional(),
   toolName: z.string(),
   success: z.boolean(),
   humanReadableSummary: z.string(),

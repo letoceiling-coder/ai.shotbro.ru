@@ -1,5 +1,5 @@
 import type { AppEnv } from "@shotbro/config/env";
-import { assertExternalProviderExecutionAllowed } from "@shotbro/config";
+import { assertExternalProviderExecutionAllowed, assertMediaGenerationBlocked } from "@shotbro/config";
 import { z } from "zod";
 import type { ProductionStoragePort } from "./ports/production-storage.js";
 import { PHASE4_TOOLS, type Phase4ToolDefinition } from "./agent/phase4-tool-catalog.js";
@@ -198,6 +198,7 @@ export class ToolExecutor {
   ): Promise<Record<string, unknown>> {
     const tool = this.getTool(toolId);
     if (!tool || !tool.enabled) throw new Error(`Tool unavailable: ${toolId}`);
+    assertMediaGenerationBlocked(this.env, toolId);
     this.assertSideEffectAllowed(tool.sideEffect);
 
     const existing = await ctx.storage.findToolExecution(ctx.runId, opts.idempotencyKey);

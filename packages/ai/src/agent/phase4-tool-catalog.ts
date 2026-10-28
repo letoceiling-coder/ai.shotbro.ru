@@ -539,6 +539,18 @@ const EXTRA: Phase4ToolDefinition[] = [
     timeoutMs: 20_000,
   },
   {
+    id: "pick_asset_from_last_search",
+    displayName: "Pick asset from list",
+    description: "Resolve assetId from last search by index",
+    sideEffect: "READ_ONLY",
+    costClass: "free",
+    enabled: true,
+    requiresApproval: false,
+    implementationStatus: "HANDLER",
+    inputSchemaVersion: 1,
+    timeoutMs: 10_000,
+  },
+  {
     id: "search_project_assets",
     displayName: "Search assets",
     description: "Search project asset library with filters",

@@ -24,6 +24,8 @@ export * from "./agent/context-builder.js";
 export * from "./agent/agent-runtime.js";
 export * from "./agent/creative-agent-runtime.js";
 export * from "./agent/creative-intent-planner.js";
+export * from "./agent/creative-llm-loop.js";
+export * from "./agent/creative-llm-tools.js";
 export * from "./agent/tool-result-envelope.js";
 export * from "./agent/tool-policy-engine.js";
 export * from "./providers/http-transport.js";

@@ -1,3 +1,6 @@
+import type { AppEnv } from "@shotbro/config/env";
+import { isCreativeLlmLiveEnabled } from "@shotbro/config";
+
 export type PlannedToolCall = {
   id: string;
   name: string;
@@ -37,6 +40,14 @@ function detectSceneOrdinal(text: string): number | undefined {
 }
 
 /** Deterministic mock NL → tool plan (staging E2E + Phase 5K). No live LLM. */
+/** E2E / fallback only when live LLM is off or explicit mock mode. */
+export function shouldUseMockCreativePlanner(env: AppEnv, userMessage: string): boolean {
+  if (process.env.CREATIVE_AGENT_MOCK_PLANNER === "1") return true;
+  if (/phase5k/i.test(userMessage)) return true;
+  if (!isCreativeLlmLiveEnabled(env)) return true;
+  return false;
+}
+
 export function planCreativeIntent(userMessage: string): CreativeIntentPlan | null {
   const lower = userMessage.toLowerCase();
   const sceneOrdinal = detectSceneOrdinal(userMessage);
