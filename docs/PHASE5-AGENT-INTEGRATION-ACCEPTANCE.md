@@ -1,86 +1,69 @@
 # Phase 5K — Agent Integration acceptance
 
-**Status:** **NOT ACCEPTED** (2026-10-28) — regression routing **fixed** (`b6e19bf`); full acceptance **running**
+**Status:** **ACCEPTED** (2026-10-28, VPS staging `85.117.235.93`)
 
-## Runtime (VPS `85.117.235.93`)
+## Runtime (VPS)
 
-| Service | `org.shotbro.build-sha` | Image ID (short) | Notes |
-|---------|-------------------------|------------------|--------|
-| API | **b6e19bf5** | `ai-shotbro-staging-api-1` | Production bootstrap isolation from live LLM |
-| Web | **b6e19bf5** | `infra-web-1` | Direct `createRun` for mock production NL |
-| Worker | **366716e** | unchanged | mock media / upload READY |
-| Git (VPS src) | **41e3f8bc** | `/var/www/ai.shotbro.ru-src` | branch `phase5/creative-studio` |
+| Service | `org.shotbro.build-sha` | Notes |
+|---------|-------------------------|--------|
+| API | **b6e19bf5** | Production bootstrap isolation; live OpenRouter via proxy |
+| Web | **b6e19bf5** | Bootstrap → `createRun`; creative NL routing |
+| Worker | **366716e** | Mock media / upload READY |
+| Git (E2E acceptance) | **5c7facb7** | `/var/www/ai.shotbro.ru-src`, branch `phase5/creative-studio` |
+| API (live ordinal tool) | **rebuilt on VPS** after `5c7facb7` | `set_scene_first_frame_by_ordinal` exposed to OpenRouter tool list |
 
-Baseline reference: **4d3872a9** (5K LLM loop in tree).
+## Acceptance evidence
 
-## OpenRouter RCA (confirmed)
-
-| Path | Result |
-|------|--------|
-| Direct egress from API container | **HTTP 403** — datacenter IP blocked (`Access denied by security policy`) |
-| Via `OPENROUTER_HTTPS_PROXY` | **HTTP 200** on `/api/v1/models` |
-| Root cause of 0-token failures | Direct-only calls + staging compose hard-off + bootstrap guard before hotfix |
-| Follow-up failure after proxy | Invalid multi-turn messages (assistant tool_calls not in OpenAI shape) — fixed in **b4391f4** |
-
-Transport: `packages/ai/src/providers/http-transport.ts` — `OPENROUTER_CONNECT_MODE=auto`, retry via proxy on 403 security policy (**d9ff1c1**).
-
-## Live LLM policy (staging.env)
-
-Configured by `infra/scripts/phase5k-configure-staging-llm.sh` (secrets not logged).
-
-| Flag / limit | Typical staging value |
-|--------------|----------------------|
-| `LLM_LIVE_EXECUTION_ENABLED` | `true` |
-| `OPENROUTER_ENABLED` | `true` |
-| `OPENROUTER_DEFAULT_MODEL` | `openai/gpt-4o-mini` |
-| `OPENROUTER_MODEL_ALLOWLIST` | `openai/gpt-4o-mini` |
-| `CREATIVE_AGENT_MAX_*` / daily USD caps | enforced server-side |
-| Media / provider live flags | **all false**; `AI_MOCK_MODE=true` |
-
-## Evidence (2026-10-28)
-
-| Check | Result | Log / command |
-|-------|--------|----------------|
+| Check | Result | Evidence |
+|-------|--------|----------|
+| Full sequential E2E | **PASS exit 0** | `/var/log/shotbro-e2e/phase5k-acceptance-5c7facb7.log` → **`PHASE5K_ALL_PASS`** @ `2026-10-28T21:05:53+00:00` |
+| Live OpenRouter smoke | **PASS** | `phase5k-live-llm-smoke.sh` → `PHASE5K_LIVE_LLM_SMOKE_PASS` |
+| Live mutation + API F5 | **PASS** | `phase5k-live-mutation-smoke.sh` → `PHASE5K_LIVE_MUTATION_SMOKE_PASS` |
 | Media guards | **PASS** | `phase5k-media-guard-smoke.sh` → `PHASE5K_MEDIA_GUARD_PASS` |
-| Live OpenRouter smoke | **PASS** | `phase5k-live-llm-smoke.sh` → `PHASE5K_LIVE_LLM_SMOKE_PASS` (vitest integration, tokens > 0, `search_project_assets`, 0 provider jobs) |
-| `phase5-agent-integration` | **PASS 2/2** | `/var/log/shotbro-e2e/phase5-agent-integration-41e3f8b.log` |
-| Production regression RCA | **Fixed** | `docs/PHASE5K-PRODUCTION-REGRESSION-RCA.md` — bootstrap misrouted to OpenRouter |
-| Targeted phase3 desktop | **PASS** | `/var/log/shotbro-e2e/phase3-desktop-strict-b6e19bf.log` |
-| Full `phase5k-acceptance-e2e.sh` | _running_ | `/var/log/shotbro-e2e/phase5k-acceptance-b6e19bf*.log` |
-| External media generation | **0** | provider jobs mock-only in live smoke |
+| Paid provider jobs (live smokes) | **0** | provider-jobs mock-only |
 
-## Git commits (5K recovery chain)
+### Suite results (`phase5k-acceptance-5c7facb7.log`)
+
+| Suite | Result |
+|-------|--------|
+| `phase5-agent-integration` | 2 passed (3.2m) |
+| `regression-strict` | 8 passed (9.4m) |
+| `phase5-user-journey` | 4 passed (8.4m) |
+| `phase5-asset-library` | 6 passed (29.1s) |
+| `phase5-storyboard` | 5 passed (43.7s) |
+| `phase5-characters` | 4 passed (19.1s) |
+| `phase5-references` | 5 passed (21.6s) |
+| `phase5-creative-flow` | 1 passed (13.9s) |
+| `phase5-prompts` | 4 passed (16.1s) |
+| `phase5-providers` | 16 passed (1.1m) |
+| `phase5-timeline` | 4 passed (18.2s) |
+| `phase5-assembly` | 1 passed (20.7s) |
+
+**F5 (UI):** `phase5-agent-integration` desktop1920 test — reload after pin → `firstFrameAssetId` unchanged (mock `phase5k:` planner, no OpenRouter spend).
+
+**F5 (live API):** `phase5k-live-mutation.integration.spec.ts` — two consecutive `GET /storyboard` after live `set_scene_first_frame_by_ordinal`.
+
+## Recovery commits (5K chain)
 
 | SHA | Summary |
 |-----|---------|
-| `23b00c8` | Staging LLM ops, undici transport, E2E testids, scripts |
-| `d9ff1c1` | Proxy retry after datacenter 403 |
-| `b4391f4` | OpenAI-format assistant `tool_calls` for follow-up LLM turns |
-| `b958c02` | First-frame tool session fallback; E2E success + poll |
-| `41e3f8b` | Video assign fallback search; E2E assert by `sceneId` |
+| `b6e19bf` | Isolate production bootstrap from live `creative-turn` |
+| `46e00ca` | Safe `fetchStoryboardDocument` during publish |
+| `bbf4f28` | Tablet `ensureRealCreateVisible` reload retry |
+| **`5c7facb`** | **`createProjectViaDialog`**: click without failing `scrollIntoViewIfNeeded` |
+| **`f5fbbf6`** | Live LLM: expose `set_scene_first_frame_by_ordinal`; `phase5k-live-mutation-smoke.sh` |
 
-## Mock vs live
-
-- Messages matching **`phase5k:`** → deterministic mock planner (no OpenRouter spend).
-- Free Russian text on `creative-turn` → OpenRouter when live flags enabled.
+OpenRouter / agent path: `23b00c8` … `41e3f8b` (transport, tool_calls shape, E2E asserts). RCA: `docs/PHASE5K-PRODUCTION-REGRESSION-RCA.md`.
 
 ## Commands
 
 ```bash
 bash infra/scripts/phase5k-configure-staging-llm.sh
-bash infra/scripts/phase5k-openrouter-rca.sh
-bash infra/scripts/phase5k-openrouter-proxy-probe.sh
 bash infra/scripts/phase5k-media-guard-smoke.sh
 bash infra/scripts/phase5k-live-llm-smoke.sh
-bash infra/scripts/staging-playwright-e2e.sh /var/www/ai.shotbro.ru-src phase5-agent-integration
+bash infra/scripts/phase5k-live-mutation-smoke.sh
 bash infra/scripts/phase5k-acceptance-e2e.sh /var/www/ai.shotbro.ru-src /var/log/shotbro-e2e
 ```
-
-## Remaining blockers to **ACCEPTED**
-
-1. **`regression-strict`** — phase3/phase4 mock production MP4 delivery (8 failures); investigate worker/queue/timeouts (not 5K creative agent path).
-2. Remaining suites in `phase5k-acceptance-e2e.sh` after regression green (user-journey, asset-library, storyboard, …).
-3. Optional product ask: dedicated live smoke for **mutation** («первым кадром второй сцены») with F5 — covered by mock E2E; live path validated for search tool calling only.
 
 ## Phase 5L
 

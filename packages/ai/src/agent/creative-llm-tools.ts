@@ -13,6 +13,7 @@ export const CREATIVE_LLM_TOOL_IDS = [
   "get_storyboard",
   "sync_storyboard_from_script",
   "set_scene_first_frame",
+  "set_scene_first_frame_by_ordinal",
   "set_scene_last_frame",
   "attach_reference",
   "update_storyboard_scene",
@@ -80,7 +81,8 @@ export function buildCreativeOpenAiTools(): OpenAiToolDef[] {
       type: "function",
       function: {
         name: "set_scene_first_frame",
-        description: "Assign READY image asset as FIRST_FRAME for sceneId.",
+        description:
+          "Assign READY image as FIRST_FRAME when you already have sceneId from get_storyboard. Never invent sceneId.",
         parameters: {
           type: "object",
           properties: {
@@ -88,6 +90,23 @@ export function buildCreativeOpenAiTools(): OpenAiToolDef[] {
             assetId: { type: "string" },
           },
           required: ["sceneId", "assetId"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "set_scene_first_frame_by_ordinal",
+        description:
+          "Assign READY image as FIRST_FRAME by 1-based scene index (1=first scene, 2=second). Prefer when user says первая/вторая/N-я сцена. Uses last search or library if assetId omitted.",
+        parameters: {
+          type: "object",
+          properties: {
+            sceneOrdinal: { type: "number" },
+            pickAssetIndex: { type: "number" },
+            assetId: { type: "string" },
+          },
+          required: ["sceneOrdinal"],
         },
       },
     },

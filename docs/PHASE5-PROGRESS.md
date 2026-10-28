@@ -1,10 +1,10 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (VPS src, 2026-10-28):** `b6e19bf`  
+**Git HEAD (VPS E2E, 2026-10-28):** `5c7facb7` (+ live LLM ordinal tool hotfix on API image)  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
-**Phase 5K:** **NOT ACCEPTED** (regression routing fixed; **full acceptance running** on VPS)  
+**Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  
 **P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)
