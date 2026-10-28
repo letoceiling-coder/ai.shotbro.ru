@@ -206,11 +206,29 @@ export class CreativeAgentRuntime {
           })
           .parse(input);
         const session = getSession(ctx);
+        if (!session.scenes.length && ctx.delegates?.getStoryboard) {
+          const board = await ctx.delegates.getStoryboard({
+            projectId: ctx.projectId,
+            userId: ctx.userId,
+          });
+          const scenes = (board.storyboard as { scenes?: TurnSession["scenes"] } | null)?.scenes;
+          if (scenes?.length) session.scenes = scenes;
+        }
         const scene = session.scenes[parsed.sceneOrdinal - 1];
         if (!scene) throw new Error(`scene ordinal ${parsed.sceneOrdinal} not found`);
-        const assetId =
+        let assetId =
           parsed.assetId ??
           session.assets.filter((a) => a.mimeType.startsWith("video/"))[parsed.pickAssetIndex]?.id;
+        if (!assetId && ctx.delegates?.searchAssets) {
+          const found = await ctx.delegates.searchAssets({
+            projectId: ctx.projectId,
+            userId: ctx.userId,
+            filter: "video",
+            status: "READY",
+            limit: 12,
+          });
+          assetId = found[parsed.pickAssetIndex]?.id;
+        }
         if (!assetId) throw new Error("no READY video asset in session context");
         if (!ctx.delegates?.getTimeline || !ctx.delegates?.updateTimelineClip) {
           throw new Error("assign_video_to_scene_clip: delegate missing");

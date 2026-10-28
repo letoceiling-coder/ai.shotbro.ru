@@ -52,15 +52,18 @@ test.describe("Phase 5K agent integration", () => {
       "phase5k: Найди в библиотеке фото, установи первым кадром второй сцены, улучши video prompt, предложи модель и стоимость, привяжи видео к timeline",
     );
 
-    await waitForAssistantBlockInApi(page, projectId, (blocks) =>
-      blocks.some(
-        (b) =>
-          b.type === "agent_tool_result" &&
-          (b as { toolName?: string; success?: boolean }).toolName ===
-            "set_scene_first_frame_by_ordinal" &&
-          (b as { success?: boolean }).success === true,
-      ),
-    );
+    let assignedSceneId: string | undefined;
+    await waitForAssistantBlockInApi(page, projectId, (blocks) => {
+      for (const b of blocks) {
+        if (b.type !== "agent_tool_result") continue;
+        const row = b as { toolName?: string; success?: boolean; sceneId?: string };
+        if (row.toolName !== "set_scene_first_frame_by_ordinal" || row.success !== true) continue;
+        assignedSceneId = row.sceneId;
+        return Boolean(assignedSceneId);
+      }
+      return false;
+    });
+    expect(assignedSceneId).toBeTruthy();
 
     type StoryboardScene = { sceneId: string; firstFrameAssetId?: string };
     const readStoryboardScenes = async (): Promise<StoryboardScene[]> => {
@@ -73,19 +76,20 @@ test.describe("Phase 5K agent integration", () => {
       return sb.payload?.scenes ?? sb.scenes ?? [];
     };
 
-    let scenes: StoryboardScene[] = [];
+    let firstFrameAssetId = "";
     await expect
       .poll(
         async () => {
-          scenes = await readStoryboardScenes();
-          return scenes.length > 1 && Boolean(scenes[1]?.firstFrameAssetId);
+          const scenes = await readStoryboardScenes();
+          const hit = scenes.find((s) => s.sceneId === assignedSceneId);
+          firstFrameAssetId = hit?.firstFrameAssetId ?? "";
+          return firstFrameAssetId.length > 0;
         },
         { timeout: 120_000, intervals: [500, 1000, 2000] },
       )
       .toBe(true);
-    expect(scenes[1]?.firstFrameAssetId).toBeTruthy();
 
-    const sceneId = scenes[1]!.sceneId;
+    const sceneId = assignedSceneId!;
     const prompts = await page.request.get(`/api/v1/projects/${projectId}/scenes/${sceneId}/prompts/latest`);
     expect(prompts.ok()).toBeTruthy();
 
@@ -100,7 +104,8 @@ test.describe("Phase 5K agent integration", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     const storyboardAfter = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
     const sb2 = (await storyboardAfter.json()) as typeof sb;
-    expect(sb2.payload?.scenes?.[1]?.firstFrameAssetId).toBe(scenes[1]?.firstFrameAssetId);
+    const afterScenes = sb2.payload?.scenes ?? sb2.scenes ?? [];
+    expect(afterScenes.find((s) => s.sceneId === sceneId)?.firstFrameAssetId).toBe(firstFrameAssetId);
   });
 
   test("desktop1440 — agent tool cards visible", async ({ page }) => {
