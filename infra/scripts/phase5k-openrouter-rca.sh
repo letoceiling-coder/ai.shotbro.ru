@@ -47,7 +47,7 @@ async function main() {
 
   if (proxy) {
     try {
-      const { ProxyAgent, fetch: ufetch } = await import("undici");
+      const { ProxyAgent, fetch: ufetch } = await import("/app/node_modules/undici/index.js");
       const agent = new ProxyAgent(proxy);
       const started = Date.now();
       const res = await ufetch("https://openrouter.ai/api/v1/models", {

@@ -90,6 +90,14 @@ export class FetchHttpTransport implements HttpTransport {
           if (via === "proxy" || modes.length > 1) {
             headers["x-shotbro-connect-via"] = via;
           }
+          const policyBlocked =
+            res.status === 403 &&
+            typeof body === "object" &&
+            body !== null &&
+            String((body as { error?: string }).error ?? "").toLowerCase().includes("security policy");
+          if (policyBlocked && via === "direct" && modes.includes("proxy")) {
+            continue;
+          }
           return { status: res.status, headers, body };
         } catch (e) {
           lastError = e instanceof Error ? e : new Error(String(e));
