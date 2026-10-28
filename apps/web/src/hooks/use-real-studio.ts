@@ -66,13 +66,15 @@ export function useSendRealMessage(conversationId: string | undefined, projectId
       });
       if (projectId && conversationId) {
         try {
-          if (shouldTryCreativeTurn(content)) {
+          if (isProductionBootstrapMessage(content)) {
+            await api.agent.createRun(projectId, { userRequest: content, conversationId });
+          } else if (shouldTryCreativeTurn(content)) {
             const creative = await api.agent.creativeTurn(projectId, {
               userMessage: content,
               conversationId,
               idempotencyKey: crypto.randomUUID(),
             });
-            if (creative.status === "no_intent" && isProductionBootstrapMessage(content)) {
+            if (creative.status === "no_intent") {
               await api.agent.createRun(projectId, { userRequest: content, conversationId });
             }
           } else {

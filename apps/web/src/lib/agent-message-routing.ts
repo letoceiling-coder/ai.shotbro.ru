@@ -8,9 +8,9 @@ export function isProductionBootstrapMessage(content: string): boolean {
 }
 
 export function shouldTryCreativeTurn(content: string): boolean {
+  if (isProductionBootstrapMessage(content)) return false;
   const lower = content.toLowerCase();
   if (lower.includes("phase5k")) return true;
-  if (isProductionBootstrapMessage(content)) return true;
   return (
     lower.includes("библиотек") ||
     lower.includes("first_frame") ||

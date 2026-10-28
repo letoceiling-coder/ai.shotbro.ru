@@ -29,6 +29,15 @@ const ORDINALS: Record<string, number> = {
   fourth: 4,
 };
 
+/** Phase 3/4 mock production E2E bootstrap — must route to AgentRuntime, not OpenRouter creative loop. */
+export function isProductionBootstrapUserMessage(userMessage: string): boolean {
+  const lower = userMessage.toLowerCase();
+  return (
+    (lower.includes("ролик") || lower.includes("реклам")) &&
+    (lower.includes("15") || lower.includes("9:16") || lower.includes("testco") || lower.includes("mock"))
+  );
+}
+
 function detectSceneOrdinal(text: string): number | undefined {
   const lower = text.toLowerCase();
   for (const [key, n] of Object.entries(ORDINALS)) {
@@ -52,10 +61,7 @@ export function planCreativeIntent(userMessage: string): CreativeIntentPlan | nu
   const lower = userMessage.toLowerCase();
   const sceneOrdinal = detectSceneOrdinal(userMessage);
 
-  const isProductionBootstrap =
-    (lower.includes("ролик") || lower.includes("реклам")) &&
-    (lower.includes("15") || lower.includes("9:16") || lower.includes("testco") || lower.includes("mock"));
-  if (isProductionBootstrap) return null;
+  if (isProductionBootstrapUserMessage(userMessage)) return null;
 
   const creativeSignals =
     lower.includes("phase5k") ||

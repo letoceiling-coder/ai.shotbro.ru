@@ -8,7 +8,11 @@ import { registerPhase5CreativeStudioTools } from "./tool-handlers/phase5-creati
 import { registerPhase5PromptStudioTools } from "./tool-handlers/phase5-prompt-tools.js";
 import { registerPhase5TimelineTools } from "./tool-handlers/phase5-timeline-tools.js";
 import { isCreativeLlmLiveEnabled } from "@shotbro/config";
-import { planCreativeIntent, shouldUseMockCreativePlanner } from "./creative-intent-planner.js";
+import {
+  isProductionBootstrapUserMessage,
+  planCreativeIntent,
+  shouldUseMockCreativePlanner,
+} from "./creative-intent-planner.js";
 import { runCreativeLlmLoop } from "./creative-llm-loop.js";
 import {
   type AgentToolResultEnvelope,
@@ -317,6 +321,14 @@ export class CreativeAgentRuntime {
     sessionSeed?: TurnSession;
   }): Promise<CreativeAgentTurnResult> {
     const session: TurnSession = input.sessionSeed ?? { assets: [], scenes: [] };
+
+    if (isProductionBootstrapUserMessage(input.userMessage)) {
+      return {
+        status: "no_intent",
+        mockAgent: false,
+        results: [],
+      };
+    }
 
     if (!shouldUseMockCreativePlanner(this.env, input.userMessage)) {
       const llm = await runCreativeLlmLoop({
