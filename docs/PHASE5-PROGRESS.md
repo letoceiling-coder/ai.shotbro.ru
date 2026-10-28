@@ -1,7 +1,7 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (VPS E2E, 2026-10-28):** `5c7facb7` (+ live LLM ordinal tool hotfix on API image)  
+**Git HEAD (local / origin / VPS, 2026-10-29):** **`32ba9726`** (`1ff15ac` ordinal tool + sync docs)  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
 **Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  
@@ -12,12 +12,12 @@
 | Service | `org.shotbro.build-sha` | Image (runtime) | Notes |
 |---------|-------------------------|-----------------|--------|
 | Web | **b6e19bf5** | `infra-web-1` | production bootstrap → createRun |
-| API | **b6e19bf5** | `ai-shotbro-staging-api-1` | bootstrap no_intent before live LLM |
+| API | **32ba9726** | `ai-shotbro-staging-api-1` | live LLM ordinal tool; deploy matches git |
 | Worker | **366716e** | `ai-shotbro-staging-worker-1` | Upload processing → READY |
 
 **Mock policy:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_GENERATION_ENABLED=false` — **0 live media jobs**. OpenRouter allowed for **creative LLM only** when configured.
 
-**VPS disk:** `/dev/vda1` **~74%** used, **~31 GB** free.
+**VPS disk:** `/dev/vda1` **~78%** used after deploy preflight cleanup (build cache prune; no DB/S3 volume changes).
 
 **Health:** `/api/v1/health/live` ok, `/ready` ready.
 

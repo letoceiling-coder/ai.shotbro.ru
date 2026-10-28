@@ -1,29 +1,43 @@
 # Phase 5K — Agent Integration acceptance
 
-**Status:** **ACCEPTED** (2026-10-28, VPS staging `85.117.235.93`)
+**Status:** **ACCEPTED** (staging VPS `85.117.235.93`, Git/runtime **synchronized 2026-10-29**)
 
-## Runtime (VPS)
+## Git ↔ runtime (source of truth)
 
-| Service | `org.shotbro.build-sha` | Notes |
-|---------|-------------------------|--------|
-| API | _see post-sync deploy_ | `1ff15ac` — ordinal tool in live LLM catalog |
-| Web | **b6e19bf5** | unchanged since bootstrap fix; E2E at `5c7facb7` |
-| Worker | **366716e** | unchanged mock media |
-| Git checkout (VPS) | _sync to `1ff15ac`_ | `/var/www/ai.shotbro.ru-src`, `phase5/creative-studio` |
+| Location | `phase5/creative-studio` HEAD | Notes |
+|----------|-------------------------------|--------|
+| Local | **`32ba9726`** | includes **`1ff15ac`** + docs commit |
+| `origin` (GitHub) | **`32ba9726`** | pushed; VPS tracks this ref |
+| VPS checkout | **`32ba9726`** | clean tree (only deploy artifacts untracked: `DEPLOYED.txt`, `.deploy/`) |
 
-**E2E acceptance baseline:** full `phase5k-acceptance-e2e.sh` recorded at git **`5c7facb7`** (log retained; Web/API behavior for production bootstrap unchanged through **`1ff15ac`**).
+### Why `f5fbbf6` vs `1ff15ac`?
+
+Initial commit for the live ordinal tool was created as **`f5fbbf6`**, then **`git commit --amend`** (doc table row in the same commit) produced **`1ff15ac`** with the **same message**. **`f5fbbf6` is not on any branch** — use **`1ff15ac`** in the history and **`32ba9726`** as deploy/docs HEAD.
+
+## Runtime labels (`org.shotbro.build-sha`)
+
+| Service | SHA | Rebuilt on sync? |
+|---------|-----|------------------|
+| **API** | **`32ba9726`** | Yes — `staging-deploy-staging-stack.sh api 32ba9726` |
+| **Web** | **`b6e19bf5`** | No — unchanged since bootstrap isolation |
+| **Worker** | **`366716e`** | No |
+
+**Ordinal fix in running API:** `set_scene_first_frame_by_ordinal` present in `packages/ai/src/agent/creative-llm-tools.ts` inside container (matches git `32ba9726`).
+
+**Health (post-deploy):** `/api/v1/health/live` ok, `/api/v1/health/ready` ready.
 
 ## Acceptance evidence
 
 | Check | Result | Evidence |
 |-------|--------|----------|
-| Full sequential E2E | **PASS exit 0** | `/var/log/shotbro-e2e/phase5k-acceptance-5c7facb7.log` → **`PHASE5K_ALL_PASS`** @ `2026-10-28T21:05:53+00:00` |
-| Live OpenRouter smoke | **PASS** | `phase5k-live-llm-smoke.sh` → `PHASE5K_LIVE_LLM_SMOKE_PASS` |
-| Live mutation + API F5 | **PASS** | `phase5k-live-mutation-smoke.sh` → `PHASE5K_LIVE_MUTATION_SMOKE_PASS` |
-| Media guards | **PASS** | `phase5k-media-guard-smoke.sh` → `PHASE5K_MEDIA_GUARD_PASS` |
-| Paid provider jobs (live smokes) | **0** | provider-jobs mock-only |
+| Full sequential E2E (baseline) | **PASS** | `/var/log/shotbro-e2e/phase5k-acceptance-5c7facb7.log` → **`PHASE5K_ALL_PASS`** @ `2026-10-28T21:05:53+00:00` (git **`5c7facb7`**, Web **`b6e19bf5`**) |
+| Post-sync regression | **PASS 8/8** | `staging-playwright-e2e.sh regression-strict` after API **`32ba9726`** deploy (~9.5m) |
+| Media guards | **PASS** | `PHASE5K_MEDIA_GUARD_PASS` |
+| Live OpenRouter smoke | **PASS** | `PHASE5K_LIVE_LLM_SMOKE_PASS` |
+| Live mutation + API F5 | **PASS** | `PHASE5K_LIVE_MUTATION_SMOKE_PASS` |
+| Paid provider jobs (live smokes) | **0** | mock-only provider jobs |
 
-### Suite results (`phase5k-acceptance-5c7facb7.log`)
+### Suite results (baseline log `phase5k-acceptance-5c7facb7.log`)
 
 | Suite | Result |
 |-------|--------|
@@ -40,9 +54,9 @@
 | `phase5-timeline` | 4 passed (18.2s) |
 | `phase5-assembly` | 1 passed (20.7s) |
 
-**F5 (UI):** `phase5-agent-integration` desktop1920 test — reload after pin → `firstFrameAssetId` unchanged (mock `phase5k:` planner, no OpenRouter spend).
+**F5 (UI):** `phase5-agent-integration` desktop1920 — reload → stable `firstFrameAssetId` (mock `phase5k:`).
 
-**F5 (live API):** `phase5k-live-mutation.integration.spec.ts` — two consecutive `GET /storyboard` after live `set_scene_first_frame_by_ordinal`.
+**F5 (live API):** `phase5k-live-mutation.integration.spec.ts` — two consecutive `GET /storyboard`.
 
 ## Recovery commits (5K chain)
 
@@ -51,19 +65,21 @@
 | `b6e19bf` | Isolate production bootstrap from live `creative-turn` |
 | `46e00ca` | Safe `fetchStoryboardDocument` during publish |
 | `bbf4f28` | Tablet `ensureRealCreateVisible` reload retry |
-| **`5c7facb`** | **`createProjectViaDialog`**: click without failing `scrollIntoViewIfNeeded` |
-| **`1ff15ac`** | Live LLM: expose `set_scene_first_frame_by_ordinal`; `phase5k-live-mutation-smoke.sh` (replaces amended-away **`f5fbbf6`**) |
+| `5c7facb` | `createProjectViaDialog` without failing `scrollIntoViewIfNeeded` |
+| `1ff15ac` | Live LLM: `set_scene_first_frame_by_ordinal` + mutation smoke script |
+| `32ba972` | Docs: amend note; post-acceptance SHA alignment |
 
-OpenRouter / agent path: `23b00c8` … `41e3f8b` (transport, tool_calls shape, E2E asserts). RCA: `docs/PHASE5K-PRODUCTION-REGRESSION-RCA.md`.
+OpenRouter / agent: `23b00c8` … `41e3f8b`. RCA: `docs/PHASE5K-PRODUCTION-REGRESSION-RCA.md`.
 
 ## Commands
 
 ```bash
-bash infra/scripts/phase5k-configure-staging-llm.sh
+git fetch origin && git reset --hard origin/phase5/creative-studio   # VPS
+bash infra/scripts/staging-deploy-staging-stack.sh api "$(git rev-parse --short HEAD)" /var/www/ai.shotbro.ru-src
 bash infra/scripts/phase5k-media-guard-smoke.sh
 bash infra/scripts/phase5k-live-llm-smoke.sh
 bash infra/scripts/phase5k-live-mutation-smoke.sh
-bash infra/scripts/phase5k-acceptance-e2e.sh /var/www/ai.shotbro.ru-src /var/log/shotbro-e2e
+bash infra/scripts/staging-playwright-e2e.sh /var/www/ai.shotbro.ru-src regression-strict
 ```
 
 ## Phase 5L
