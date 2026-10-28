@@ -118,6 +118,12 @@ export async function runCreativeLlmLoop(input: {
       };
     }
 
+    messages.push({
+      role: "assistant",
+      content: llmRes.message ?? "",
+      toolCalls: llmRes.toolCalls,
+    });
+
     for (const tc of llmRes.toolCalls) {
       if (!isCreativeLlmToolAllowed(tc.name)) {
         return {
@@ -154,10 +160,6 @@ export async function runCreativeLlmLoop(input: {
       });
       results.push(envelope);
 
-      messages.push({
-        role: "assistant",
-        content: JSON.stringify({ tool_call: tc.name, id: tc.id }),
-      });
       messages.push({
         role: "tool",
         content: JSON.stringify(envelope.success ? envelope.payload ?? envelope : envelope),

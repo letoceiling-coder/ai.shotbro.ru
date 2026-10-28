@@ -43,12 +43,7 @@ export class OpenRouterLlmAdapter {
 
     const body: Record<string, unknown> = {
       model,
-      messages: req.messages.map((m) => ({
-        role: m.role === "tool" ? "tool" : m.role,
-        content: m.content,
-        ...(m.toolCallId ? { tool_call_id: m.toolCallId } : {}),
-        ...(m.name ? { name: m.name } : {}),
-      })),
+      messages: req.messages.map((m) => mapMessageToOpenAi(m)),
       temperature: req.temperature ?? 0.2,
       max_tokens: req.maxOutputTokens,
     };
@@ -141,6 +136,32 @@ export class OpenRouterLlmAdapter {
       mock: false,
     };
   }
+}
+
+function mapMessageToOpenAi(m: LlmRequest["messages"][number]): Record<string, unknown> {
+  if (m.role === "tool") {
+    return {
+      role: "tool",
+      content: m.content,
+      tool_call_id: m.toolCallId,
+      ...(m.name ? { name: m.name } : {}),
+    };
+  }
+  if (m.role === "assistant" && m.toolCalls?.length) {
+    return {
+      role: "assistant",
+      content: m.content || null,
+      tool_calls: m.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: "function",
+        function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+      })),
+    };
+  }
+  return {
+    role: m.role,
+    content: m.content,
+  };
 }
 
 function safeParseJson(raw: string): Record<string, unknown> {

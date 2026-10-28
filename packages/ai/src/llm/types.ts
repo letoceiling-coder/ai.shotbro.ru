@@ -1,16 +1,17 @@
 import { z } from "zod";
 
+export const LlmToolCallSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  arguments: z.record(z.unknown()),
+});
+
 export const LlmMessageSchema = z.object({
   role: z.enum(["system", "user", "assistant", "tool"]),
   content: z.string(),
   name: z.string().optional(),
   toolCallId: z.string().optional(),
-});
-
-export const LlmToolCallSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  arguments: z.record(z.unknown()),
+  toolCalls: z.array(LlmToolCallSchema).optional(),
 });
 
 export const LlmRequestSchema = z.object({
