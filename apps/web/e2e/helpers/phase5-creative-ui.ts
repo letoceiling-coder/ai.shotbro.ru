@@ -78,11 +78,39 @@ export async function uploadImageViaPicker(page: Page) {
   await expect(page.getByTestId("asset-picker-dialog")).toBeHidden({ timeout: 90_000 });
 }
 
-export async function getStoryboardScene(page: Page, projectId: string, sceneId: string) {
-  const r = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
-  expect(r.ok()).toBeTruthy();
-  const j = (await r.json()) as {
-    payload?: { scenes?: Array<{ sceneId: string; revision: number; description?: string; durationSeconds?: number; firstFrameAssetId?: string; lastFrameAssetId?: string }> };
+export type StoryboardDocumentJson = {
+  payload?: {
+    scenes?: Array<{
+      sceneId: string;
+      revision?: number;
+      title?: string;
+      description?: string;
+      durationSeconds?: number;
+      firstFrameAssetId?: string;
+      lastFrameAssetId?: string;
+      characterVersionById?: Record<string, number>;
+    }>;
   };
-  return j.payload?.scenes?.find((s) => s.sceneId === sceneId);
+};
+
+/** Safe parse — GET may return empty body briefly during document publish. */
+export async function fetchStoryboardDocument(
+  page: Page,
+  projectId: string,
+): Promise<StoryboardDocumentJson | null> {
+  const r = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
+  if (!r.ok()) return null;
+  const text = await r.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text) as StoryboardDocumentJson;
+  } catch {
+    return null;
+  }
+}
+
+export async function getStoryboardScene(page: Page, projectId: string, sceneId: string) {
+  const j = await fetchStoryboardDocument(page, projectId);
+  expect(j?.payload?.scenes?.length).toBeTruthy();
+  return j!.payload!.scenes!.find((s) => s.sceneId === sceneId);
 }

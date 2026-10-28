@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext } from "@playwright/test";
 import { acceptanceScreenshot } from "./helpers/acceptance-artifacts";
 import { loginRealUser, openRealNewProject } from "./helpers/real-login";
-import { gotoStudioSection, uploadImageViaPicker } from "./helpers/phase5-creative-ui";
+import { fetchStoryboardDocument, gotoStudioSection, uploadImageViaPicker } from "./helpers/phase5-creative-ui";
 import { seedScriptScene } from "./helpers/phase5-creative-seed";
 
 const viewports = [
@@ -76,13 +76,10 @@ test.describe("Phase 5E character studio", () => {
       await page.getByTestId("character-assign-submit").click();
       await expect
         .poll(async () => {
-          const board = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
-          const j = (await board.json()) as {
-            payload?: { scenes?: Array<{ sceneId: string; characterVersionById?: Record<string, number> }> };
-          };
-          const s = j.payload?.scenes?.find((x) => x.sceneId === sceneId);
+          const j = await fetchStoryboardDocument(page, projectId);
+          const s = j?.payload?.scenes?.find((x) => x.sceneId === sceneId);
           return s?.characterVersionById?.[char.id] ?? 0;
-        }, { timeout: 25_000 })
+        }, { timeout: 25_000, intervals: [500, 1000, 2000] })
         .toBeGreaterThan(0);
 
       const restoreBtn = page.getByRole("button", { name: `v${v1}` });

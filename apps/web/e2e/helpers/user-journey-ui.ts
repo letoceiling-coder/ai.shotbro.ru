@@ -1,19 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { uploadImageViaPicker } from "./phase5-creative-ui";
-
-type StoryboardPayload = { payload?: { scenes?: Array<{ sceneId: string; title?: string }> } };
-
-async function fetchStoryboardJson(page: Page, projectId: string): Promise<StoryboardPayload | null> {
-  const r = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
-  if (!r.ok()) return null;
-  const text = await r.text();
-  if (!text.trim()) return null;
-  try {
-    return JSON.parse(text) as StoryboardPayload;
-  } catch {
-    return null;
-  }
-}
+import { fetchStoryboardDocument, uploadImageViaPicker } from "./phase5-creative-ui";
 
 export async function reviseStoryboardViaUi(page: Page, projectId: string, titleSuffix: string) {
   await page.getByTestId("storyboard-sync").click();
@@ -23,7 +9,7 @@ export async function reviseStoryboardViaUi(page: Page, projectId: string, title
     })
     .toBe(true);
 
-  const board = await fetchStoryboardJson(page, projectId);
+  const board = await fetchStoryboardDocument(page, projectId);
   expect(board?.payload?.scenes?.[0]?.sceneId).toBeTruthy();
   const first = board!.payload!.scenes![0]!;
 
@@ -36,7 +22,7 @@ export async function reviseStoryboardViaUi(page: Page, projectId: string, title
 
   await expect
     .poll(async () => {
-      const j = await fetchStoryboardJson(page, projectId);
+      const j = await fetchStoryboardDocument(page, projectId);
       return j?.payload?.scenes?.find((s) => s.sceneId === first.sceneId)?.title ?? "";
     }, { timeout: 60_000, intervals: [500, 1000, 2000] })
     .toContain(titleSuffix);
