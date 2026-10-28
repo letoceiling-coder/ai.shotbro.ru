@@ -116,8 +116,10 @@ export async function switchToRealMode(page: Page) {
 }
 
 async function createProjectViaDialog(page: Page, projectTitle: string): Promise<string> {
-  await realCreateProjectButton(page).scrollIntoViewIfNeeded();
-  await realCreateProjectButton(page).click();
+  await ensureRealCreateVisible(page);
+  const create = realCreateProjectButton(page);
+  await expect(create).toBeVisible({ timeout: 30_000 });
+  await create.click();
   const dialog = page.getByTestId("new-project-dialog").or(page.getByRole("dialog", { name: "Новый проект" }));
   await expect(dialog).toBeVisible({ timeout: 8_000 });
   await page.getByPlaceholder("Название проекта").fill(projectTitle);
