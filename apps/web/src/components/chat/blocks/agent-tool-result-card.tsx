@@ -29,7 +29,7 @@ export function AgentToolResultCard({ block }: { block: Block }) {
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="font-medium">{block.toolName}</span>
-        <Badge variant={block.success ? "default" : "destructive"}>{block.success ? "OK" : "FAIL"}</Badge>
+        <Badge variant={block.success ? "success" : "outline"}>{block.success ? "OK" : "FAIL"}</Badge>
         <Badge variant="outline">Mock-агент 5K</Badge>
       </div>
       <p className="text-muted-foreground">{block.humanReadableSummary}</p>
