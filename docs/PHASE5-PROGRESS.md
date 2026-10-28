@@ -5,6 +5,7 @@
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
 **Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  
+**Phase 5L:** **SPEC ONLY** (not started) — `PHASE5L-PRODUCT-AUDIT.md`, `PHASE5L-TECHNICAL-SPEC.md`, `PHASE5L-ACCEPTANCE-PLAN.md`  
 **P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)
