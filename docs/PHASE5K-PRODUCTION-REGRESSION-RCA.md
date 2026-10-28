@@ -64,4 +64,6 @@ With `LLM_LIVE_EXECUTION_ENABLED=true`:
 | Worker | **`366716e`** (unchanged) |
 | `PHASE5K_LIVE_LLM_SMOKE_PASS` | **PASS** (after deploy) |
 | Targeted `phase3-desktop-strict` | **PASS** (22.8s) — `/var/log/shotbro-e2e/phase3-desktop-strict-b6e19bf.log` |
-| Full `phase5k-acceptance-e2e.sh` | _in progress_ — `/var/log/shotbro-e2e/phase5k-acceptance-b6e19bf*.log` |
+| `regression-strict` 8/8 | **PASS** (9.4m) — log `phase5k-acceptance-34435d98.log` |
+| `phase5-user-journey` 4/4 | **PASS** after storyboard poll fix (`34435d9`) |
+| Full `phase5k-acceptance-e2e.sh` | _clean rerun_ — `/var/log/shotbro-e2e/phase5k-acceptance-clean.log` (avoid parallel Playwright) |

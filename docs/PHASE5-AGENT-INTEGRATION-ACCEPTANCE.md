@@ -6,11 +6,12 @@
 
 | Service | `org.shotbro.build-sha` | Notes |
 |---------|-------------------------|--------|
-| API | **b6e19bf5** | Production bootstrap isolation; live OpenRouter via proxy |
-| Web | **b6e19bf5** | Bootstrap → `createRun`; creative NL routing |
-| Worker | **366716e** | Mock media / upload READY |
-| Git (E2E acceptance) | **5c7facb7** | `/var/www/ai.shotbro.ru-src`, branch `phase5/creative-studio` |
-| API (live ordinal tool) | **rebuilt on VPS** after `5c7facb7` | `set_scene_first_frame_by_ordinal` exposed to OpenRouter tool list |
+| API | _see post-sync deploy_ | `1ff15ac` — ordinal tool in live LLM catalog |
+| Web | **b6e19bf5** | unchanged since bootstrap fix; E2E at `5c7facb7` |
+| Worker | **366716e** | unchanged mock media |
+| Git checkout (VPS) | _sync to `1ff15ac`_ | `/var/www/ai.shotbro.ru-src`, `phase5/creative-studio` |
+
+**E2E acceptance baseline:** full `phase5k-acceptance-e2e.sh` recorded at git **`5c7facb7`** (log retained; Web/API behavior for production bootstrap unchanged through **`1ff15ac`**).
 
 ## Acceptance evidence
 
@@ -51,7 +52,7 @@
 | `46e00ca` | Safe `fetchStoryboardDocument` during publish |
 | `bbf4f28` | Tablet `ensureRealCreateVisible` reload retry |
 | **`5c7facb`** | **`createProjectViaDialog`**: click without failing `scrollIntoViewIfNeeded` |
-| **`f5fbbf6`** | Live LLM: expose `set_scene_first_frame_by_ordinal`; `phase5k-live-mutation-smoke.sh` |
+| **`1ff15ac`** | Live LLM: expose `set_scene_first_frame_by_ordinal`; `phase5k-live-mutation-smoke.sh` (replaces amended-away **`f5fbbf6`**) |
 
 OpenRouter / agent path: `23b00c8` … `41e3f8b` (transport, tool_calls shape, E2E asserts). RCA: `docs/PHASE5K-PRODUCTION-REGRESSION-RCA.md`.
 
