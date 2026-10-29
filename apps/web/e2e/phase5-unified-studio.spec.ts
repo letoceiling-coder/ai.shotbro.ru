@@ -7,7 +7,7 @@ import { gotoStudioSection, addScriptScenesViaUI } from "./helpers/phase5-creati
 import { uploadViaLibraryFilePicker } from "./helpers/asset-library-upload";
 import { tinyPngBuffer } from "./helpers/phase5-creative-seed";
 import { pinRealProjectOnReload } from "./helpers/real-studio-state";
-import { waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
+import { resyncRealThreadFromApi, waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
 import {
   waitForAgentRunPersisted,
   waitForMockDeliveryVisible,
@@ -54,6 +54,8 @@ test.describe("Phase 5L-B unified studio coherence", () => {
           (b as { success?: boolean }).success === true,
       ),
     );
+
+    await resyncRealThreadFromApi(page, projectId, { creativeAutoNavigate: true });
 
     const toolCard = page.getByTestId("agent-tool-result-set_scene_first_frame_by_ordinal").first();
     await expect(toolCard).toBeVisible({ timeout: 120_000 });
