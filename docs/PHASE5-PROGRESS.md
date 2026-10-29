@@ -1,14 +1,14 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (origin):** **`e776147`** · **5L-B code:** **`c089f793`** · runner **`fffce7d`**  
-**P0:** VPS **unreachable** — `P0-VPS-INFRASTRUCTURE-RECOVERY.md` · **5L-B NOT ACCEPTED**  
-**Last known runtime:** Web **`01c49cd2`** · API/Worker **`20539645`**  
+**Git HEAD (origin):** **`74324c7`** (5L-B acceptance commit)  
+**P0:** VPS recovered (2026-10-29), staging healthy  
+**Runtime (verified 2026-10-29):** Web **`74324c74`** · API/Worker **`20539645`**  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
 **Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  
 **Phase 5L-A:** **ACCEPTED** — `PHASE5L-5A-STATUS.md` (5L-1 router v2, 5L-3 idempotency)  
-**Phase 5L-B:** **IMPLEMENTED, NOT ACCEPTED** — `PHASE5L-5B-STATUS.md` (VPS outage blocks sign-off)  
+**Phase 5L-B:** **ACCEPTED** — `PHASE5L-5B-STATUS.md` (`PHASE5L_B_ALL_PASS` @ `74324c74`, exit 0)  
 **Phase 5L-C:** not started — full `PHASE5L_ALL_PASS` / gallery / brief bundle  
 **P0 UI Recovery:** **ACCEPTED**
 
@@ -16,13 +16,13 @@
 
 | Service | `org.shotbro.build-sha` | Image (runtime) | Notes |
 |---------|-------------------------|-----------------|--------|
-| Web | **01c49cd2** (last confirmed) | `infra-web-1` | 5L-B sidebar rehydrate; target **c089f793** |
-| API | **20539645** (last confirmed) | `ai-shotbro-staging-api-1` | 5L-B delivery + idempotency |
-| Worker | **366716e** | `ai-shotbro-staging-worker-1` | Upload processing → READY |
+| Web | **74324c74** | `infra-web-1` | 5L-B auto-nav history fix + asset library cache fix |
+| API | **20539645** | `ai-shotbro-staging-api-1` | 5L-B delivery + idempotency |
+| Worker | **20539645** | `ai-shotbro-staging-worker-1` | Upload processing → READY |
 
 **Mock policy:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_GENERATION_ENABLED=false` — **0 live media jobs**. OpenRouter allowed for **creative LLM only** when configured.
 
-**VPS disk:** `/dev/vda1` **~78%** used after deploy preflight cleanup (build cache prune; no DB/S3 volume changes).
+**VPS disk:** `/dev/vda1` **~81%** used after web deploy `74324c74` (no DB/S3 volume changes).
 
 **Health:** `/api/v1/health/live` ok, `/ready` ready.
 
