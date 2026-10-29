@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { applyRealAuthOnce } from "./helpers/real-auth-once";
 import { openRealNewProject, sendRealComposerMessage } from "./helpers/real-login";
 import { gotoStudioSection, addScriptScenesViaUI } from "./helpers/phase5-creative-ui";
-import { uploadViaLibraryFilePicker, waitForAnyAssetCardVisible } from "./helpers/asset-library-upload";
+import { pollAssetReady, uploadViaLibraryFilePicker } from "./helpers/asset-library-upload";
 import { tinyPngBuffer } from "./helpers/phase5-creative-seed";
 import { pinRealProjectOnReload } from "./helpers/real-studio-state";
 import { waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
@@ -38,7 +38,7 @@ test.describe("Phase 5L-B unified studio coherence", () => {
       mimeType: "image/png",
       buffer: tinyPngBuffer(),
     });
-    await waitForAnyAssetCardVisible(page, projectId);
+    await pollAssetReady(page, projectId, "5lb.png", "5lb", 180_000);
 
     await gotoStudioSection(page, projectId, "chat");
     await sendRealComposerMessage(
@@ -109,7 +109,7 @@ test.describe("Phase 5L-B unified studio coherence", () => {
       mimeType: "image/png",
       buffer: tinyPngBuffer(),
     });
-    await waitForAnyAssetCardVisible(page, projectId);
+    await pollAssetReady(page, projectId, "5lb-off.png", "5lb", 180_000);
     await gotoStudioSection(page, projectId, "chat");
     await sendRealComposerMessage(page, "phase5k найди фото и первым кадром второй сцены");
     await expect(page.getByTestId("agent-tool-result-search_project_assets").first()).toBeVisible({
