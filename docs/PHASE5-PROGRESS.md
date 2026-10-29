@@ -1,7 +1,7 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (local / origin / VPS, 2026-10-29):** **`e06182c8`** (Phase **5L-A** Safety & Routing)  
+**Git HEAD (local / origin / VPS src, 2026-10-29):** **`42a37853`** (5L-A acceptance scripts; deploy **`e06182c8`**)  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
 **Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  

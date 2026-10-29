@@ -1,7 +1,8 @@
 # Phase 5L-A — Safety & Routing (implementation status)
 
 **Status:** **ACCEPTED** (staging VPS `85.117.235.93`, 2026-10-29)  
-**Git (local / origin / VPS):** **`e06182c8`** (`31093dc` feat + `e06182c` lockfile)  
+**Git (local / origin):** **`42a37853`** (5L-A feat `e06182c8` + acceptance scripts/tests)  
+**VPS src checkout:** **`42a37853`** · **API/Web runtime:** **`e06182c8`** (unchanged since 5L-A deploy)  
 **Baseline:** Phase 5K ACCEPTED; audit docs at **`891769f`** (ancestor of HEAD)
 
 ## Delivered
@@ -25,14 +26,14 @@
 
 ### VPS evidence logs
 
-Fill after acceptance run (short SHA **`e06182c8`**):
-
-| Run | Log path | Marker |
+| Run | Log path | Result |
 |-----|----------|--------|
-| `phase5-agent-integration` | `/var/log/shotbro-e2e/phase5-agent-integration-e06182c8.log` | 2 passed |
-| `regression-strict` | `/var/log/shotbro-e2e/regression-strict-e06182c8.log` | 8 passed |
-| Creative idempotency | `/var/log/shotbro-e2e/phase5l-creative-idempotency-e06182c8.log` | `PHASE5L_CREATIVE_IDEMPOTENCY_SMOKE_PASS` |
-| Media guard | `/var/log/shotbro-e2e/phase5k-media-guard-e06182c8.log` | `PHASE5K_MEDIA_GUARD_PASS` |
+| `phase5-agent-integration` | `/var/log/shotbro-e2e/phase5-agent-integration-c2403dbc.log` | **2/2** (~3.2m), runtime `e06182c8` |
+| `regression-strict` | `/var/log/shotbro-e2e/regression-strict-c2403dbc.log` | **8/8** (~9.4m), `retries=0` |
+| Creative idempotency | `infra/scripts/phase5l-creative-idempotency-smoke.sh` @ **`42a37853`** | **3/3** · `PHASE5L_CREATIVE_IDEMPOTENCY_SMOKE_PASS` |
+| Media guard | `phase5k-media-guard-smoke.sh` @ **`42a37853`** | `PHASE5K_MEDIA_GUARD_PASS` |
+
+**Acceptance runner:** `infra/scripts/phase5l-a-acceptance-e2e.sh` (API smokes first, then Playwright — avoids throttler 429 on integration).
 
 **Runtime labels:** API/Web `org.shotbro.build-sha` = **`e06182c8`**; Worker unchanged **`366716e`**.
 
