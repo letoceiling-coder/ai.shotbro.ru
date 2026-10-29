@@ -59,7 +59,7 @@ export async function scrollRealThreadToBottom(page: Page) {
 }
 
 /** After API gate passes, reload once so React Query refetches even if SSE was missed. */
-async function realProjectRow(page: Page, projectId: string) {
+function realProjectRow(page: Page, projectId: string) {
   return page.getByTestId(`real-project-${projectId}`).first();
 }
 
