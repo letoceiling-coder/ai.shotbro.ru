@@ -11,6 +11,7 @@ import { agentRun, asset, message, messageBlock, productionGraphNode, production
 import { getWorkerDb } from "./db.js";
 import { ensureMockFixtures, readFixture } from "./mock-fixtures.js";
 import { orderGraphNodes } from "./graph-order.js";
+import { assetPlaybackRef } from "@shotbro/contracts/asset-playback";
 import { mergeTimelineAssemblyContext } from "../../../packages/contracts/src/production/timeline-assembly-context.ts";
 import { assembleFromTimeline, loadTimelineForAssembly, projectHasTimelineV2 } from "./timeline-assembly.js";
 
@@ -288,7 +289,7 @@ export async function executeProductionRun(
         demo: true,
         title: "Финальный ролик (MOCK)",
         assetId: finalAssetId,
-        url: "",
+        url: assetPlaybackRef(finalAssetId),
         durationLabel: "15s",
         aspectRatio: "9:16",
         resolution: "720×1280",

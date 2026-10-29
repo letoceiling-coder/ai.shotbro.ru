@@ -30,6 +30,7 @@ export function CreativeSectionNav() {
             key={id}
             type="button"
             data-testid={`creative-section-${id}`}
+            data-active={section === id ? "true" : "false"}
             onClick={() => setSection(id)}
             className={cn(
               "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",

@@ -45,6 +45,9 @@ interface StudioState {
   /** Phase 5K deep links from chat tool cards */
   agentFocus: { sceneId?: string; assetId?: string; clipId?: string } | null;
   setAgentFocus: (focus: { sceneId?: string; assetId?: string; clipId?: string } | null) => void;
+  /** Phase 5L-5: auto-open Creative section after agent tool success */
+  creativeAutoNavigate: boolean;
+  setCreativeAutoNavigate: (v: boolean) => void;
   sidebarCollapsed: boolean;
   qualityStrategy: QualityStrategy;
   adStages: AdStageMap;
@@ -105,6 +108,8 @@ export const useStudioStore = create<StudioState>()(
       setPendingTimelineAssetId: (pendingTimelineAssetId) => set({ pendingTimelineAssetId }),
       agentFocus: null,
       setAgentFocus: (agentFocus) => set({ agentFocus }),
+      creativeAutoNavigate: true,
+      setCreativeAutoNavigate: (creativeAutoNavigate) => set({ creativeAutoNavigate }),
       sidebarCollapsed: false,
       qualityStrategy: "balance",
       adStages: { "demo-ad": "initial" },
@@ -302,6 +307,7 @@ export const useStudioStore = create<StudioState>()(
         qualityStrategy: s.qualityStrategy,
         adStages: s.adStages,
         simulatorStatus: s.simulatorStatus,
+        creativeAutoNavigate: s.creativeAutoNavigate,
       }),
     },
   ),

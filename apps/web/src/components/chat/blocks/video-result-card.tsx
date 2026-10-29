@@ -1,29 +1,25 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import type { VideoResultBlockSchema } from "@shotbro/contracts";
+import { parseAssetPlaybackRef } from "@shotbro/contracts/asset-playback";
 import type { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, History, Sparkles } from "lucide-react";
 import { ShotbroVideoPlayer } from "@/components/media/shotbro-video-player";
-import { apiFetch } from "@/lib/api-client";
+import { resolveMediaSrc, useAssetMediaUrl } from "@/hooks/use-asset-media-url";
 import { StudioBlockCard, StudioBlockCardBody, StudioBlockCardHeader } from "../studio-block-card";
 
 type Block = z.infer<typeof VideoResultBlockSchema>;
 
 export function VideoResultCard({ block }: { block: Block }) {
-  const { data: signed } = useQuery({
-    queryKey: ["asset-download", block.assetId],
-    enabled: Boolean(block.assetId && !block.url),
-    queryFn: () =>
-      apiFetch(`/api/v1/assets/${block.assetId}/download-url`) as Promise<{ url: string }>,
-  });
-
-  const src = block.url || signed?.url || "";
+  const { data: media, isError, isLoading } = useAssetMediaUrl(block.assetId, block.url);
+  const src = resolveMediaSrc(block, media);
+  const hasRef = Boolean(block.assetId || parseAssetPlaybackRef(block.url ?? ""));
 
   return (
     <StudioBlockCard>
+      <div data-testid="video-result-card" className="contents">
       <StudioBlockCardBody className="pb-2 pt-3">
         {src ? (
           <ShotbroVideoPlayer
@@ -32,8 +28,12 @@ export function VideoResultCard({ block }: { block: Block }) {
             aspectRatio={block.aspectRatio}
             className="max-w-[min(100%,320px)]"
           />
-        ) : (
+        ) : isLoading && hasRef ? (
           <p className="text-sm text-muted-foreground">Загрузка видео…</p>
+        ) : isError ? (
+          <p className="text-sm text-destructive">Не удалось получить доступ к видео. Проверьте вход в проект.</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Видео ещё обрабатывается…</p>
         )}
       </StudioBlockCardBody>
       <StudioBlockCardHeader
@@ -62,22 +62,23 @@ export function VideoResultCard({ block }: { block: Block }) {
         <div className="flex flex-wrap gap-2">
           {src ? (
             <Button size="sm" variant="secondary" asChild>
-              <a href={src} download>
+              <a href={src} download data-testid="video-result-download">
                 <Download className="size-4" />
                 Скачать MP4
               </a>
             </Button>
           ) : null}
-          <Button size="sm" variant="ghost">
+          <Button size="sm" variant="ghost" disabled>
             <Sparkles className="size-4" />
             Новая версия
           </Button>
-          <Button size="sm" variant="ghost">
+          <Button size="sm" variant="ghost" disabled>
             <History className="size-4" />
             История
           </Button>
         </div>
       </StudioBlockCardBody>
+      </div>
     </StudioBlockCard>
   );
 }

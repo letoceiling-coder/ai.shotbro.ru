@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ChatMessage } from "@shotbro/contracts";
 import { api, apiFetch } from "@/lib/api-client";
 import { resolveStudioMessageIntent } from "@/lib/agent-message-routing";
+import { invalidateCreativeProjectQueries } from "@/lib/invalidate-creative-project-queries";
 import { authClient } from "@/lib/auth-client";
 
 export function useAuthSession() {
@@ -86,9 +87,12 @@ export function useSendRealMessage(conversationId: string | undefined, projectId
       }
       return msg;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["messages", conversationId] });
-      qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
+    onSuccess: async () => {
+      if (projectId) {
+        await invalidateCreativeProjectQueries(qc, projectId, { conversationId });
+        window.setTimeout(() => void invalidateCreativeProjectQueries(qc, projectId, { conversationId }), 1200);
+        window.setTimeout(() => void invalidateCreativeProjectQueries(qc, projectId, { conversationId }), 4000);
+      }
     },
   });
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,14 +11,37 @@ import {
 } from "@/hooks/use-studio-production";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
+import { ShotbroVideoPlayer } from "@/components/media/shotbro-video-player";
+import { useAssetMediaUrl, resolveMediaSrc } from "@/hooks/use-asset-media-url";
+import { Download } from "lucide-react";
 import { WorkspaceState } from "./workspace-state";
 
 type RunRow = {
   id: string;
   productionState?: string;
   status?: string;
-  metadata?: { productionEnqueued?: boolean; mock?: boolean };
+  metadata?: { productionEnqueued?: boolean; mock?: boolean; deliveryAssetId?: string };
 };
+
+function DeliveryPlayer({ assetId }: { assetId: string }) {
+  const { data: media, isError, isLoading } = useAssetMediaUrl(assetId);
+  const src = resolveMediaSrc({ assetId }, media);
+  if (isLoading) return <p className="text-xs text-muted-foreground">Загрузка MP4…</p>;
+  if (isError || !src) {
+    return <p className="text-xs text-destructive">Не удалось открыть mock MP4 (проверьте доступ).</p>;
+  }
+  return (
+    <div className="space-y-2" data-testid="production-delivery-player">
+      <ShotbroVideoPlayer src={src} aspectRatio="9:16" className="max-w-[280px]" />
+      <Button size="sm" variant="secondary" asChild>
+        <a href={src} download data-testid="production-delivery-download">
+          <Download className="size-4" />
+          Скачать MP4
+        </a>
+      </Button>
+    </div>
+  );
+}
 
 export function ProductionSection({ projectId }: { projectId: string }) {
   const { data: runs, isLoading: runsLoading } = useAgentRuns(projectId);
@@ -37,9 +59,11 @@ export function ProductionSection({ projectId }: { projectId: string }) {
     refetchInterval: 8_000,
   });
 
-  const mp4 = (assets ?? []).find(
-    (a) => a.mimeType === "video/mp4" && String(a.originalName ?? "").includes("mock-delivery"),
-  );
+  const deliveryAssetId =
+    latest?.metadata?.deliveryAssetId ??
+    (assets ?? []).find(
+      (a) => a.mimeType === "video/mp4" && String(a.originalName ?? "").includes("mock-delivery"),
+    )?.id;
 
   if (runsLoading) return <WorkspaceState title="Production" state="loading" />;
 
@@ -128,15 +152,8 @@ export function ProductionSection({ projectId }: { projectId: string }) {
 
           <section>
             <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Delivery</p>
-            {mp4 ? (
-              <div className="space-y-2">
-                <p className="text-xs">{mp4.originalName ?? mp4.id}</p>
-                <Button asChild size="sm" variant="secondary">
-                  <Link href={`/api/v1/assets/${mp4.id}/download`} target="_blank" rel="noopener">
-                    Открыть MP4
-                  </Link>
-                </Button>
-              </div>
+            {deliveryAssetId ? (
+              <DeliveryPlayer assetId={deliveryAssetId} />
             ) : (
               <p className="text-muted-foreground">Mock MP4 появится после assembly.</p>
             )}

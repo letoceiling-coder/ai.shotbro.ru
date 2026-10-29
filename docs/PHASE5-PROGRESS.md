@@ -6,7 +6,8 @@
 **Phase 5J:** **ACCEPTED**  
 **Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  
 **Phase 5L-A:** **ACCEPTED** — `PHASE5L-5A-STATUS.md` (5L-1 router v2, 5L-3 idempotency)  
-**Phase 5L-B/C:** not started — `PHASE5L-TECHNICAL-SPEC.md` / `PHASE5L-ACCEPTANCE-PLAN.md`  
+**Phase 5L-B:** **IMPLEMENTED** (VPS acceptance pending) — `PHASE5L-5B-STATUS.md` (5L-4/5/6)  
+**Phase 5L-C:** not started — full `PHASE5L_ALL_PASS` / gallery / brief bundle  
 **P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)

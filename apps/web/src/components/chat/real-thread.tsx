@@ -17,6 +17,7 @@ import { api } from "@/lib/api-client";
 import { ChatMessage } from "./chat-message";
 import Link from "next/link";
 import { RealComposer } from "./real-composer";
+import { useAgentWorkspaceAutoNav } from "@/hooks/use-agent-workspace-sync";
 export function RealThread({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
   const { data: convs, isPending: convsPending } = useRealProjectConversations(projectId);
@@ -50,6 +51,8 @@ export function RealThread({ projectId }: { projectId: string }) {
     () => mapRealMessagesToChat(msgPage?.items ?? []),
     [msgPage],
   );
+
+  useAgentWorkspaceAutoNav(messages);
 
   const messagesLoading = Boolean(conversationId) && (messagesPending || messagesFetching);
 

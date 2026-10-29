@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateCreativeProjectQueries } from "@/lib/invalidate-creative-project-queries";
 
 const SSE_EVENT_TYPES = [
   "message.created",
@@ -35,7 +36,7 @@ function handleEventPayload(
     const data = JSON.parse(raw) as { eventId?: string; type?: string };
     if (data.eventId) lastIdRef.current = data.eventId;
     if (data.type === "media.completed" || data.type === "media.processing") {
-      void qc.invalidateQueries({ queryKey: ["assets", projectId] });
+      void invalidateCreativeProjectQueries(qc, projectId);
     }
     if (
       data.type === "message.created" ||
@@ -43,20 +44,20 @@ function handleEventPayload(
       data.type === "approval.required" ||
       data.type === "agent.approval.required"
     ) {
-      void qc.invalidateQueries({ queryKey: ["messages"] });
-      void qc.invalidateQueries({ queryKey: ["approvals", projectId] });
+      void invalidateCreativeProjectQueries(qc, projectId);
     }
     if (
       data.type?.startsWith("agent.") ||
       data.type?.startsWith("production.") ||
       data.type === "delivery.ready"
     ) {
-      void qc.invalidateQueries({ queryKey: ["messages"] });
-      void qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
+      void invalidateCreativeProjectQueries(qc, projectId);
+    }
+    if (data.type === "agent.tool.completed" || data.type === "agent.tool.failed") {
+      void invalidateCreativeProjectQueries(qc, projectId);
     }
     if (data.type === "provider.job.created" || data.type === "provider.job.status") {
-      void qc.invalidateQueries({ queryKey: ["provider-jobs", projectId] });
-      void qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
+      void invalidateCreativeProjectQueries(qc, projectId);
     }
   } catch {
     /* ignore malformed */
@@ -85,9 +86,7 @@ export function useProjectEvents(projectId: string | undefined) {
 
       es.onopen = () => {
         setConnected(true);
-        void qc.invalidateQueries({ queryKey: ["messages"] });
-        void qc.invalidateQueries({ queryKey: ["approvals", projectId] });
-        void qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
+        void invalidateCreativeProjectQueries(qc, projectId);
       };
 
       const onNamed = (ev: Event) => {

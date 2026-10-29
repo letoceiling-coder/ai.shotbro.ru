@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useStudioRuntimeMode } from "@/components/auth/studio-mode-provider";
 import { api } from "@/lib/api-client";
 import { useStudioStore } from "@/store/studio-store";
+import { invalidateCreativeProjectQueries } from "@/lib/invalidate-creative-project-queries";
 import { StudioBlockCard, StudioBlockCardBody, StudioBlockCardHeader } from "../studio-block-card";
 
 type Block = z.infer<typeof ApprovalBlockSchema>;
@@ -66,10 +67,8 @@ export function ApprovalCard({ block, projectId }: { block: Block; projectId: st
                 ? "revision"
                 : status;
         setStatus(next as Block["status"]);
-        await qc.invalidateQueries({ queryKey: ["messages"] });
-        await qc.invalidateQueries({ queryKey: ["approvals", projectId] });
-        await qc.invalidateQueries({ queryKey: ["agent-runs", projectId] });
-        setTimeout(() => qc.invalidateQueries({ queryKey: ["messages"] }), 800);
+        await invalidateCreativeProjectQueries(qc, projectId);
+        setTimeout(() => void invalidateCreativeProjectQueries(qc, projectId), 800);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "approval_failed";
         if (/version mismatch|409|Conflict/i.test(msg)) {

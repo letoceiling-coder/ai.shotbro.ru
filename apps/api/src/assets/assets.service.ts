@@ -281,7 +281,7 @@ export class AssetsService {
         /* fall through */
       }
     }
-    if (row.mimeType.startsWith("image/")) {
+    if (row.mimeType.startsWith("image/") || row.mimeType.startsWith("video/") || row.mimeType.startsWith("audio/")) {
       const url = await this.signedUrlForKey(row.storageKey);
       return { url, kind: "original" as const, expiresIn: this.env.S3_PRESIGNED_URL_TTL_SECONDS };
     }

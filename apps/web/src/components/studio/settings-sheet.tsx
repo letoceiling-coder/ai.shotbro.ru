@@ -44,6 +44,8 @@ export function SettingsSheet({
   const simulatorStatus = useStudioStore((s) => s.simulatorStatus);
   const setSimulatorStatus = useStudioStore((s) => s.setSimulatorStatus);
   const resetDemo = useStudioStore((s) => s.resetDemo);
+  const creativeAutoNavigate = useStudioStore((s) => s.creativeAutoNavigate);
+  const setCreativeAutoNavigate = useStudioStore((s) => s.setCreativeAutoNavigate);
   const { mode, setMode } = useStudioRuntimeMode();
   const session = authClient.useSession();
 
@@ -88,6 +90,31 @@ export function SettingsSheet({
                 </Button>
               </div>
             )}
+          </section>
+          <Separator />
+          <section>
+            <h3 className="mb-2 text-sm font-medium">Creative workspace</h3>
+            <p className="mb-2 text-xs text-muted-foreground">
+              После успешного действия агента автоматически открывать связанную вкладку (storyboard, assets и т.д.).
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant={creativeAutoNavigate ? "default" : "secondary"}
+                size="sm"
+                data-testid="settings-auto-nav-on"
+                onClick={() => setCreativeAutoNavigate(true)}
+              >
+                Автопереход вкл.
+              </Button>
+              <Button
+                variant={!creativeAutoNavigate ? "default" : "secondary"}
+                size="sm"
+                data-testid="settings-auto-nav-off"
+                onClick={() => setCreativeAutoNavigate(false)}
+              >
+                Автопереход выкл.
+              </Button>
+            </div>
           </section>
           <Separator />
           <section>

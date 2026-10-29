@@ -6,3 +6,4 @@ export * from "./demo/scenarios";
 export * from "./api";
 export * from "./production";
 export * from "./assets/schemas";
+export * from "./asset-playback";
