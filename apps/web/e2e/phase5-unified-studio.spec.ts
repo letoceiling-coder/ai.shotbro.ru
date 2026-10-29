@@ -38,7 +38,9 @@ test.describe("Phase 5L-B unified studio coherence", () => {
       mimeType: "image/png",
       buffer: tinyPngBuffer(),
     });
-    await pollAssetReady(page, projectId, "5lb.png", "5lb", 180_000);
+    const assetId = await pollAssetReady(page, projectId, "5lb.png", "5lb", 180_000);
+    // Library UI must show the uploaded asset without manual refresh.
+    await expect(page.getByTestId(`asset-card-${assetId}`)).toBeVisible({ timeout: 60_000 });
 
     await gotoStudioSection(page, projectId, "chat");
     await sendRealComposerMessage(
@@ -82,6 +84,29 @@ test.describe("Phase 5L-B unified studio coherence", () => {
     const sb = (await storyboard.json()) as { payload?: { scenes?: Array<{ firstFrameAssetId?: string }> } };
     const scenes = sb.payload?.scenes ?? [];
     expect(scenes.some((s) => Boolean(s.firstFrameAssetId))).toBe(true);
+
+    // U1: F5 on chat stays on chat — historical tool results must not replay auto-nav.
+    const chatTab = page.getByTestId("creative-section-chat");
+    const toolCard = page.getByTestId("agent-tool-result-set_scene_first_frame_by_ordinal").first();
+    const expectChatStays = async () => {
+      await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 90_000 });
+      await expect(toolCard).toBeVisible({ timeout: 90_000 });
+      const composer = page.getByTestId("real-composer-input");
+      if (await composer.isVisible().catch(() => false)) await composer.press("Tab");
+      // Negative check: give the auto-nav effect time to (wrongly) fire before asserting.
+      await page.waitForTimeout(3_000);
+      await expect(chatTab).toHaveAttribute("data-active", "true");
+      await expect(page.getByTestId("real-thread")).toBeVisible();
+    };
+    await pinRealProjectOnReload(page, projectId, "chat", { creativeAutoNavigate: true });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expectChatStays();
+
+    // Returning to chat from another section must not bounce the user away either.
+    await storyboardTab.click();
+    await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 60_000 });
+    await chatTab.click();
+    await expectChatStays();
   });
 
   test("desktop — auto-nav can be disabled", async ({ page }) => {

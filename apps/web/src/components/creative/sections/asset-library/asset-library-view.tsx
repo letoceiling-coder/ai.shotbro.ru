@@ -42,18 +42,26 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
   const uploadInputId = useId();
   const upload = useRealUpload(projectId);
   const { data, isLoading, isFetching, refetch } = useAssetLibrary(projectId, filters, cursor);
-  const [items, setItems] = useState<AssetSummary[]>([]);
+  const filterKey = `${filters.q}\u0000${filters.filter}\u0000${filters.sort}`;
+  // Items are tagged with the filter set they belong to. A reset effect on mount used to wipe
+  // cached data (React Query keeps the same reference), leaving "Библиотека пуста" for READY assets.
+  const [loaded, setLoaded] = useState<{ key: string; items: AssetSummary[] }>({ key: filterKey, items: [] });
 
   useEffect(() => {
     if (!data?.items) return;
-    if (!cursor) setItems(data.items);
-    else setItems((prev) => [...prev, ...data.items]);
-  }, [data?.items, cursor]);
+    const page = data.items;
+    setLoaded((prev) => {
+      if (!cursor || prev.key !== filterKey) return { key: filterKey, items: page };
+      const known = new Set(prev.items.map((a) => a.id));
+      return { key: filterKey, items: [...prev.items, ...page.filter((a) => !known.has(a.id))] };
+    });
+  }, [data?.items, cursor, filterKey]);
 
   useEffect(() => {
     setCursor(null);
-    setItems([]);
-  }, [filters.q, filters.filter, filters.sort]);
+  }, [filterKey]);
+
+  const items = loaded.key === filterKey ? loaded.items : [];
 
   const onDrop = useCallback(
     async (files: FileList | File[]) => {
