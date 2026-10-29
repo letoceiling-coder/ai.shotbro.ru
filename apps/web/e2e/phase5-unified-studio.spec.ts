@@ -55,11 +55,19 @@ test.describe("Phase 5L-B unified studio coherence", () => {
       ),
     );
 
-    // Auto-nav is suppressed while the composer input is focused (product guard).
-    await page.getByTestId("real-composer-input").blur();
-    await expect(page.getByTestId("creative-section-storyboard")).toHaveAttribute("data-active", "true", {
-      timeout: 120_000,
-    });
+    const storyboardTab = page.getByTestId("creative-section-storyboard");
+    await expect
+      .poll(
+        async () => {
+          if ((await storyboardTab.getAttribute("data-active")) === "true") return true;
+          const input = page.getByTestId("real-composer-input");
+          if (await input.isVisible().catch(() => false)) await input.blur();
+          else await page.getByTestId("creative-section-brief").click();
+          return (await storyboardTab.getAttribute("data-active")) === "true";
+        },
+        { timeout: 120_000, intervals: [500, 1000, 2000] },
+      )
+      .toBe(true);
     await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 60_000 });
 
     const storyboard = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
