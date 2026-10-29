@@ -46,7 +46,7 @@
 
 ```bash
 cd /var/www/ai.shotbro.ru-src
-git fetch origin && git reset --hard c089f793c14dc03e6ea00146a4d874e139941f1c
+git fetch origin && git reset --hard ce3d2ff78876bfbfb5ed4f7dce7a60686d6b6b6a
 chmod +x infra/scripts/*.sh
 # Verify labels: docker inspect infra-web-1 ai-shotbro-staging-api-1 ai-shotbro-staging-worker-1
 bash infra/scripts/staging-deploy.sh --service web c089f79   # if web != c089f793
