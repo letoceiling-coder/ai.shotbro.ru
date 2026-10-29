@@ -59,6 +59,7 @@ export async function scrollRealThreadToBottom(page: Page) {
 
 /** After API gate passes, reload once so React Query refetches even if SSE was missed. */
 export async function resyncRealThreadFromApi(page: Page, projectId: string) {
+  await pinRealProjectOnReload(page, projectId, "chat", { creativeAutoNavigate: false });
   await gotoStudioSection(page, projectId, "chat");
   await page.getByTestId(`real-project-${projectId}`).click();
   await page.getByTestId("creative-section-chat").click();

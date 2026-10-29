@@ -16,16 +16,23 @@ export async function pinRealProjectOnReload(
     | "script"
     | "production"
     | "assets" = "models",
+  options?: { creativeAutoNavigate?: boolean },
 ) {
   await page.evaluate(
-    ([pid, sec]) => {
+    ([pid, sec, autoNav]) => {
       localStorage.setItem("shotbro-studio-mode-v1", "REAL");
       const key = "shotbro-studio-demo-v1";
       const raw = localStorage.getItem(key);
       const parsed = raw ? (JSON.parse(raw) as { state?: Record<string, unknown> }) : { state: {} };
-      parsed.state = { ...(parsed.state ?? {}), activeRealProjectId: pid, creativeSection: sec };
+      const next: Record<string, unknown> = {
+        ...(parsed.state ?? {}),
+        activeRealProjectId: pid,
+        creativeSection: sec,
+      };
+      if (autoNav !== null) next.creativeAutoNavigate = autoNav;
+      parsed.state = next;
       localStorage.setItem(key, JSON.stringify(parsed));
     },
-    [projectId, section] as const,
+    [projectId, section, options?.creativeAutoNavigate ?? null] as const,
   );
 }
