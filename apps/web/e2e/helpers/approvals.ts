@@ -44,7 +44,7 @@ function sortPending(rows: ApprovalRow[]) {
   );
 }
 
-async function approveOneViaApi(page: Page, row: ApprovalRow) {
+async function approveOneViaApi(page: Page, projectId: string, row: ApprovalRow) {
   let lastBody = "";
   for (let attempt = 0; attempt < 4; attempt++) {
     const res = await page.request.post(`/api/v1/approvals/${row.id}/approve`, {
@@ -57,6 +57,13 @@ async function approveOneViaApi(page: Page, row: ApprovalRow) {
     if (res.ok()) return;
     lastBody = await res.text();
     const status = res.status();
+    if (status === 409) {
+      const refreshed = await listApprovals(page, projectId);
+      const decided = refreshed.find((a) => a.id === row.id);
+      if (decided?.status === "APPROVED") return;
+      if (pendingCount(refreshed) === 0) return;
+      continue;
+    }
     if ((status === 429 || status >= 500) && attempt < 3) {
       await page.waitForTimeout(1500 * (attempt + 1));
       continue;
@@ -87,7 +94,7 @@ export async function approvePendingApprovals(page: Page, projectId: string, max
     const pending = sortPending(items.filter((a) => a.status === "PENDING"));
     if (!pending.length) continue;
     const approvedBefore = approvedCount(items);
-    await approveOneViaApi(page, pending[0]!);
+    await approveOneViaApi(page, projectId, pending[0]!);
 
     await expect
       .poll(async () => approvedCount(await listApprovals(page, projectId)), {

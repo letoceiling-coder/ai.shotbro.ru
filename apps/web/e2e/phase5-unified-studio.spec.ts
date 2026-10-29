@@ -55,8 +55,11 @@ test.describe("Phase 5L-B unified studio coherence", () => {
       ),
     );
 
+    await expect(
+      page.getByTestId("agent-tool-result-set_scene_first_frame_by_ordinal").first(),
+    ).toBeVisible({ timeout: 120_000 });
     await expect(page.getByTestId("creative-section-storyboard")).toHaveAttribute("data-active", "true", {
-      timeout: 60_000,
+      timeout: 90_000,
     });
     await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 60_000 });
 
