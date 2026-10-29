@@ -222,3 +222,16 @@ canvas (production_document, новый docType SCENE_CANVAS)
 | `phase6a-talent-integration.sh` | **11/11**, `PHASE6A_TALENT_INTEGRATION_PASS` — лог `phase6a-talent-integration-763af2c7.log` |
 | `regression-strict` | **8/8**, `EXIT_CODE=0` — лог `regression-strict-763af2c7.log` |
 | Mock-политика | без изменений: `AI_MOCK_MODE=true`, live/media выключены |
+
+## 14. Статус 6B (2026-10-30)
+
+| Часть | Реализация |
+|---|---|
+| Очередь | `talent.execute` (BullMQ, `attempts: 1` — без авто-повторов платных вызовов); один job на строку `provider_job` |
+| API | `POST /api/v1/talent/operations` (`VOICE_CLONE`, `VOICE_DESIGN`, `VOICE_SAVE`, `AVATAR_TRAIN`), `GET /api/v1/talent/jobs/:id`; проверки: вид голоса, согласие, образцы, выбранный вариант, «уже выполняется» (409), идемпотентность по `operation+talent+version` |
+| Воркер | `apps/worker/src/talent-execution.ts`: повторная проверка арендатора ассетов, загрузка образцов/фото из MinIO, вызов адаптера, превью дизайна → MinIO, looks аватара, `cost_ledger_entry`, событие `talent.updated` в `event_log` (SSE) |
+| Аватар без HeyGen | `REFERENCE`: фото становятся looks сразу, бесплатно, без провайдера |
+| Live-шлюзы | `liveTalentBlockers`: режим `LIVE_APPROVED`, политика live-медиа, флаг вендора, флаг функции, **подтверждённый approval**. Вне mock-режима закрытый шлюз = задание `FAILED/LIVE_BLOCKED`, **никогда** не подменяется mock-результатом |
+| Startup guard | `assertLiveMediaStartupPolicy` заменил запрет «OpenRouter + media»: live-медиа требует `!AI_MOCK_MODE`, `PROVIDER_LIVE_EXECUTION_ENABLED`, лимиты в пределах (≤ $20 запуск, ≤ $100 день, запуск ≤ день) и enforcement approvals — до 6C всегда блок |
+| Исправлено попутно | загрузка `audio/wav` отклонялась (формат разрешён, но не распознавался) — нужна для образцов голоса |
+| Тесты | config 12, ai 21, integration 6B: дизайн → 3 превью → сохранение, клон из WAV с согласием, двойной клик, изоляция B, аватар REFERENCE |

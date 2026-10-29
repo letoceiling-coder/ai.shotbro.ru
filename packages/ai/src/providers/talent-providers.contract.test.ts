@@ -212,3 +212,27 @@ describe("mock talent providers", () => {
     expect(st.outputs.length).toBeGreaterThan(0);
   });
 });
+
+describe("createTalentAdapters (Phase 6B gates)", () => {
+  // Imported lazily to keep the contract tests above independent of the gate module.
+  it("mock mode always yields mock adapters with reasons", async () => {
+    const { createTalentAdapters } = await import("./talent-adapters.js");
+    const set = createTalentAdapters(baseEnv, "VOICE_CLONE", { approved: true });
+    expect(set.mock).toBe(true);
+    expect(set.reasons.join(" ")).toMatch(/LIVE_APPROVED/);
+  });
+
+  it("live flags without approval or feature switch stay blocked", async () => {
+    const { liveTalentBlockers } = await import("./talent-adapters.js");
+    const env = { ...liveEnv, ELEVENLABS_PROVIDER_ENABLED: true, VOICE_CLONING_ENABLED: false } as AppEnv;
+    const reasons = liveTalentBlockers(env, "VOICE_CLONE", { approved: false });
+    expect(reasons).toEqual(expect.arrayContaining(["VOICE_CLONING_ENABLED=false", "no approved cost confirmation"]));
+  });
+
+  it("avatar training needs HeyGen key, vendor switch and avatar switch", async () => {
+    const { liveTalentBlockers } = await import("./talent-adapters.js");
+    const env = { ...liveEnv, HEYGEN_API_KEY: undefined } as unknown as AppEnv;
+    const reasons = liveTalentBlockers(env, "AVATAR_TRAIN", { approved: true });
+    expect(reasons).toEqual(expect.arrayContaining(["HEYGEN_PROVIDER_ENABLED=false", "HEYGEN_API_KEY missing", "AVATAR_GENERATION_ENABLED=false"]));
+  });
+});

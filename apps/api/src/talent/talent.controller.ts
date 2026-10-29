@@ -4,13 +4,28 @@ import { MediaCapabilitySchema } from "@shotbro/contracts";
 import type { AuthedRequest } from "../auth/session.guard";
 import { SessionGuard } from "../auth/session.guard";
 import { TalentService } from "./talent.service";
+import { TalentJobsService } from "./talent-jobs.service";
 
-/** Phase 6A: reusable avatars and voices (workspace scope). Paid actions are not exposed here. */
+/** Phase 6A/6B: reusable avatars and voices (workspace scope) + talent operations (mock until 6C approvals). */
 @ApiTags("talent")
 @Controller("api/v1")
 @UseGuards(SessionGuard)
 export class TalentController {
-  constructor(@Inject(TalentService) private readonly talent: TalentService) {}
+  constructor(
+    @Inject(TalentService) private readonly talent: TalentService,
+    @Inject(TalentJobsService) private readonly jobs: TalentJobsService,
+  ) {}
+
+  /** Phase 6B: clone / design / save voice, train avatar. Mock mode only until 6C approvals. */
+  @Post("talent/operations")
+  startOperation(@Req() req: AuthedRequest, @Body() body: unknown) {
+    return this.jobs.start(req.user.id, body);
+  }
+
+  @Get("talent/jobs/:jobId")
+  getJob(@Req() req: AuthedRequest, @Param("jobId") jobId: string) {
+    return this.jobs.get(req.user.id, jobId);
+  }
 
   @Get("talent/provider-chain")
   providerChain(@Query("capability") capability: string) {

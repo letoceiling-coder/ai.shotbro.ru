@@ -4,11 +4,12 @@ import { ProductionModule } from "../production/production.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { TalentController } from "./talent.controller";
 import { TalentService } from "./talent.service";
+import { TalentJobsService } from "./talent-jobs.service";
 
 @Module({
   imports: [ProductionModule, ProjectsModule],
   controllers: [TalentController],
-  providers: [TalentService, AccessPolicyService],
+  providers: [TalentService, TalentJobsService, AccessPolicyService],
   exports: [TalentService],
 })
 export class TalentModule {}

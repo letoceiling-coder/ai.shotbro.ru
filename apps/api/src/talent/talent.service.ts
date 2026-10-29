@@ -63,6 +63,8 @@ export function toVoiceDto(row: VoiceRow, mock: boolean): VoiceProfile {
     previewUrl: row.previewUrl,
     sampleAssetIds: row.sampleAssetIds ?? [],
     designPrompt: row.designPrompt,
+    previews: ((row.metadata ?? {}) as { previews?: VoiceProfile["previews"] }).previews ?? [],
+    lastError: ((row.metadata ?? {}) as { lastError?: string | null }).lastError ?? null,
     consent: consentOf(row),
     status: row.status as VoiceProfile["status"],
     mock,

@@ -58,6 +58,11 @@ export const VoiceProfileSchema = z.object({
   sampleAssetIds: z.array(z.string()).default([]),
   /** Voice Design: description used to generate previews. */
   designPrompt: z.string().nullable().optional(),
+  /** Voice Design previews (stored in MinIO); user picks one → VOICE_SAVE. */
+  previews: z
+    .array(z.object({ generatedVoiceId: z.string(), label: z.string(), assetId: z.string().nullable(), durationSecs: z.number().optional() }))
+    .default([]),
+  lastError: z.string().nullable().optional(),
   consent: TalentConsentSchema.nullable().optional(),
   status: TalentStatusSchema,
   mock: z.boolean().optional(),
@@ -198,3 +203,35 @@ export const ProviderChainSchema = z.object({
   mockMode: z.boolean(),
 });
 export type ProviderChain = z.infer<typeof ProviderChainSchema>;
+
+/** Phase 6B: talent operations executed by the worker through provider adapters. */
+export const TalentOperationSchema = z.enum(["VOICE_CLONE", "VOICE_DESIGN", "VOICE_SAVE", "AVATAR_TRAIN"]);
+export type TalentOperation = z.infer<typeof TalentOperationSchema>;
+
+export const StartTalentOperationInputSchema = z.object({
+  /** Project context: outputs are stored as project assets; costs land on its ledger. */
+  projectId: z.string().min(1),
+  operation: TalentOperationSchema,
+  voiceProfileId: z.string().optional(),
+  avatarProfileId: z.string().optional(),
+  /** VOICE_SAVE: which design preview to keep. */
+  generatedVoiceId: z.string().optional(),
+  /** Phase 6C: required in live mode; ignored in mock mode. */
+  approvalId: z.string().optional(),
+});
+export type StartTalentOperationInput = z.infer<typeof StartTalentOperationInputSchema>;
+
+export const TalentJobSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  operation: TalentOperationSchema,
+  providerId: z.string(),
+  status: z.string(),
+  talentType: z.enum(["voice", "avatar"]),
+  talentId: z.string(),
+  failureCode: z.string().nullable().optional(),
+  mock: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type TalentJob = z.infer<typeof TalentJobSchema>;

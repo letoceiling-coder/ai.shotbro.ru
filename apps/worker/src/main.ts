@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { agentRun } from "@shotbro/db/schema";
 import { getWorkerDb } from "./db.js";
 import { executeProductionRun } from "./production-run.js";
+import { TALENT_EXECUTE_QUEUE, executeTalentJob } from "./talent-execution.js";
 
 loadEnv({ path: resolve(process.cwd(), "../../.env.production") });
 
@@ -88,6 +89,13 @@ new Worker(
   { ...workerOpts, concurrency: 1 },
 );
 
+// Phase 6B: avatar/voice provider jobs (mock adapters unless every live gate is open).
+new Worker(
+  TALENT_EXECUTE_QUEUE,
+  async (job) => executeTalentJob(job.data as { jobId: string }, log),
+  { ...workerOpts, concurrency: 1 },
+);
+
 new Worker(
   "storage.reconcile",
   async (job) => {
@@ -97,7 +105,7 @@ new Worker(
   { ...workerOpts, concurrency: 1 },
 );
 
-log.info("SHOTBRO worker started (media + storage maintenance, no AI)");
+log.info("SHOTBRO worker started (media, production, talent jobs; live media gated)");
 
 async function shutdown() {
   log.info("worker shutting down");

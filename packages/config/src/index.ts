@@ -8,3 +8,4 @@ export * from "./redact.js";
 export * from "./s3.js";
 export * from "./smtp.js";
 export * from "./mime-policy.js";
+export * from "./live-media-policy.js";

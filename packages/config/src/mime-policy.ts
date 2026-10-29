@@ -34,6 +34,10 @@ export function sniffMime(buffer: Buffer): string | null {
   if (buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
     return "image/webp";
   }
+  // Phase 6: voice samples for cloning are usually WAV (allowlisted above but never sniffed before).
+  if (buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WAVE") {
+    return "audio/wav";
+  }
   if (buffer.length >= 8 && buffer.toString("ascii", 4, 8) === "ftyp") {
     return "video/mp4";
   }

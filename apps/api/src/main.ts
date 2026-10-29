@@ -9,6 +9,8 @@ import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { AUTH } from "./auth/auth.module";
 import { createS3Client, ensureS3Bucket } from "@shotbro/config/s3";
+import { assertLiveMediaStartupPolicy } from "@shotbro/config/live-media-policy";
+import { loadEnvFromProcess } from "@shotbro/config/env";
 import { stagingGateMiddleware } from "./common/staging-gate.middleware";
 import { loadApiEnv } from "./env";
 
@@ -20,9 +22,9 @@ async function bootstrap() {
   if (env.OPENROUTER_ENABLED && !env.LLM_LIVE_EXECUTION_ENABLED) {
     throw new Error("OPENROUTER_ENABLED requires LLM_LIVE_EXECUTION_ENABLED (Phase 5K creative agent only)");
   }
-  if (env.OPENROUTER_ENABLED && env.MEDIA_GENERATION_ENABLED) {
-    throw new Error("OpenRouter LLM cannot run with MEDIA_GENERATION_ENABLED=true (Phase 5K)");
-  }
+  // Phase 6B: explicit live-media rules (mock mode, budget caps, approval enforcement) instead of
+  // the Phase 5K blanket "OpenRouter + media" ban. Still fails closed until 6C enforcement ships.
+  assertLiveMediaStartupPolicy(loadEnvFromProcess());
 
   const s3 = createS3Client({
     S3_ENDPOINT: env.S3_ENDPOINT,

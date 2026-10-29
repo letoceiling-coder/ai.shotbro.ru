@@ -13,7 +13,8 @@
     "./mime-policy": "./src/mime-policy.ts",
     "./ai-execution": "./src/ai-execution.ts",
     "./vendor-providers": "./src/vendor-providers.ts",
-    "./provider-policy": "./src/provider-policy.ts"
+    "./provider-policy": "./src/provider-policy.ts",
+    "./live-media-policy": "./src/live-media-policy.ts"
   },
   "scripts": {
     "build": "tsc",

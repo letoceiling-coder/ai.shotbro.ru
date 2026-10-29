@@ -10,6 +10,7 @@ export const MEDIA_CLEANUP_QUEUE = "media.cleanup";
 export const STORAGE_RECONCILE_QUEUE = "storage.reconcile";
 export const PRODUCTION_NODE_QUEUE = "production.node";
 export const PRODUCTION_RUN_QUEUE = "production.run";
+export const TALENT_EXECUTE_QUEUE = "talent.execute";
 
 @Injectable()
 export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
@@ -21,6 +22,7 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
   readonly reconcile: Queue;
   readonly productionNode: Queue;
   readonly productionRun: Queue;
+  readonly talentExecute: Queue;
 
   constructor() {
     const env = loadApiEnv();
@@ -33,6 +35,16 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
     this.reconcile = new Queue(STORAGE_RECONCILE_QUEUE, { connection: this.connection, defaultJobOptions: defaultJob });
     this.productionNode = new Queue(PRODUCTION_NODE_QUEUE, { connection: this.connection, defaultJobOptions: defaultJob });
     this.productionRun = new Queue(PRODUCTION_RUN_QUEUE, { connection: this.connection, defaultJobOptions: defaultJob });
+    // Paid provider calls: no automatic retries (a retry could double-charge); the job row is the source of truth.
+    this.talentExecute = new Queue(TALENT_EXECUTE_QUEUE, {
+      connection: this.connection,
+      defaultJobOptions: { removeOnComplete: 100, removeOnFail: 500, attempts: 1 },
+    });
+  }
+
+  /** Phase 6B: one BullMQ job per provider_job row (jobId dedupes double enqueue). */
+  async enqueueTalentJob(providerJobId: string): Promise<void> {
+    await this.talentExecute.add("execute", { jobId: providerJobId }, { jobId: `talent-${providerJobId}` });
   }
 
   async enqueueProductionRun(input: {
@@ -90,6 +102,7 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
       this.reconcile.close(),
       this.productionNode.close(),
       this.productionRun.close(),
+      this.talentExecute.close(),
       this.connection.quit(),
     ]);
   }
