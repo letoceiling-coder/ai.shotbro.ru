@@ -33,7 +33,7 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
     const items = data?.items;
     if (!items?.length) return;
     const pinned = readPersistedRealProjectId();
-    if (pinned && items.some((p) => p.id === pinned)) {
+    if (pinned && items.some((p: { id: string }) => p.id === pinned)) {
       setActiveRealProject(pinned);
       return;
     }
