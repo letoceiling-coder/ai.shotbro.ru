@@ -1,20 +1,23 @@
 # Phase 5L-B — Workspace Coherence & Delivery UX
 
-**Status:** IMPLEMENTED — **NOT ACCEPTED** (P0 infra — see `P0-VPS-INFRASTRUCTURE-RECOVERY.md`)  
-**Git (origin):** **`fffce7d`** · **web/code target:** **`c089f793`**  
-**Implementation baseline:** **`20539645`**  
-**Last confirmed runtime (VPS SSH OK):** Web **`01c49cd2`** · API/Worker **`20539645`** · deploy **`c089f793`** **unverified** (build interrupted)
+**Status:** IMPLEMENTED — **NOT ACCEPTED**  
+**Git (origin):** **`5ee205e`** · **web runtime:** **`c089f793`** · **API/Worker:** **`20539645`**
 
-## VPS diagnostics (2026-10-29, repeated)
+## Last acceptance run (2026-10-29, tmux `p5lba`)
 
 | Check | Result |
 |-------|--------|
-| DNS `ai.shotbro.ru` | **85.117.235.93** OK |
-| SSH :22 | **timeout** |
-| HTTPS `/api/v1/health/live` | **504** (edge) / **curl timeout** (client TCP) |
-| Acceptance run | **blocked** — no SSH |
+| Log | `/var/log/shotbro-e2e/phase5l-b-acceptance-c089f793.log` |
+| **`EXIT_CODE`** | **`1`** @ 13:35:43 UTC |
+| **`PHASE5L_B_ALL_PASS`** | **no** |
+| Idempotency + media guard | **PASS** |
+| `phase5-agent-integration` | **2/2** |
+| `regression-strict` | **6/8** — **mobile** phase3 + phase4 failed |
+| `phase5-unified-studio` | **not reached** (blocked by regression) |
 
-**Operator playbook:** `docs/P0-VPS-INFRASTRUCTURE-RECOVERY.md` §3–4.
+**RCA (mobile):** `resyncRealThreadFromApi` → `getByTestId('real-project-…').first()` matched **hidden** sidebar duplicate; fix **`5ee205e`** (`.filter({ visible: true })` + open «Проекты» / «Развернуть sidebar»).
+
+**Next run:** upload E2E helpers to VPS (`real-ui-sync.ts` @ `5ee205e`), then **one** `phase5l-b-acceptance-run.sh` when no flock/tmux runner.
 
 ## Delivered (product)
 
@@ -32,15 +35,12 @@
 | Sidebar wrong project after reload | `01c49cd` / `440240b` |
 | Auto-nav hides chat in E2E | `c089f793` (`real-project-{id}`, chat tab) |
 
-## VPS evidence (partial, before outage)
+## Historical (pre-recovery)
 
 | Suite | Result |
 |-------|--------|
-| Idempotency + media guard | PASS |
-| `regression-strict` | **8/8** @ `20539645` |
-| `phase5-agent-integration` | **1/2** before `c089f793` |
-| Full bundle | **exit 1** — `/var/log/shotbro-e2e/phase5l-b-acceptance-01c49cd2.log` |
-| **`PHASE5L_B_ALL_PASS`** | **no** |
+| `regression-strict` | **8/8** @ `20539645` (earlier) |
+| Full bundle | **exit 1** — `phase5l-b-acceptance-01c49cd2.log` |
 
 ## Run acceptance (after SSH + health OK)
 
