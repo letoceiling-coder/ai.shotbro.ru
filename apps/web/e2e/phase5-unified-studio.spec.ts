@@ -60,7 +60,10 @@ test.describe("Phase 5L-B unified studio coherence", () => {
 
     const storyboardTab = page.getByTestId("creative-section-storyboard");
     if ((await storyboardTab.getAttribute("data-active")) !== "true") {
-      await toolCard.click();
+      const composer = page.getByTestId("real-composer-input");
+      if (await composer.isVisible()) {
+        await composer.press("Tab");
+      }
     }
     await expect(storyboardTab).toHaveAttribute("data-active", "true", { timeout: 60_000 });
     await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 60_000 });
