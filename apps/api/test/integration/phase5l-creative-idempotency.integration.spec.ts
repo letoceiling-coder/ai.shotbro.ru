@@ -39,13 +39,13 @@ describe("Phase 5L-A creative-turn idempotency (integration)", () => {
     expectOk2xx(second.status);
     expect(second.json.runId).toBe(first.json.runId);
 
-    const runs = await apiJson<{ items: Array<{ id: string }> }>(
-      `/api/v1/projects/${projectId}/agent/runs`,
+    const runId = first.json.runId!;
+    const fetched = await apiJsonWith429Retry<{ id: string }>(
+      `/api/v1/projects/${projectId}/agent/runs/${runId}`,
       session,
     );
-    expectOk2xx(runs.status);
-    const matches = runs.json.items.filter((r) => r.id === first.json.runId);
-    expect(matches.length).toBe(1);
+    expectOk2xx(fetched.status);
+    expect(fetched.json.id).toBe(runId);
   }, 120_000);
 
   it("same client key on two projects creates isolated runs", async () => {
@@ -79,11 +79,47 @@ async function postTurn(
   projectId: string,
   body: { userMessage: string; conversationId: string; idempotencyKey: string },
 ) {
-  return apiJson<{ runId?: string; status: string }>(
+  return apiJsonWith429Retry<{ runId?: string; status: string }>(
     `/api/v1/projects/${projectId}/agent/creative-turn`,
     session,
     { method: "POST", body: JSON.stringify(body) },
   );
+}
+
+/** Staging throttler may return 429 after long E2E; respect Retry-After without weakening prod limits. */
+async function apiJsonWith429Retry<T>(
+  path: string,
+  session: AuthSession,
+  init?: RequestInit,
+  maxAttempts = 8,
+) {
+  const base = process.env.INTEGRATION_API_URL ?? "http://127.0.0.1:3021";
+  const gate = process.env.STAGING_GATE_SECRET;
+  const hdrs = (extra: Record<string, string> = {}) => {
+    const h: Record<string, string> = { ...extra };
+    if (gate) h["X-Shotbro-Staging-Gate"] = gate;
+    return h;
+  };
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(`${base}${path}`, {
+      ...init,
+      headers: hdrs({
+        "Content-Type": "application/json",
+        Cookie: session.cookie,
+        ...(init?.headers as Record<string, string>),
+      }),
+    });
+    if (res.status === 429 && attempt + 1 < maxAttempts) {
+      const retryAfter = res.headers.get("Retry-After");
+      const waitSec = retryAfter ? Math.min(parseInt(retryAfter, 10) || 5, 60) : 5;
+      await new Promise((r) => setTimeout(r, waitSec * 1000));
+      continue;
+    }
+    const json = (await res.json().catch(() => ({}))) as T;
+    return { status: res.status, json };
+  }
+  return apiJson<T>(path, session, init);
 }
 
 async function createProject(session: AuthSession, ts: number) {

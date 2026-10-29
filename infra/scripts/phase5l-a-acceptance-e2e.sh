@@ -15,9 +15,6 @@ run() {
 
 echo "PHASE5L-A acceptance start sha=${SHA} $(date -Is)"
 
-run phase5-agent-integration
-run regression-strict
-
 IDEM_LOG="${LOGDIR}/phase5l-creative-idempotency-${SHA}.log"
 echo "==> phase5l-creative-idempotency -> ${IDEM_LOG}"
 bash "${ROOT}/infra/scripts/phase5l-creative-idempotency-smoke.sh" "$ROOT" 2>&1 | tee "$IDEM_LOG"
@@ -25,5 +22,8 @@ bash "${ROOT}/infra/scripts/phase5l-creative-idempotency-smoke.sh" "$ROOT" 2>&1 
 GUARD_LOG="${LOGDIR}/phase5k-media-guard-${SHA}.log"
 echo "==> phase5k-media-guard -> ${GUARD_LOG}"
 bash "${ROOT}/infra/scripts/phase5k-media-guard-smoke.sh" "$ROOT" 2>&1 | tee "$GUARD_LOG"
+
+run phase5-agent-integration
+run regression-strict
 
 echo "PHASE5L_A_ALL_PASS sha=${SHA} $(date -Is)"
