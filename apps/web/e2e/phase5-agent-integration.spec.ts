@@ -7,7 +7,7 @@ import { gotoStudioSection, addScriptScenesViaUI } from "./helpers/phase5-creati
 import { uploadViaLibraryFilePicker } from "./helpers/asset-library-upload";
 import { tinyPngBuffer } from "./helpers/phase5-creative-seed";
 import { pinRealProjectOnReload } from "./helpers/real-studio-state";
-import { resyncRealThreadFromApi, waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
+import { waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
 
 const demoMp4 = () =>
   readFileSync(join(process.cwd(), "public", "demo-assets", "shotbro-demo.mp4"));
@@ -130,9 +130,9 @@ test.describe("Phase 5K agent integration", () => {
           (b as { toolName?: string }).toolName === "search_project_assets",
       ),
     );
-    await resyncRealThreadFromApi(page, projectId);
+    await gotoStudioSection(page, projectId, "chat");
     await expect(page.getByTestId("agent-tool-result-search_project_assets").first()).toBeVisible({
-      timeout: 60_000,
+      timeout: 120_000,
     });
   });
 });

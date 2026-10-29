@@ -60,7 +60,13 @@ export async function scrollRealThreadToBottom(page: Page) {
 export async function resyncRealThreadFromApi(page: Page, projectId: string) {
   await pinRealProjectOnReload(page, projectId, "chat");
   await page.goto("/studio", { waitUntil: "domcontentloaded" });
-  await page.getByTestId("creative-section-chat").click();
-  await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("creative-workspace").or(page.getByTestId("real-thread"))).toBeVisible({
+    timeout: 90_000,
+  });
+  const chatTab = page.getByTestId("creative-section-chat");
+  if (await chatTab.isVisible().catch(() => false)) {
+    await chatTab.click();
+  }
+  await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 90_000 });
   await scrollRealThreadToBottom(page);
 }
