@@ -138,14 +138,14 @@ async function createProjectViaDialog(page: Page, projectTitle: string): Promise
   ]);
   await expect(dialog).toBeHidden({ timeout: 15_000 });
   await expect(page.getByText("REAL-режим: создайте")).toHaveCount(0, { timeout: 15_000 });
-  await expectRealComposerReady(page);
-  await expect(page.getByTestId("real-thread")).toHaveAttribute("data-conversation-id", /.+/u, {
-    timeout: 60_000,
-  });
   const chatTab = page.getByTestId("creative-section-chat");
   if (await chatTab.isVisible().catch(() => false)) {
     await chatTab.click();
   }
+  await expectRealComposerReady(page);
+  await expect(page.getByTestId("real-thread")).toHaveAttribute("data-conversation-id", /.+/u, {
+    timeout: 60_000,
+  });
   if (!projectId) throw new Error("Could not capture project id from create response");
   return projectId;
 }
