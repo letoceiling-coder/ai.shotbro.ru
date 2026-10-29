@@ -7,7 +7,7 @@ import { gotoStudioSection, addScriptScenesViaUI } from "./helpers/phase5-creati
 import { uploadViaLibraryFilePicker } from "./helpers/asset-library-upload";
 import { tinyPngBuffer } from "./helpers/phase5-creative-seed";
 import { pinRealProjectOnReload } from "./helpers/real-studio-state";
-import { waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
+import { resyncRealThreadFromApi, waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
 import {
   waitForAgentRunPersisted,
   waitForMockDeliveryVisible,

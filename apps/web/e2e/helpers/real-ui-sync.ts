@@ -76,8 +76,13 @@ async function ensureRealProjectRowVisible(page: Page, projectId: string) {
   await expect(visibleRealProjectRow(page, projectId).first()).toBeVisible({ timeout: 30_000 });
 }
 
-export async function resyncRealThreadFromApi(page: Page, projectId: string) {
-  await pinRealProjectOnReload(page, projectId, "chat", { creativeAutoNavigate: false });
+export async function resyncRealThreadFromApi(
+  page: Page,
+  projectId: string,
+  options?: { creativeAutoNavigate?: boolean },
+) {
+  const creativeAutoNavigate = options?.creativeAutoNavigate ?? false;
+  await pinRealProjectOnReload(page, projectId, "chat", { creativeAutoNavigate });
   await gotoStudioSection(page, projectId, "chat");
   await ensureRealProjectRowVisible(page, projectId);
   await visibleRealProjectRow(page, projectId).first().click();
