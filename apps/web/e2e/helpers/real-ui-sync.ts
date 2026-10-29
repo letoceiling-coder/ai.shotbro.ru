@@ -59,24 +59,28 @@ export async function scrollRealThreadToBottom(page: Page) {
 }
 
 /** After API gate passes, reload once so React Query refetches even if SSE was missed. */
-function realProjectRow(page: Page, projectId: string) {
-  return page.getByTestId(`real-project-${projectId}`).first();
+function visibleRealProjectRow(page: Page, projectId: string) {
+  return page.getByTestId(`real-project-${projectId}`).filter({ visible: true });
 }
 
 async function ensureRealProjectRowVisible(page: Page, projectId: string) {
-  const row = realProjectRow(page, projectId);
-  if (await row.isVisible().catch(() => false)) return;
+  if ((await visibleRealProjectRow(page, projectId).count()) > 0) return;
   await ensureRealCreateVisible(page);
-  const projects = page.getByRole("button", { name: "Проекты" });
-  if (await projects.isVisible().catch(() => false)) await projects.click();
-  await expect(row).toBeVisible({ timeout: 30_000 });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const projects = page.getByRole("button", { name: "Проекты" });
+    if (await projects.isVisible().catch(() => false)) await projects.click();
+    const expand = page.getByRole("button", { name: "Развернуть sidebar" });
+    if (await expand.isVisible().catch(() => false)) await expand.click();
+    if ((await visibleRealProjectRow(page, projectId).count()) > 0) return;
+  }
+  await expect(visibleRealProjectRow(page, projectId).first()).toBeVisible({ timeout: 30_000 });
 }
 
 export async function resyncRealThreadFromApi(page: Page, projectId: string) {
   await pinRealProjectOnReload(page, projectId, "chat", { creativeAutoNavigate: false });
   await gotoStudioSection(page, projectId, "chat");
   await ensureRealProjectRowVisible(page, projectId);
-  await realProjectRow(page, projectId).click();
+  await visibleRealProjectRow(page, projectId).first().click();
   await page.getByTestId("creative-section-chat").click();
   await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 90_000 });
   await scrollRealThreadToBottom(page);
