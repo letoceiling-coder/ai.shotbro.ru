@@ -45,16 +45,23 @@ function sortPending(rows: ApprovalRow[]) {
 }
 
 async function approveOneViaApi(page: Page, row: ApprovalRow) {
-  const res = await page.request.post(`/api/v1/approvals/${row.id}/approve`, {
-    data: {
-      expectedVersion: row.targetVersion,
-      payloadHash: row.payloadHash,
-      idempotencyKey: randomUUID(),
-    },
-  });
-  if (!res.ok()) {
-    const body = await res.text();
-    throw new Error(`approve ${row.id} (${row.targetType}) HTTP ${res.status()}: ${body}`);
+  let lastBody = "";
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await page.request.post(`/api/v1/approvals/${row.id}/approve`, {
+      data: {
+        expectedVersion: row.targetVersion,
+        payloadHash: row.payloadHash,
+        idempotencyKey: randomUUID(),
+      },
+    });
+    if (res.ok()) return;
+    lastBody = await res.text();
+    const status = res.status();
+    if ((status === 429 || status >= 500) && attempt < 3) {
+      await page.waitForTimeout(1500 * (attempt + 1));
+      continue;
+    }
+    throw new Error(`approve ${row.id} (${row.targetType}) HTTP ${status}: ${lastBody}`);
   }
 }
 

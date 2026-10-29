@@ -59,8 +59,12 @@ export async function scrollRealThreadToBottom(page: Page) {
 }
 
 /** After API gate passes, reload once so React Query refetches even if SSE was missed. */
+async function realProjectRow(page: Page, projectId: string) {
+  return page.getByTestId(`real-project-${projectId}`).first();
+}
+
 async function ensureRealProjectRowVisible(page: Page, projectId: string) {
-  const row = page.getByTestId(`real-project-${projectId}`);
+  const row = realProjectRow(page, projectId);
   if (await row.isVisible().catch(() => false)) return;
   await ensureRealCreateVisible(page);
   const projects = page.getByRole("button", { name: "Проекты" });
@@ -72,7 +76,7 @@ export async function resyncRealThreadFromApi(page: Page, projectId: string) {
   await pinRealProjectOnReload(page, projectId, "chat", { creativeAutoNavigate: false });
   await gotoStudioSection(page, projectId, "chat");
   await ensureRealProjectRowVisible(page, projectId);
-  await page.getByTestId(`real-project-${projectId}`).click();
+  await realProjectRow(page, projectId).click();
   await page.getByTestId("creative-section-chat").click();
   await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 90_000 });
   await scrollRealThreadToBottom(page);
