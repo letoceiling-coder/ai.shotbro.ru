@@ -26,6 +26,21 @@ const SSE_EVENT_TYPES = [
   "agent.runtime.rollout.changed",
 ] as const;
 
+type ProjectEventPayload = {
+  eventId?: string;
+  type?: string;
+  payload?: { conversationId?: string };
+};
+
+function invalidateForEvent(qc: ReturnType<typeof useQueryClient>, projectId: string, data: ProjectEventPayload) {
+  const conversationId = data.payload?.conversationId;
+  void invalidateCreativeProjectQueries(
+    qc,
+    projectId,
+    conversationId ? { conversationId } : undefined,
+  );
+}
+
 function handleEventPayload(
   qc: ReturnType<typeof useQueryClient>,
   projectId: string,
@@ -33,10 +48,10 @@ function handleEventPayload(
   lastIdRef: MutableRefObject<string | undefined>,
 ) {
   try {
-    const data = JSON.parse(raw) as { eventId?: string; type?: string };
+    const data = JSON.parse(raw) as ProjectEventPayload;
     if (data.eventId) lastIdRef.current = data.eventId;
     if (data.type === "media.completed" || data.type === "media.processing") {
-      void invalidateCreativeProjectQueries(qc, projectId);
+      invalidateForEvent(qc, projectId, data);
     }
     if (
       data.type === "message.created" ||
@@ -44,20 +59,20 @@ function handleEventPayload(
       data.type === "approval.required" ||
       data.type === "agent.approval.required"
     ) {
-      void invalidateCreativeProjectQueries(qc, projectId);
+      invalidateForEvent(qc, projectId, data);
     }
     if (
       data.type?.startsWith("agent.") ||
       data.type?.startsWith("production.") ||
       data.type === "delivery.ready"
     ) {
-      void invalidateCreativeProjectQueries(qc, projectId);
+      invalidateForEvent(qc, projectId, data);
     }
     if (data.type === "agent.tool.completed" || data.type === "agent.tool.failed") {
-      void invalidateCreativeProjectQueries(qc, projectId);
+      invalidateForEvent(qc, projectId, data);
     }
     if (data.type === "provider.job.created" || data.type === "provider.job.status") {
-      void invalidateCreativeProjectQueries(qc, projectId);
+      invalidateForEvent(qc, projectId, data);
     }
   } catch {
     /* ignore malformed */

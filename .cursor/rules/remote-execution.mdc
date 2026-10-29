@@ -1,0 +1,52 @@
+---
+description: VPS/SSH and Phase acceptance execution — no long blocking waits in Cursor
+alwaysApply: true
+---
+
+# Remote execution (Beget VPS / Phase acceptance)
+
+## SSH discipline
+
+- Always use `ssh -o BatchMode=yes -o ConnectTimeout=10` (adjust key path as needed).
+- **Never** run `sleep`, `wait`, or long polling loops **inside** SSH from the Cursor agent.
+- **Never** block the agent on E2E/acceptance completion (no multi-minute `block_until_ms` waiting for full suites).
+- Each status check is **one short SSH command** (tail/grep/pgrep), then return to the user.
+
+## Acceptance runner
+
+- Start acceptance only via `infra/scripts/phase5l-b-acceptance-run.sh` on the VPS (uses **flock**, tee log, writes **EXIT_CODE**).
+- Prefer a **detached server session** (e.g. `tmux new-session -d -s p5lba 'bash …/phase5l-b-acceptance-run.sh …'`) so Cursor regains control immediately after launch.
+- **Do not** start a second acceptance if:
+  - `fuser /var/run/shotbro-phase5l-b-acceptance.lock` shows a holder, or
+  - `pgrep -f 'playwright test e2e/'` shows an active Playwright run, or
+  - an acceptance log for the current SHA is still growing with no `EXIT_CODE=` line.
+- **Do not** `tmux kill-session` while acceptance or Playwright is running.
+- **No parallel Playwright** on the VPS.
+
+## Debugging failures
+
+- After a failure, run **only the failing suite** first (`staging-playwright-e2e.sh … <mode>`, `retries=0`), not full acceptance.
+- After fix + targeted suite green, run **one** full `phase5l-b-acceptance-run.sh`.
+
+## Sync and artifacts
+
+- VPS test tree must match Git: `git pull --ff-only` on `/var/www/ai.shotbro.ru-src`; stash local VPS edits before pull if needed.
+- **No SCP-only** E2E changes; Playwright mounts the repo at `/app` from that checkout.
+- Do not treat **lack of new log lines** as a hung test without checking `pgrep` and `tail -3` on the log.
+
+## Status report (every check)
+
+Include when known:
+
+- Runner **PID**(s), **current suite** (from log `==> mode` or Playwright args)
+- **passed/failed** counts for completed suites
+- **Log path** (e.g. `/var/log/shotbro-e2e/phase5l-b-acceptance-<sha>.log`)
+- **Git SHA** (VPS `git rev-parse --short=8 HEAD`)
+- **EXIT_CODE** only after the log contains `EXIT_CODE=`
+
+## Out of scope for agent SSH
+
+- Do not modify NL proxy `31.207.5.233`.
+- No paid image/video generation in tests.
+- Do not delete Postgres/MinIO/Docker volumes.
+- Do not start Phase 5L-C.
