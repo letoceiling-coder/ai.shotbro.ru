@@ -123,6 +123,7 @@ test.describe("Phase 5K agent integration", () => {
     await expect(page.getByTestId(/asset-card-/).first()).toBeVisible({ timeout: 120_000 });
     await gotoStudioSection(page, projectId, "chat");
     await sendRealComposerMessage(page, "phase5k найди фото в библиотеке и первым кадром второй сцены");
+    await page.getByTestId("creative-section-chat").click();
     await expect(page.getByTestId("agent-tool-result-search_project_assets").first()).toBeVisible({
       timeout: 120_000,
     });

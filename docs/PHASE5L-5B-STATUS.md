@@ -1,7 +1,8 @@
 # Phase 5L-B — Workspace Coherence & Delivery UX
 
-**Status:** IMPLEMENTED (VPS acceptance pending)  
-**Baseline:** Phase 5L-A ACCEPTED (`a330c28` docs chain, deploy `e06182c8`)
+**Status:** IMPLEMENTED (5L-B acceptance in progress)  
+**Git:** **`20539645`** (feat) + **`c248829`** (e2e auto-nav helpers)  
+**Runtime (VPS):** API/Web/Worker **`20539645`**
 
 ## Delivered
 
@@ -28,7 +29,14 @@ Unchanged: `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_
 
 **5L-C** (scene job gallery, brief smoke bundle, full `PHASE5L_ALL_PASS`) — not started.
 
-## VPS acceptance (fill after run)
+## VPS evidence (partial)
+
+| Run | Result |
+|-----|--------|
+| Idempotency + media guard | PASS |
+| `regression-strict` | **8/8** (~13m) @ deploy **`20539645`** |
+| `phase5-agent-integration` | 1/2 then e2e helper fixes — re-run after **`c248829`** |
+| `phase5-unified-studio` | pending full run |
 
 ```bash
 bash /var/www/ai.shotbro.ru-src/infra/scripts/phase5l-b-acceptance-e2e.sh
