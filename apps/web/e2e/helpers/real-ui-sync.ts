@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { gotoStudioSection } from "./phase5-creative-ui";
+import { ensureRealCreateVisible } from "./real-login";
 import { pinRealProjectOnReload } from "./real-studio-state";
 
 type MessageRow = {
@@ -58,9 +59,19 @@ export async function scrollRealThreadToBottom(page: Page) {
 }
 
 /** After API gate passes, reload once so React Query refetches even if SSE was missed. */
+async function ensureRealProjectRowVisible(page: Page, projectId: string) {
+  const row = page.getByTestId(`real-project-${projectId}`);
+  if (await row.isVisible().catch(() => false)) return;
+  await ensureRealCreateVisible(page);
+  const projects = page.getByRole("button", { name: "Проекты" });
+  if (await projects.isVisible().catch(() => false)) await projects.click();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+}
+
 export async function resyncRealThreadFromApi(page: Page, projectId: string) {
   await pinRealProjectOnReload(page, projectId, "chat", { creativeAutoNavigate: false });
   await gotoStudioSection(page, projectId, "chat");
+  await ensureRealProjectRowVisible(page, projectId);
   await page.getByTestId(`real-project-${projectId}`).click();
   await page.getByTestId("creative-section-chat").click();
   await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 90_000 });
