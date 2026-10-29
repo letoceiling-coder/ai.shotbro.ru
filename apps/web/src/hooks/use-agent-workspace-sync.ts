@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@shotbro/contracts";
 import type { AgentToolResultBlockSchema } from "@shotbro/contracts";
 import type { z } from "zod";
+import { useStudioStore, type CreativeSection } from "@/store/studio-store";
 
 type AgentToolBlock = z.infer<typeof AgentToolResultBlockSchema>;
 
 function isAgentToolBlock(block: { type: string }): block is AgentToolBlock {
   return block.type === "agent_tool_result";
 }
-import { useStudioStore, type CreativeSection } from "@/store/studio-store";
 
 function composerHasFocus() {
   const el = document.activeElement;
@@ -29,6 +29,17 @@ export function useAgentWorkspaceAutoNav(messages: ChatMessage[]) {
   const setSection = useStudioStore((s) => s.setCreativeSection);
   const setFocus = useStudioStore((s) => s.setAgentFocus);
   const seen = useRef(new Set<string>());
+  const [focusEpoch, setFocusEpoch] = useState(0);
+
+  useEffect(() => {
+    const bump = () => setFocusEpoch((n) => n + 1);
+    document.addEventListener("focusin", bump);
+    document.addEventListener("focusout", bump);
+    return () => {
+      document.removeEventListener("focusin", bump);
+      document.removeEventListener("focusout", bump);
+    };
+  }, []);
 
   useEffect(() => {
     if (!envAutoNavEnabled() || !autoNavigate) return;
@@ -39,9 +50,12 @@ export function useAgentWorkspaceAutoNav(messages: ChatMessage[]) {
         if (!isAgentToolBlock(block)) continue;
         const key = `${msg.id}:${block.toolName}:${block.sceneId ?? ""}:${block.assetId ?? ""}`;
         if (seen.current.has(key)) continue;
-        seen.current.add(key);
-        if (!block.success || !block.deepLink) continue;
+        if (!block.success || !block.deepLink) {
+          seen.current.add(key);
+          continue;
+        }
         if (composerHasFocus()) continue;
+        seen.current.add(key);
         setFocus({
           sceneId: block.deepLink.sceneId,
           assetId: block.deepLink.assetId ?? block.assetId,
@@ -50,5 +64,5 @@ export function useAgentWorkspaceAutoNav(messages: ChatMessage[]) {
         setSection(block.deepLink.creativeSection as CreativeSection);
       }
     }
-  }, [messages, autoNavigate, setFocus, setSection]);
+  }, [messages, autoNavigate, setFocus, setSection, focusEpoch]);
 }

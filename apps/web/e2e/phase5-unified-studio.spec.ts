@@ -55,19 +55,14 @@ test.describe("Phase 5L-B unified studio coherence", () => {
       ),
     );
 
+    const toolCard = page.getByTestId("agent-tool-result-set_scene_first_frame_by_ordinal").first();
+    await expect(toolCard).toBeVisible({ timeout: 120_000 });
+
     const storyboardTab = page.getByTestId("creative-section-storyboard");
-    await expect
-      .poll(
-        async () => {
-          if ((await storyboardTab.getAttribute("data-active")) === "true") return true;
-          const input = page.getByTestId("real-composer-input");
-          if (await input.isVisible().catch(() => false)) await input.blur();
-          else await page.getByTestId("creative-section-brief").click();
-          return (await storyboardTab.getAttribute("data-active")) === "true";
-        },
-        { timeout: 120_000, intervals: [500, 1000, 2000] },
-      )
-      .toBe(true);
+    if ((await storyboardTab.getAttribute("data-active")) !== "true") {
+      await toolCard.click();
+    }
+    await expect(storyboardTab).toHaveAttribute("data-active", "true", { timeout: 60_000 });
     await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 60_000 });
 
     const storyboard = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
