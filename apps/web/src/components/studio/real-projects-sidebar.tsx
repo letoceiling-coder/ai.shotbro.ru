@@ -94,6 +94,7 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
         <button
           key={p.id}
           type="button"
+          data-testid={`real-project-${p.id}`}
           onClick={() => {
             setActiveRealProject(p.id);
             onNavigate?.();
