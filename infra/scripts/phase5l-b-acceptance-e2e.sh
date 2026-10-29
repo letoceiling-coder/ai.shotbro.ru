@@ -10,7 +10,14 @@ run() {
   local mode="$1"
   local log="${LOGDIR}/${mode}-${SHA}.log"
   echo "==> ${mode} -> ${log}"
+  set +e
   bash "${ROOT}/infra/scripts/staging-playwright-e2e.sh" "$ROOT" "$mode" 2>&1 | tee "$log"
+  local ec="${PIPESTATUS[0]}"
+  set -e
+  if [ "$ec" -ne 0 ]; then
+    echo "FAIL mode=${mode} exit=${ec} sha=${SHA} $(date -Is)" >&2
+    exit "$ec"
+  fi
 }
 
 echo "PHASE5L-B acceptance start sha=${SHA} $(date -Is)"

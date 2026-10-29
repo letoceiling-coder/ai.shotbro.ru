@@ -1,11 +1,21 @@
 # Phase 5L-B — Workspace Coherence & Delivery UX
 
-**Status:** IMPLEMENTED — **acceptance recovery in progress** (full green pending VPS run)  
+**Status:** IMPLEMENTED — **NOT ACCEPTED** (VPS unreachable 2026-10-29; acceptance blocked)  
+**Git (origin):** **`c346eca`** (docs) · **acceptance target:** **`c089f793`** (+ runner script on next push)  
 **Implementation baseline:** **`20539645`**  
-**Acceptance git (E2E + web fixes):** **`c089f793`**  
-**Runtime (last confirmed VPS):** Web **`01c49cd2`** → deploy **`c089f793`** started (verify after SSH restore); API/Worker **`20539645`**
+**Last confirmed runtime (VPS SSH OK):** Web **`01c49cd2`** · API/Worker **`20539645`** · deploy **`c089f793`** **unverified** (build interrupted)
 
-## Delivered (unchanged)
+## VPS diagnostics (2026-10-29, agent environment)
+
+| Check | Result | Notes |
+|-------|--------|--------|
+| SSH `root@85.117.235.93` (BatchMode, 25–40s) | **timeout** | Not proof of host power-off alone |
+| HTTPS `https://ai.shotbro.ru/api/v1/health/live` | **504** (WebFetch) / **curl timeout** (local) | Edge or upstream down |
+| TCP :22 from agent | **not confirmed** (Test-NetConnection slow) | Needs provider console / alternate path |
+
+**Action:** restore host/network (provider panel, Caddy/Docker on VPS). **No** blind reboot/firewall changes from this recovery pass.
+
+## Delivered (product)
 
 | ID | Item |
 |----|------|
@@ -13,39 +23,37 @@
 | **5L-5** | `creativeAutoNavigate`, settings toggle, `useAgentWorkspaceAutoNav` |
 | **5L-6** | `shotbro-asset://` refs, video/audio preview API, chat + Production players |
 
-## Acceptance recovery — RCA (2026-10-29)
+## Test / product RCA (pre-outage)
 
-| Issue | Root cause | Fix (commit) |
-|-------|------------|--------------|
-| `phase5-agent-integration` 2/2 smoke | NL asked for **2nd scene** with **1** script scene; tool card assertion flaky | `04e081f` search-only NL + API gate |
-| `real-thread` missing after reload | **Sidebar race:** before Zustand rehydrate, `activeRealProjectId` defaulted to **first** project in list | `440240b` / `01c49cd` read persisted id from localStorage |
-| Tool card not visible after API pass | Auto-nav on **storyboard** unmounts chat; reload opened **wrong** project | E2E: explicit `real-project-{id}` click (`c089f793`), chat tab, scroll |
-| `resyncRealThreadFromApi` brittle | Same project-pin race + strict thread visibility | `660a8b4` hardened; prefer `gotoStudioSection` / explicit project click |
+| Issue | Fix commit |
+|-------|------------|
+| Agent smoke NL vs 1 scene | `04e081f` |
+| Sidebar wrong project after reload | `01c49cd` / `440240b` |
+| Auto-nav hides chat in E2E | `c089f793` (`real-project-{id}`, chat tab) |
 
-## VPS evidence (partial)
+## VPS evidence (partial, before outage)
 
-| Step | Result | Log |
-|------|--------|-----|
-| Idempotency smoke | PASS | (in bundle log) |
-| Media guard | PASS | `PHASE5K_MEDIA_GUARD_PASS` |
-| `regression-strict` | **8/8** @ `20539645` | `/var/log/shotbro-e2e/regression-strict-20539645.log` (prior run) |
-| `phase5-agent-integration` | **1/2** until `c089f793` | `/var/log/shotbro-e2e/phase5-agent-integration-*.log` |
-| Full `phase5l-b-acceptance-e2e.sh` | **exit 1** (agent smoke) | `/var/log/shotbro-e2e/phase5l-b-acceptance-01c49cd2.log` |
-| **`PHASE5L_B_ALL_PASS`** | **not yet** | — |
+| Suite | Result |
+|-------|--------|
+| Idempotency + media guard | PASS |
+| `regression-strict` | **8/8** @ `20539645` |
+| `phase5-agent-integration` | **1/2** before `c089f793` |
+| Full bundle | **exit 1** — `/var/log/shotbro-e2e/phase5l-b-acceptance-01c49cd2.log` |
+| **`PHASE5L_B_ALL_PASS`** | **no** |
 
-## Run acceptance (when VPS reachable)
+## Run acceptance (after SSH + health OK)
 
 ```bash
 cd /var/www/ai.shotbro.ru-src
-git fetch origin c089f793c14dc03e6ea00146a4d874e139941f1c
-git reset --hard c089f793c14dc03e6ea00146a4d874e139941f1c
+git fetch origin && git reset --hard c089f793c14dc03e6ea00146a4d874e139941f1c
 chmod +x infra/scripts/*.sh
-bash infra/scripts/staging-deploy.sh --service web c089f79   # if web label != c089f793
-bash infra/scripts/phase5l-b-acceptance-e2e.sh 2>&1 | tee /var/log/shotbro-e2e/phase5l-b-acceptance-c089f793.log
-echo EXIT_CODE=$?
+# Verify labels: docker inspect infra-web-1 ai-shotbro-staging-api-1 ai-shotbro-staging-worker-1
+bash infra/scripts/staging-deploy.sh --service web c089f79   # if web != c089f793
+bash infra/scripts/phase5l-b-acceptance-run.sh
+# Log: /var/log/shotbro-e2e/phase5l-b-acceptance-<sha>.log — must end with EXIT_CODE=0 and PHASE5L_B_ALL_PASS
 ```
 
-Require: **`PHASE5L_B_ALL_PASS`**, **exit 0**, sequential single runner.
+**Criteria:** agent-integration **2/2**, regression **8/8**, unified-studio **PASS**, smokes PASS, **exit 0**, mock media only.
 
 ## Mock policy
 
@@ -53,4 +61,4 @@ Unchanged: `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_
 
 ## Not in scope
 
-**Phase 5L-C** not started. Do **not** declare full Phase 5L complete.
+**Phase 5L-C** not started until **5L-B ACCEPTED**.

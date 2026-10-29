@@ -1,13 +1,14 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (local / origin):** **`c089f793`** (5L-B acceptance recovery)  
-**VPS src (target):** **`c089f793`** · **Web runtime (target):** **`c089f793`** · **API/Worker:** **`20539645`**  
+**Git HEAD (local / origin):** **`c346eca`** (5L-B docs; code target **`c089f793`**)  
+**VPS staging:** **unreachable** 2026-10-29 (SSH timeout; health 504) — acceptance **blocked**  
+**Last known runtime:** Web **`01c49cd2`** · API/Worker **`20539645`**  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
 **Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  
 **Phase 5L-A:** **ACCEPTED** — `PHASE5L-5A-STATUS.md` (5L-1 router v2, 5L-3 idempotency)  
-**Phase 5L-B:** **IMPLEMENTED** (VPS acceptance pending) — `PHASE5L-5B-STATUS.md` (5L-4/5/6)  
+**Phase 5L-B:** **IMPLEMENTED, NOT ACCEPTED** — `PHASE5L-5B-STATUS.md` (VPS outage blocks sign-off)  
 **Phase 5L-C:** not started — full `PHASE5L_ALL_PASS` / gallery / brief bundle  
 **P0 UI Recovery:** **ACCEPTED**
 
@@ -15,8 +16,8 @@
 
 | Service | `org.shotbro.build-sha` | Image (runtime) | Notes |
 |---------|-------------------------|-----------------|--------|
-| Web | **e06182c8** | `infra-web-1` | unified intent router → createRun / creative-turn |
-| API | **e06182c8** | `ai-shotbro-staging-api-1` | creative-turn idempotency; deploy matches git |
+| Web | **01c49cd2** (last confirmed) | `infra-web-1` | 5L-B sidebar rehydrate; target **c089f793** |
+| API | **20539645** (last confirmed) | `ai-shotbro-staging-api-1` | 5L-B delivery + idempotency |
 | Worker | **366716e** | `ai-shotbro-staging-worker-1` | Upload processing → READY |
 
 **Mock policy:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_GENERATION_ENABLED=false` — **0 live media jobs**. OpenRouter allowed for **creative LLM only** when configured.
