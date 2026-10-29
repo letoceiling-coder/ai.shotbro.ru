@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { gotoStudioSection } from "./phase5-creative-ui";
 import { pinRealProjectOnReload } from "./real-studio-state";
 
 type MessageRow = {
@@ -58,13 +59,9 @@ export async function scrollRealThreadToBottom(page: Page) {
 
 /** After API gate passes, reload once so React Query refetches even if SSE was missed. */
 export async function resyncRealThreadFromApi(page: Page, projectId: string) {
-  await pinRealProjectOnReload(page, projectId, "chat");
-  await page.goto("/studio", { waitUntil: "domcontentloaded" });
-  await expect(page.getByTestId("creative-workspace")).toBeVisible({ timeout: 90_000 });
-  const chatTab = page.getByTestId("creative-section-chat");
-  if (await chatTab.isVisible().catch(() => false)) {
-    await chatTab.click();
-  }
+  await gotoStudioSection(page, projectId, "chat");
+  await page.getByTestId(`real-project-${projectId}`).click();
+  await page.getByTestId("creative-section-chat").click();
   await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 90_000 });
   await scrollRealThreadToBottom(page);
 }
