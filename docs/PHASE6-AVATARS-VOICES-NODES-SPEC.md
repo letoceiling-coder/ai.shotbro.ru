@@ -1,6 +1,6 @@
 # Phase 6 — Аватары, голоса, нодовый холст сцен и подтверждаемые генерации
 
-**Статус:** 6A РЕАЛИЗОВАН в Git (не задеплоен, не принят) · 6B–6G не начаты  
+**Статус:** 6A ЗАДЕПЛОЕН на staging и проверен (API `763af2c7`) · 6B–6G не начаты  
 **Дата:** 2026-10-30 · **Базовый Git:** `74324c7` (`phase5/creative-studio`)  
 **Зависимость:** Phase 5L-B **ACCEPTED** (`PHASE5L_B_ALL_PASS`, `74324c74`, 2026-10-29).  
 **Политика на время разработки:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_GENERATION_ENABLED=false`. Реальные вызовы HeyGen / ElevenLabs / Fal — только на этапе 6G по отдельному разрешению.
@@ -211,3 +211,14 @@ canvas (production_document, новый docType SCENE_CANVAS)
 | Тесты | `talent-providers.contract.test.ts` (18), `phase6-talent.integration.spec.ts` (IDOR, согласие, связи; запуск на staging после миграции) |
 
 Платных endpoint'ов в 6A нет: клонирование, дизайн голоса и обучение аватара появятся в 6B/6C только через approval.
+
+### Staging (2026-10-29 UTC)
+
+| Шаг | Результат |
+|---|---|
+| Бэкап БД до миграции | `/var/backups/shotbro/staging-pre-0007-20261029-222449.dump` (7,7 МБ, 34 таблицы) |
+| Миграция `0007` | применена, таблицы `voice_profile`, `avatar_profile`, `avatar_look` созданы |
+| Деплой API | `763af2c7`, healthy, `/health/ready` ok; web `74324c74`, worker `20539645` без изменений |
+| `phase6a-talent-integration.sh` | **11/11**, `PHASE6A_TALENT_INTEGRATION_PASS` — лог `phase6a-talent-integration-763af2c7.log` |
+| `regression-strict` | **8/8**, `EXIT_CODE=0` — лог `regression-strict-763af2c7.log` |
+| Mock-политика | без изменений: `AI_MOCK_MODE=true`, live/media выключены |
