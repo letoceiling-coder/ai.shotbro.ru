@@ -1,7 +1,8 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (local / origin / VPS src, 2026-10-29):** **`42a37853`** (5L-A acceptance scripts; deploy **`e06182c8`**)  
+**Git HEAD (local / origin):** **`c089f793`** (5L-B acceptance recovery)  
+**VPS src (target):** **`c089f793`** · **Web runtime (target):** **`c089f793`** · **API/Worker:** **`20539645`**  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
 **Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  
