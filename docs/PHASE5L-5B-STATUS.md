@@ -1,19 +1,20 @@
 # Phase 5L-B — Workspace Coherence & Delivery UX
 
-**Status:** IMPLEMENTED — **NOT ACCEPTED** (VPS unreachable 2026-10-29; acceptance blocked)  
-**Git (origin):** **`c346eca`** (docs) · **acceptance target:** **`c089f793`** (+ runner script on next push)  
+**Status:** IMPLEMENTED — **NOT ACCEPTED** (P0 infra — see `P0-VPS-INFRASTRUCTURE-RECOVERY.md`)  
+**Git (origin):** **`fffce7d`** · **web/code target:** **`c089f793`**  
 **Implementation baseline:** **`20539645`**  
 **Last confirmed runtime (VPS SSH OK):** Web **`01c49cd2`** · API/Worker **`20539645`** · deploy **`c089f793`** **unverified** (build interrupted)
 
-## VPS diagnostics (2026-10-29, agent environment)
+## VPS diagnostics (2026-10-29, repeated)
 
-| Check | Result | Notes |
-|-------|--------|--------|
-| SSH `root@85.117.235.93` (BatchMode, 25–40s) | **timeout** | Not proof of host power-off alone |
-| HTTPS `https://ai.shotbro.ru/api/v1/health/live` | **504** (WebFetch) / **curl timeout** (local) | Edge or upstream down |
-| TCP :22 from agent | **not confirmed** (Test-NetConnection slow) | Needs provider console / alternate path |
+| Check | Result |
+|-------|--------|
+| DNS `ai.shotbro.ru` | **85.117.235.93** OK |
+| SSH :22 | **timeout** |
+| HTTPS `/api/v1/health/live` | **504** (edge) / **curl timeout** (client TCP) |
+| Acceptance run | **blocked** — no SSH |
 
-**Action:** restore host/network (provider panel, Caddy/Docker on VPS). **No** blind reboot/firewall changes from this recovery pass.
+**Operator playbook:** `docs/P0-VPS-INFRASTRUCTURE-RECOVERY.md` §3–4.
 
 ## Delivered (product)
 

@@ -1,8 +1,8 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (local / origin):** **`c346eca`** (5L-B docs; code target **`c089f793`**)  
-**VPS staging:** **unreachable** 2026-10-29 (SSH timeout; health 504) — acceptance **blocked**  
+**Git HEAD (origin):** **`fffce7d`** · **5L-B code:** **`c089f793`**  
+**P0:** VPS **unreachable** — `P0-VPS-INFRASTRUCTURE-RECOVERY.md` · **5L-B NOT ACCEPTED**  
 **Last known runtime:** Web **`01c49cd2`** · API/Worker **`20539645`**  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
