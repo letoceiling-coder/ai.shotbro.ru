@@ -1,8 +1,8 @@
 # P0 — VPS infrastructure recovery (85.117.235.93)
 
 **Context:** Phase **5L-B** blocked — staging unreachable.  
-**Git acceptance target:** `fffce7d` (runner) · code **`c089f793`** · API/Worker last known **`20539645`**.  
-**Updated:** 2026-10-29
+**Git acceptance target:** `253cbb0` / `fffce7d` (runner) · Web **`c089f793`** · API/Worker last known **`20539645`**.  
+**Updated:** 2026-10-29 (second external pass)
 
 ---
 
@@ -10,10 +10,12 @@
 
 | Layer | Check | Result (2026-10-29) | Interpretation |
 |-------|--------|------------------------|----------------|
-| DNS | `ai.shotbro.ru` → A record | **85.117.235.93** | DNS OK |
-| TCP :443 (local curl) | `curl -m 12 https://ai.shotbro.ru/.../health/live` | **timeout**, HTTP=000 | No TCP completion from this path **or** SYN blackholed |
-| HTTPS (edge fetch) | same URL | **504 Gateway Timeout** | Resolver + edge exist; **origin/backend not responding in time** |
-| SSH :22 | `ssh -o BatchMode -o ConnectTimeout=25 root@85.117.235.93` | **timeout** | Shell/admin path down (host firewalled, sshd hung, or host/network down) |
+| DNS | `ai.shotbro.ru` → A record | **85.117.235.93** | DNS OK — not a nameserver issue |
+| TCP :22 | `Test-NetConnection` / SSH | **False** / **timeout** | No SSH — **network or host** (not app-only) |
+| TCP :80 / :443 | `Test-NetConnection` | **False** (80 confirmed; 443 same path) | **No listener or path blocked** — Caddy/reverse proxy unreachable from outside |
+| HTTPS | `curl.exe --max-time 20` …/health/live | **timeout**, HTTP=000 | Same as TCP — agent cannot reach origin |
+| SSH | `ssh -o ConnectTimeout=15 BatchMode` | **Connection timed out** | No console evidence; **provider VNC/serial required** |
+| Docker / Caddy / app | — | **not testable** | Blocked until host TCP/SSH returns |
 
 **Conclusion:** Not a Git or test defect. **Host or network path to 85.117.235.93 is impaired.** SSH and direct HTTPS fail together → prioritize **provider console / out-of-band** access.
 
@@ -76,8 +78,8 @@ curl -sS -m 5 http://127.0.0.1:3021/api/v1/health/live || true
 
 ```bash
 cd /var/www/ai.shotbro.ru-src
-git fetch origin fffce7d947297e1ea685c30eb410d7738747daf5
-git reset --hard fffce7d947297e1ea685c30eb410d7738747daf5
+git fetch origin phase5/creative-studio
+git reset --hard 253cbb0   # or latest origin/phase5/creative-studio
 chmod +x infra/scripts/*.sh
 
 # Web must include c089f793 (sidebar testid + rehydrate)
