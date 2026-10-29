@@ -108,3 +108,34 @@ If **SSH and provider console are unavailable to the agent**, recovery **cannot*
 ## 6. Post-recovery documentation
 
 Update `PHASE5L-5B-STATUS.md` → **ACCEPTED** only after §4 green. Update `PHASE5-PROGRESS.md` runtime SHAs. **Do not start 5L-C** until then.
+
+---
+
+## 7. Cursor Agent — SSH and acceptance (no long waits)
+
+**Beget VPS:** `85.117.235.93` · **NL (read-only transit):** alias `neeklo-vps` → `31.207.5.233` in `~/.ssh/config`. There is **no** `ProxyJump` entry for Beget on this PC; use the **working** path (direct `root@85.117.235.93` with `id_rsa` if it connects in ~2s). **Do not change anything on NL.**
+
+**SSH options (every call):** `BatchMode=yes`, `ConnectTimeout=10`, `ServerAliveInterval=10`, `ServerAliveCountMax=2`.
+
+**Forbidden inside remote shell:** `sleep 90`, `sleep 7200`, or blocking on test completion in one SSH session.
+
+**Before starting acceptance:**
+
+```bash
+tmux ls
+fuser /var/run/shotbro-phase5l-b-acceptance.lock 2>/dev/null || true
+pgrep -af 'phase5l-b-acceptance|playwright test' || true
+tail -3 /var/log/shotbro-e2e/phase5l-b-acceptance-*.log
+```
+
+If flock/tmux runner is active → **do not** `tmux kill-session` and **do not** start a second run.
+
+**Start once (returns immediately):**
+
+```bash
+tmux new-session -d -s p5lba 'cd /var/www/ai.shotbro.ru-src && bash infra/scripts/phase5l-b-acceptance-run.sh'
+```
+
+**Poll from the agent (separate short SSH, ~5s each):** `grep -E '==>|PHASE5L_B_ALL_PASS|EXIT_CODE' …/phase5l-b-acceptance-*.log | tail -15`
+
+**SSH down:** at most **two** 10s probes; then stop and report. **No** ACCEPTED without `PHASE5L_B_ALL_PASS` and `EXIT_CODE=0`.
