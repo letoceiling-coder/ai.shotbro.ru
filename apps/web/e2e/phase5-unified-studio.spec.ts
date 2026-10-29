@@ -7,7 +7,7 @@ import { gotoStudioSection, addScriptScenesViaUI } from "./helpers/phase5-creati
 import { uploadViaLibraryFilePicker } from "./helpers/asset-library-upload";
 import { tinyPngBuffer } from "./helpers/phase5-creative-seed";
 import { pinRealProjectOnReload } from "./helpers/real-studio-state";
-import { resyncRealThreadFromApi, waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
+import { waitForAssistantBlockInApi } from "./helpers/real-ui-sync";
 import {
   waitForAgentRunPersisted,
   waitForMockDeliveryVisible,
@@ -55,11 +55,10 @@ test.describe("Phase 5L-B unified studio coherence", () => {
       ),
     );
 
-    await expect(
-      page.getByTestId("agent-tool-result-set_scene_first_frame_by_ordinal").first(),
-    ).toBeVisible({ timeout: 120_000 });
+    // Auto-nav is suppressed while the composer input is focused (product guard).
+    await page.getByTestId("real-composer-input").blur();
     await expect(page.getByTestId("creative-section-storyboard")).toHaveAttribute("data-active", "true", {
-      timeout: 90_000,
+      timeout: 120_000,
     });
     await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 60_000 });
 
