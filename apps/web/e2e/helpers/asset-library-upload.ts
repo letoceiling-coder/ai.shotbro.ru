@@ -81,7 +81,27 @@ export async function waitForAnyAssetCardVisible(page: Page, projectId: string, 
       { timeout: timeoutMs, intervals: [500, 1000, 2000] },
     )
     .toBe(true);
-  await expect(page.getByTestId(/asset-card-/).first()).toBeVisible({ timeout: timeoutMs });
+  const card = page.getByTestId(/asset-card-/).first();
+  await expect
+    .poll(
+      async () => {
+        if (await card.isVisible().catch(() => false)) return true;
+        const refetch = page
+          .waitForResponse(
+            (r) =>
+              r.url().includes(`/projects/${projectId}/assets`) &&
+              r.request().method() === "GET" &&
+              r.ok(),
+            { timeout: 30_000 },
+          )
+          .catch(() => null);
+        await page.getByTestId("creative-section-assets").click();
+        await refetch;
+        return card.isVisible().catch(() => false);
+      },
+      { timeout: timeoutMs, intervals: [500, 1000, 2000] },
+    )
+    .toBe(true);
 }
 
 export async function pollAssetReady(
