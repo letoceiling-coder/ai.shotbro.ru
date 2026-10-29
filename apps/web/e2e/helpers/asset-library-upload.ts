@@ -68,6 +68,22 @@ export async function uploadViaLibraryDrop(page: Page, file: UploadFilePayload) 
 
 type AssetListItem = { id: string; status: string; originalName: string };
 
+/** API gate + UI card after library upload (SSE/query lag on busy VPS). */
+export async function waitForAnyAssetCardVisible(page: Page, projectId: string, timeoutMs = 120_000) {
+  await expect
+    .poll(
+      async () => {
+        const r = await page.request.get(`/api/v1/projects/${projectId}/assets?limit=12`);
+        if (!r.ok()) return false;
+        const j = (await r.json()) as { items?: AssetListItem[] };
+        return (j.items ?? []).length > 0;
+      },
+      { timeout: timeoutMs, intervals: [500, 1000, 2000] },
+    )
+    .toBe(true);
+  await expect(page.getByTestId(/asset-card-/).first()).toBeVisible({ timeout: timeoutMs });
+}
+
 export async function pollAssetReady(
   page: Page,
   projectId: string,
