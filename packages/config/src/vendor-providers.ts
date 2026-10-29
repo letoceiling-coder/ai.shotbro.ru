@@ -23,3 +23,15 @@ export function getElevenLabsConfig(env: AppEnv): ElevenLabsServerConfig {
     baseUrl: env.ELEVENLABS_BASE_URL,
   };
 }
+
+export type HeyGenServerConfig = {
+  hasApiKey: boolean;
+  baseUrl: string;
+};
+
+export function getHeyGenConfig(env: AppEnv): HeyGenServerConfig {
+  return {
+    hasApiKey: Boolean(env.HEYGEN_API_KEY && env.HEYGEN_API_KEY.length > 8),
+    baseUrl: env.HEYGEN_BASE_URL,
+  };
+}

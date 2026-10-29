@@ -1,12 +1,38 @@
-import { ProxyAgent, fetch as undiciFetch } from "undici";
+import { Blob } from "node:buffer";
+import { FormData, ProxyAgent, fetch as undiciFetch, type BodyInit } from "undici";
+
+export type MultipartPart =
+  | { name: string; value: string }
+  | { name: string; filename: string; contentType: string; data: Buffer };
 
 export type HttpRequest = {
   method: "GET" | "POST" | "DELETE";
   url: string;
   headers?: Record<string, string>;
+  /** JSON body (default encoding). */
   body?: unknown;
+  /** Binary body sent as-is (e.g. HeyGen asset upload). Takes precedence over `body`. */
+  rawBody?: Buffer;
+  /** multipart/form-data parts (e.g. ElevenLabs voice cloning). Takes precedence over `body`. */
+  multipart?: MultipartPart[];
   timeoutMs?: number;
 };
+
+function encodeBody(req: HttpRequest): BodyInit | undefined {
+  if (req.multipart) {
+    const form = new FormData();
+    for (const part of req.multipart) {
+      if ("data" in part) {
+        form.append(part.name, new Blob([new Uint8Array(part.data)], { type: part.contentType }), part.filename);
+      } else {
+        form.append(part.name, part.value);
+      }
+    }
+    return form;
+  }
+  if (req.rawBody) return new Uint8Array(req.rawBody);
+  return req.body != null ? JSON.stringify(req.body) : undefined;
+}
 
 export type HttpResponse = {
   status: number;
@@ -53,7 +79,7 @@ async function performFetch(
   const init = {
     method: req.method,
     headers: req.headers,
-    body: req.body != null ? JSON.stringify(req.body) : undefined,
+    body: encodeBody(req),
     signal,
   };
   if (via === "proxy" && proxyUrl) {

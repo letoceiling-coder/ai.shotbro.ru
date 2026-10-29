@@ -159,6 +159,10 @@ export const CharacterProfileSchema = z.object({
   voiceNotes: z.string().optional(),
   referenceAssetIds: z.array(z.string()).default([]),
   primaryReferenceAssetId: z.string().optional(),
+  /** Phase 6: reusable workspace talent (avatar + voice) linked to this project character. */
+  voiceProfileId: z.string().optional(),
+  avatarProfileId: z.string().optional(),
+  avatarLookId: z.string().optional(),
   sceneIds: z.array(z.string()).default([]),
   version: z.number().int().positive().default(1),
   history: z.array(z.object({ version: z.number(), snapshot: z.record(z.unknown()) })).optional(),

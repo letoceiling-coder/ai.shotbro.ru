@@ -51,6 +51,10 @@ export const envSchema = z
     MAGNIFIC_WEBHOOK_SECRET: emptyToUndefined,
     ELEVENLABS_API_KEY: emptyToUndefined,
     ELEVENLABS_BASE_URL: z.string().url().default("https://api.elevenlabs.io"),
+    /** Phase 6: HeyGen persistent photo avatars + avatar video (VPS staging.env only; never commit) */
+    HEYGEN_API_KEY: emptyToUndefined,
+    HEYGEN_BASE_URL: z.string().url().default("https://api.heygen.com"),
+    HEYGEN_WEBHOOK_SECRET: emptyToUndefined,
 
     /** Phase 3: force mock adapters and block external inference */
     AI_MOCK_MODE: boolFromEnv.default(true),
@@ -70,6 +74,13 @@ export const envSchema = z
     FAL_PROVIDER_ENABLED: boolFromEnv.default(false),
     ELEVENLABS_PROVIDER_ENABLED: boolFromEnv.default(false),
     MAGNIFIC_PROVIDER_ENABLED: boolFromEnv.default(false),
+    HEYGEN_PROVIDER_ENABLED: boolFromEnv.default(false),
+    /** Phase 6 feature switches (still require live policy + vendor switch) */
+    VOICE_CLONING_ENABLED: boolFromEnv.default(false),
+    AVATAR_GENERATION_ENABLED: boolFromEnv.default(false),
+    /** Phase 6 minimal budget caps for live media (USD) */
+    MEDIA_RUN_MAX_COST_USD: z.coerce.number().min(0).max(100).default(1),
+    MEDIA_USER_DAILY_MAX_USD: z.coerce.number().min(0).max(500).default(3),
     /** Allow OpenRouter as simulated fallback target in routing (not live calls) */
     OPENROUTER_FALLBACK_ROUTING_ENABLED: boolFromEnv.default(true),
 

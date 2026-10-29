@@ -50,6 +50,13 @@
       "when": 1792830000000,
       "tag": "0006_provider_route_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793350000000,
+      "tag": "0007_talent_profiles",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
 import type { Db } from "@shotbro/db/client";
-import { project, workspaceMember } from "@shotbro/db/schema";
+import { project, workspace, workspaceMember } from "@shotbro/db/schema";
 
 @Injectable()
 export class AccessPolicyService {
@@ -28,5 +28,22 @@ export class AccessPolicyService {
 
     if (!member[0]) throw new ForbiddenException("Access denied");
     return { workspaceId: row.workspaceId };
+  }
+
+  /** Phase 6: workspace-scoped resources (avatars, voices). Owner or member only. */
+  async assertWorkspaceAccess(db: Db, userId: string, workspaceId: string): Promise<void> {
+    const rows = await db
+      .select({ ownerId: workspace.ownerId })
+      .from(workspace)
+      .where(eq(workspace.id, workspaceId))
+      .limit(1);
+    if (!rows[0]) throw new ForbiddenException("Workspace not found");
+    if (rows[0].ownerId === userId) return;
+    const member = await db
+      .select()
+      .from(workspaceMember)
+      .where(and(eq(workspaceMember.workspaceId, workspaceId), eq(workspaceMember.userId, userId)))
+      .limit(1);
+    if (!member[0]) throw new ForbiddenException("Access denied");
   }
 }

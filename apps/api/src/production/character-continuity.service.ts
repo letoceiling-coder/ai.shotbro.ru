@@ -6,6 +6,18 @@ import { DB } from "../database/database.module";
 import { AccessPolicyService } from "../access/access-policy.service";
 import { ProjectMemoryService } from "./project-memory.service";
 import { ProductionGraphService } from "./production-graph.service";
+
+type TalentKey = "voiceProfileId" | "avatarProfileId" | "avatarLookId";
+
+function talentField(
+  input: Partial<Record<TalentKey, string | null | undefined>>,
+  prev: Partial<Record<TalentKey, string | undefined>> | null,
+  key: TalentKey,
+): string | undefined {
+  if (key in input) return input[key] ?? undefined;
+  return prev?.[key];
+}
+
 @Injectable()
 export class CharacterContinuityService {
   constructor(
@@ -48,6 +60,10 @@ export class CharacterContinuityService {
       voiceNotes: input.voiceNotes ?? prev?.voiceNotes,
       referenceAssetIds: input.referenceAssetIds ?? prev?.referenceAssetIds ?? [],
       primaryReferenceAssetId: input.primaryReferenceAssetId ?? prev?.primaryReferenceAssetId,
+      // Phase 6 talent links: key present → set (null clears), key absent → keep previous.
+      voiceProfileId: talentField(input, prev, "voiceProfileId"),
+      avatarProfileId: talentField(input, prev, "avatarProfileId"),
+      avatarLookId: talentField(input, prev, "avatarLookId"),
       sceneIds: input.sceneIds ?? prev?.sceneIds ?? [],
       version: nextVersion,
       history: history.slice(-20),

@@ -25,7 +25,18 @@ export type NormalizedProviderError = {
 export type ProviderSubmitResult = {
   providerJobId?: string;
   status: "SUBMITTED" | "COMPLETED";
-  outputs?: Array<{ url?: string; assetId?: string; mimeType?: string; mock?: boolean }>;
+  outputs?: Array<{
+    url?: string;
+    assetId?: string;
+    mimeType?: string;
+    mock?: boolean;
+    /** Provider-side id of the produced entity (voice_id, generated_voice_id, look id). */
+    externalId?: string;
+    /** Inline media (e.g. ElevenLabs Voice Design previews); ingested into MinIO, never exposed. */
+    base64?: string;
+    durationSecs?: number;
+    label?: string;
+  }>;
   usage?: Record<string, unknown>;
 };
 
@@ -61,3 +72,9 @@ export const VideoOperationSchema = z.enum([
 ]);
 
 export const AudioOperationSchema = z.enum(["TEXT_TO_SPEECH"]);
+
+/** Phase 6: ElevenLabs voice creation (IVC clone, Voice Design previews, save designed voice). */
+export const VoiceOperationSchema = z.enum(["VOICE_CLONE", "VOICE_DESIGN", "VOICE_SAVE"]);
+
+/** Phase 6: HeyGen photo avatar training and avatar (talking photo) video. */
+export const AvatarOperationSchema = z.enum(["AVATAR_TRAIN", "AVATAR_VIDEO"]);

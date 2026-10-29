@@ -51,3 +51,12 @@ export { OpenRouterImageAdapter, OpenRouterVideoAdapter, OpenRouterTtsAdapter } 
 export * from "./providers/provider-http-errors.js";
 export * from "./model-catalog/phase4-model-catalog.js";
 export * from "./asset-ingestion/production-asset-ingestion.js";
+export { HeyGenAvatarAdapter, HeyGenTrainInputSchema, HeyGenAvatarVideoInputSchema } from "./providers/heygen-avatar-adapter.js";
+export {
+  ElevenLabsVoiceAdapter,
+  VoiceCloneInputSchema,
+  VoiceDesignInputSchema,
+  VoiceSaveInputSchema,
+} from "./providers/elevenlabs-voice-adapter.js";
+export { MockHeyGenAvatarProvider, MockElevenLabsVoiceProvider, MOCK_LIBRARY_VOICES } from "./providers/mock-talent-providers.js";
+export { resolveMediaProviderChain, resolveVoiceVendorState } from "./providers/media-provider-chain.js";
