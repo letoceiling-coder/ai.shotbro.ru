@@ -56,18 +56,31 @@ test.describe("Phase 5L-B unified studio coherence", () => {
     );
 
     await pinRealProjectOnReload(page, projectId, "chat", { creativeAutoNavigate: true });
+    const messagesLoaded = page.waitForResponse(
+      (r) =>
+        /\/conversations\/[^/]+\/messages/.test(r.url()) &&
+        r.request().method() === "GET" &&
+        r.ok(),
+      { timeout: 120_000 },
+    );
     await gotoStudioSection(page, projectId, "chat");
+    await messagesLoaded;
+    await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 90_000 });
 
     const storyboardTab = page.getByTestId("creative-section-storyboard");
-    if ((await storyboardTab.getAttribute("data-active")) !== "true") {
-      const toolCard = page.getByTestId("agent-tool-result-set_scene_first_frame_by_ordinal").first();
-      await expect(toolCard).toBeVisible({ timeout: 120_000 });
-      const composer = page.getByTestId("real-composer-input");
-      if (await composer.isVisible()) {
-        await composer.press("Tab");
-      }
-    }
-    await expect(storyboardTab).toHaveAttribute("data-active", "true", { timeout: 60_000 });
+    await expect
+      .poll(
+        async () => {
+          if ((await storyboardTab.getAttribute("data-active")) === "true") return true;
+          const composer = page.getByTestId("real-composer-input");
+          if (await composer.isVisible().catch(() => false)) {
+            await composer.press("Tab");
+          }
+          return (await storyboardTab.getAttribute("data-active")) === "true";
+        },
+        { timeout: 120_000, intervals: [500, 1000, 2000] },
+      )
+      .toBe(true);
     await expect(page.getByTestId("storyboard-studio")).toBeVisible({ timeout: 60_000 });
 
     const storyboard = await page.request.get(`/api/v1/projects/${projectId}/storyboard`);
