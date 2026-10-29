@@ -8,6 +8,19 @@ import { useStudioStore } from "@/store/studio-store";
 import { NewProjectDialog } from "./new-project-dialog";
 import { api, apiFetch } from "@/lib/api-client";
 
+function readPersistedRealProjectId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("shotbro-studio-demo-v1");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { activeRealProjectId?: string | null } };
+    const id = parsed.state?.activeRealProjectId;
+    return typeof id === "string" && id.length > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const qc = useQueryClient();
   const { data, isLoading } = useRealProjects();
@@ -16,9 +29,15 @@ export function RealProjectsSidebar({ onNavigate }: { onNavigate?: () => void })
   const setActiveRealProject = useStudioStore((s) => s.setActiveRealProject);
 
   useEffect(() => {
-    if (!activeRealProjectId && data?.items?.[0]) {
-      setActiveRealProject(data.items[0].id);
+    if (activeRealProjectId) return;
+    const items = data?.items;
+    if (!items?.length) return;
+    const pinned = readPersistedRealProjectId();
+    if (pinned && items.some((p) => p.id === pinned)) {
+      setActiveRealProject(pinned);
+      return;
     }
+    setActiveRealProject(items[0].id);
   }, [activeRealProjectId, data, setActiveRealProject]);
 
   return (
