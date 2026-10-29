@@ -1,20 +1,20 @@
 # Phase 5 — Progress
 
 **Branch:** `phase5/creative-studio`  
-**Git HEAD (local / origin / VPS, 2026-10-29):** **`32ba9726`** (`1ff15ac` ordinal tool + sync docs)  
+**Git HEAD (local / origin / VPS, 2026-10-29):** **`e06182c8`** (Phase **5L-A** Safety & Routing)  
 **Phase 5I:** **ACCEPTED**  
 **Phase 5J:** **ACCEPTED**  
 **Phase 5K:** **ACCEPTED** — see `PHASE5-AGENT-INTEGRATION-ACCEPTANCE.md`  
-**Phase 5L-A:** **IMPLEMENTED** (VPS E2E pending) — `PHASE5L-5A-STATUS.md`  
-**Phase 5L-B/C:** not started — `PHASE5L-TECHNICAL-SPEC.md`  
+**Phase 5L-A:** **ACCEPTED** — `PHASE5L-5A-STATUS.md` (5L-1 router v2, 5L-3 idempotency)  
+**Phase 5L-B/C:** not started — `PHASE5L-TECHNICAL-SPEC.md` / `PHASE5L-ACCEPTANCE-PLAN.md`  
 **P0 UI Recovery:** **ACCEPTED**
 
 ## Deployed staging (https://ai.shotbro.ru)
 
 | Service | `org.shotbro.build-sha` | Image (runtime) | Notes |
 |---------|-------------------------|-----------------|--------|
-| Web | **b6e19bf5** | `infra-web-1` | production bootstrap → createRun |
-| API | **32ba9726** | `ai-shotbro-staging-api-1` | live LLM ordinal tool; deploy matches git |
+| Web | **e06182c8** | `infra-web-1` | unified intent router → createRun / creative-turn |
+| API | **e06182c8** | `ai-shotbro-staging-api-1` | creative-turn idempotency; deploy matches git |
 | Worker | **366716e** | `ai-shotbro-staging-worker-1` | Upload processing → READY |
 
 **Mock policy:** `AI_MOCK_MODE=true`, `PROVIDER_LIVE_EXECUTION_ENABLED=false`, `MEDIA_GENERATION_ENABLED=false` — **0 live media jobs**. OpenRouter allowed for **creative LLM only** when configured.
