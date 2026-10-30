@@ -62,7 +62,7 @@ test.describe("Phase 6E scene canvas", () => {
     // The chat creates the conversation that receives the approval cards.
     await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
 
-    // Two storyboard scenes (shotbro.ru ad campaign theme).
+    // Storyboard scenes (shotbro.ru ad campaign theme). An empty project may also get a starter scene.
     for (const title of ["ShotBro: идея за минуту", "ShotBro: призыв на сайт"]) {
       const r = await page.request.post(`/api/v1/projects/${projectId}/scripts/scenes`, { data: { title } });
       expect(r.ok()).toBeTruthy();
@@ -74,9 +74,10 @@ test.describe("Phase 6E scene canvas", () => {
     await page.getByTestId("creative-section-canvas").click();
     await expect(page.getByTestId("canvas-root")).toBeVisible({ timeout: 30_000 });
     const view = await getCanvas(page, projectId);
-    expect(view.scenes).toHaveLength(2);
-    const [s1, s2] = [...view.scenes].sort((a, b) => a.order - b.order).map((s) => s.sceneId);
-    for (const s of [s1!, s2!]) {
+    expect(view.scenes.length).toBeGreaterThanOrEqual(2);
+    const sceneIds = [...view.scenes].sort((a, b) => a.order - b.order).map((s) => s.sceneId);
+    const [s1, s2] = sceneIds;
+    for (const s of sceneIds) {
       await expect(page.getByTestId(node(s, "frame"))).toBeVisible();
       await expect(page.getByTestId(node(s, "video"))).toBeVisible();
     }
@@ -102,12 +103,12 @@ test.describe("Phase 6E scene canvas", () => {
     await expect(page.getByTestId("canvas-error")).toContainText("Сначала запустите", { timeout: 20_000 });
     expect((await getCanvas(page, projectId)).runs[`scene:${s1}:video`] ?? []).toHaveLength(0);
 
-    // 4) «Собрать всё»: one price card for 2 frames + 2 videos + assembly, nothing runs before approval.
+    // 4) «Собрать всё»: one price card for every frame + video + assembly, nothing runs before approval.
     await page.getByTestId("canvas-run-all").click();
     await expect(page.getByTestId("canvas-quote")).toBeVisible({ timeout: 30_000 });
     expect(Object.keys((await getCanvas(page, projectId)).runs)).toHaveLength(0);
     await acceptanceScreenshot(page, "phase6e-canvas-quote");
-    await approveQuote(page, 5);
+    await approveQuote(page, sceneIds.length * 2 + 1);
 
     await expect(page.getByTestId("canvas-node-assembly")).toHaveAttribute("data-status", "COMPLETED", { timeout: 240_000 });
     await expect(page.getByTestId("canvas-node-output-preview")).toBeVisible({ timeout: 60_000 });

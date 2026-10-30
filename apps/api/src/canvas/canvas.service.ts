@@ -230,7 +230,8 @@ export class CanvasService implements OnModuleInit {
           order: s.order,
           title: s.title,
           durationSeconds: s.durationSeconds,
-          firstFramePrompt: s.firstFramePrompt ?? s.description ?? "",
+          // Same fallback the run plan uses, so the editor shows exactly what will be generated.
+          firstFramePrompt: s.firstFramePrompt || s.description || s.title || "",
           videoMotionPrompt: s.videoMotionPrompt,
           narration: s.narration,
           revision: c.revisions.get(s.sceneId) ?? 1,
