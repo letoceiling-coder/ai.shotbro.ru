@@ -25,6 +25,7 @@ const SSE_EVENT_TYPES = [
   "provider.job.status",
   "agent.runtime.rollout.changed",
   "talent.updated",
+  "canvas.updated",
 ] as const;
 
 type ProjectEventPayload = {
@@ -74,6 +75,12 @@ function handleEventPayload(
     }
     if (data.type === "provider.job.created" || data.type === "provider.job.status") {
       invalidateForEvent(qc, projectId, data);
+    }
+    if (data.type === "canvas.updated") {
+      // Node runs finished/started: refresh the canvas (and the library, which receives the outputs).
+      void qc.invalidateQueries({ queryKey: ["canvas", projectId] });
+      void qc.invalidateQueries({ queryKey: ["asset-library", projectId] });
+      void qc.invalidateQueries({ queryKey: ["project-assets", projectId] });
     }
     if (data.type === "talent.updated") {
       // Voices/avatars live at workspace level: refresh the libraries and character links.

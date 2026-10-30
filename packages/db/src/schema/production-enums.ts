@@ -35,4 +35,5 @@ export const productionDocTypeEnum = pgEnum("production_doc_type", [
   "COST_ESTIMATE",
   "TIMELINE",
   "DELIVERY",
+  "SCENE_CANVAS",
 ]);

@@ -16,6 +16,7 @@ import { ProjectAssetsSection } from "./sections/project-assets-section";
 import { ProductionSection } from "./sections/production-section";
 import { VoiceLibrary } from "./sections/talent/voice-library";
 import { AvatarLibrary } from "./sections/talent/avatar-library";
+import { SceneCanvas } from "./sections/canvas/scene-canvas";
 
 export function CreativeWorkspace({ projectId }: { projectId: string }) {
   const section = useStudioStore((s) => s.creativeSection);
@@ -40,6 +41,7 @@ export function CreativeWorkspace({ projectId }: { projectId: string }) {
         {section === "assets" ? <ProjectAssetsSection projectId={projectId} /> : null}
         {section === "voices" ? <VoiceLibrary projectId={projectId} /> : null}
         {section === "avatars" ? <AvatarLibrary projectId={projectId} /> : null}
+        {section === "canvas" ? <SceneCanvas projectId={projectId} /> : null}
       </div>
     </div>
     </ProjectEventsContext.Provider>

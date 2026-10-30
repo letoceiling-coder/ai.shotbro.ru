@@ -11,6 +11,7 @@ export const STORAGE_RECONCILE_QUEUE = "storage.reconcile";
 export const PRODUCTION_NODE_QUEUE = "production.node";
 export const PRODUCTION_RUN_QUEUE = "production.run";
 export const TALENT_EXECUTE_QUEUE = "talent.execute";
+export const CANVAS_EXECUTE_QUEUE = "canvas.execute";
 
 @Injectable()
 export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
@@ -23,6 +24,7 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
   readonly productionNode: Queue;
   readonly productionRun: Queue;
   readonly talentExecute: Queue;
+  readonly canvasExecute: Queue;
 
   constructor() {
     const env = loadApiEnv();
@@ -40,6 +42,15 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
       connection: this.connection,
       defaultJobOptions: { removeOnComplete: 100, removeOnFail: 500, attempts: 1 },
     });
+    // Phase 6E: one job per approved canvas run, also without automatic retries.
+    this.canvasExecute = new Queue(CANVAS_EXECUTE_QUEUE, {
+      connection: this.connection,
+      defaultJobOptions: { removeOnComplete: 100, removeOnFail: 500, attempts: 1 },
+    });
+  }
+
+  async enqueueCanvasRun(canvasRunId: string): Promise<void> {
+    await this.canvasExecute.add("execute", { runId: canvasRunId }, { jobId: `canvas-${canvasRunId}` });
   }
 
   /** Phase 6B: one BullMQ job per provider_job row (jobId dedupes double enqueue). */
@@ -103,6 +114,7 @@ export class MediaQueueService implements OnModuleInit, OnModuleDestroy {
       this.productionNode.close(),
       this.productionRun.close(),
       this.talentExecute.close(),
+      this.canvasExecute.close(),
       this.connection.quit(),
     ]);
   }

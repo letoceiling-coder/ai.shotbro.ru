@@ -20,6 +20,7 @@ import { ProductionModule } from "./production/production.module";
 import { InternalModule } from "./internal/internal.module";
 import { ProvidersModule } from "./providers/providers.module";
 import { TalentModule } from "./talent/talent.module";
+import { CanvasModule } from "./canvas/canvas.module";
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { TalentModule } from "./talent/talent.module";
     InternalModule,
     ProvidersModule,
     TalentModule,
+    CanvasModule,
   ],
   controllers: [HealthController, UsersController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

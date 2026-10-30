@@ -23,6 +23,10 @@ const MESSAGES: Record<string, string> = {
   wrong_voice_kind: "Для этого голоса такая операция недоступна.",
   conversation_required: "В проекте нет чата для карточки подтверждения — откройте раздел «Чат» один раз.",
   invalid_input: "Проверьте заполнение полей.",
+  canvas_conflict: "Холст изменился в другой вкладке — загружена свежая версия.",
+  node_busy: "Этот узел уже выполняется — дождитесь результата.",
+  avatar_not_ready: "Аватар ещё не готов — сначала создайте его в разделе «Аватары».",
+  voice_not_ready: "Голос ещё не готов — сначала создайте его в разделе «Голоса».",
 };
 
 export function talentErrorMessage(err: unknown): string {

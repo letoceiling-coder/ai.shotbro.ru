@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, type OnModuleInit } from "@nestjs/common";
-import { and, asc, eq, gte, inArray, like, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, like, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { v4 as uuid } from "uuid";
 import {
@@ -140,7 +140,7 @@ export class TalentJobsService implements OnModuleInit {
     if (j && ACTIVE.has(j.status)) throw new ConflictException({ code: "talent_busy", providerJobId: j.id });
   }
 
-  /** USD the user already committed today (held or captured talent reservations). */
+  /** USD the user already committed today (held or captured talent and canvas reservations). */
   private async spentTodayUsd(userId: string) {
     const dayStart = new Date();
     dayStart.setUTCHours(0, 0, 0, 0);
@@ -150,7 +150,7 @@ export class TalentJobsService implements OnModuleInit {
       .where(
         and(
           eq(budgetReservation.createdBy, userId),
-          like(budgetReservation.reason, "talent:%"),
+          or(like(budgetReservation.reason, "talent:%"), like(budgetReservation.reason, "canvas:%")),
           inArray(budgetReservation.status, ["HELD", "CAPTURED"]),
           gte(budgetReservation.createdAt, dayStart),
         ),

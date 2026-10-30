@@ -7,7 +7,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 type NavGroup = { id: string; label: string; items: { id: CreativeSection; label: string; hint: string }[] };
 
 /**
- * Six Russian groups (spec §8). Every section keeps its own button and test id, so deep links,
+ * Russian groups (spec §8; «Сцены» added in 6E). Every section keeps its own button and test id, so deep links,
  * auto-navigation and existing tests address sections directly; groups only organise them visually.
  */
 export const NAV_GROUPS: NavGroup[] = [
@@ -21,6 +21,11 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "storyboard", label: "Раскадровка", hint: "Кадры по сценам" },
       { id: "prompts", label: "Промпты", hint: "Тексты для генерации кадров" },
     ],
+  },
+  {
+    id: "scenes",
+    label: "Сцены",
+    items: [{ id: "canvas", label: "Холст сцен", hint: "Схема генерации: промпт → кадр → видео → монтаж" }],
   },
   {
     id: "cast",

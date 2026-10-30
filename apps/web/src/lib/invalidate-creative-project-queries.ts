@@ -8,6 +8,7 @@ export function invalidateCreativeProjectQueries(
 ) {
   const tasks: Array<Promise<unknown>> = [
     qc.invalidateQueries({ queryKey: ["storyboard", projectId] }),
+    qc.invalidateQueries({ queryKey: ["canvas", projectId] }),
     qc.invalidateQueries({ queryKey: ["timeline", projectId] }),
     qc.invalidateQueries({ queryKey: ["assets", projectId] }),
     qc.invalidateQueries({ queryKey: ["project-assets", projectId] }),

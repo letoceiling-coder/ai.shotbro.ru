@@ -68,3 +68,13 @@ export {
   type TalentQuote,
   type BudgetCapCheck,
 } from "./cost/talent-price-catalog.js";
+export { quoteCanvasNode, canvasApprovalPayload, type CanvasNodeQuote } from "./canvas/canvas-price-catalog.js";
+export { syncCanvasWithStoryboard, emptyCanvasPayload, edgeId as canvasEdgeId, type CanvasSceneLite } from "./canvas/canvas-sync.js";
+export {
+  buildCanvasRunPlan,
+  canvasPromptText,
+  type CanvasRunPlan,
+  type CanvasRunStep,
+  type CanvasStepInput,
+  type CanvasPlanError,
+} from "./canvas/canvas-run-plan.js";

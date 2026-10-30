@@ -27,7 +27,8 @@ export type CreativeSection =
   | "timeline"
   | "assets"
   | "voices"
-  | "avatars";
+  | "avatars"
+  | "canvas";
 
 type AdStageMap = Record<string, AdDemoStage>;
 

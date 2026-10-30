@@ -17,6 +17,7 @@ export const ProductionDocTypeSchema = z.enum([
   "COST_ESTIMATE",
   "TIMELINE",
   "DELIVERY",
+  "SCENE_CANVAS",
 ]);
 
 export const ProductionBriefSchema = z.object({

@@ -26,6 +26,7 @@ export const AgentToolResultEnvelopeSchema = z.object({
         "models",
         "voices",
         "avatars",
+        "canvas",
       ]),
       sceneId: z.string().optional(),
       assetId: z.string().optional(),
