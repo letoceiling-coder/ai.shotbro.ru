@@ -38,10 +38,13 @@ pnpm install --frozen-lockfile --ignore-scripts >/tmp/install.log 2>&1 || { tail
 fails=0
 test_step() {
   name="$1"; shift
-  if "$@" >/tmp/step.log 2>&1; then
-    echo "STEP_OK $name $(grep -E "Tests +[0-9]" /tmp/step.log | tail -1 | sed "s/\x1b\[[0-9;]*m//g")"
+  if "$@" >/tmp/step.raw 2>&1; then ok=1; else ok=0; fi
+  sed "s/\x1b\[[0-9;]*m//g" /tmp/step.raw >/tmp/step.log
+  grep -E "canvas" /tmp/step.log | grep -E "✓|×|FAIL" | sed "s/^/  /"
+  if [ "$ok" = 1 ]; then
+    echo "STEP_OK $name $(grep -E "Tests +[0-9]" /tmp/step.log | tail -1)"
   else
-    echo "STEP_FAIL $name"; sed "s/\x1b\[[0-9;]*m//g" /tmp/step.log | grep -v "^\[WARN\]" | tail -60; fails=$((fails+1))
+    echo "STEP_FAIL $name"; grep -v "^\[WARN\]" /tmp/step.log | tail -60; fails=$((fails+1))
   fi
 }
 # $1 name, $2 package dir prefix (paths in tsc output are relative to it), rest = command
@@ -67,7 +70,7 @@ tsc_gate api-typecheck apps/api pnpm --filter api exec tsc -p tsconfig.json --no
 tsc_gate web-typecheck apps/web pnpm --filter web exec tsc --noEmit
 info_tsc ai-typecheck pnpm --filter @shotbro/ai exec tsc --noEmit
 info_tsc worker-typecheck pnpm --filter worker exec tsc --noEmit
-test_step ai-test env S3_ENDPOINT=http://127.0.0.1:9000 S3_REGION=us-east-1 S3_BUCKET=unit-test S3_ACCESS_KEY_ID=unit S3_SECRET_ACCESS_KEY=unit pnpm --filter @shotbro/ai test
+test_step ai-test env S3_ENDPOINT=http://127.0.0.1:9000 S3_REGION=us-east-1 S3_BUCKET=unit-test S3_ACCESS_KEY_ID=unit-test-key S3_SECRET_ACCESS_KEY=unit-test-secret pnpm --filter @shotbro/ai test
 test_step web-test pnpm --filter web exec vitest run src
 exit $fails
 '
