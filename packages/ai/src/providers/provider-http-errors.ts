@@ -5,10 +5,16 @@ export function normalizeHttpProviderError(input: {
   body?: unknown;
   providerId: string;
 }): NormalizedProviderError {
+  // OpenRouter: {"error":{"message":"..."}}; others: {"error":"..."}.
+  const rawError = typeof input.body === "object" && input.body !== null && "error" in input.body ? (input.body as { error?: unknown }).error : undefined;
   const bodyMsg =
-    typeof input.body === "object" && input.body !== null && "error" in input.body
-      ? String((input.body as { error?: unknown }).error)
-      : undefined;
+    rawError == null
+      ? undefined
+      : typeof rawError === "object" && typeof (rawError as { message?: unknown }).message === "string"
+        ? (rawError as { message: string }).message.slice(0, 500)
+        : typeof rawError === "string"
+          ? rawError.slice(0, 500)
+          : JSON.stringify(rawError).slice(0, 500);
 
   if (input.status === 401 || input.status === 403) {
     return {

@@ -85,6 +85,8 @@ export const envSchema = z
     CANVAS_VIDEO_MODEL: z.string().default("x-ai/grok-imagine-video-1.5-lite"),
     CANVAS_VIDEO_RESOLUTION: z.string().default("480p"),
     CANVAS_AVATAR_VIDEO_MODEL: z.string().default("heygen/avatar-iv"),
+    /** HeyGen voice for avatar-iv text scripts (multilingual "Kore"; "Orus" = 3097f9a8fd3b4340b6bbe913177b378f). */
+    CANVAS_AVATAR_HEYGEN_VOICE_ID: z.string().regex(/^[0-9a-f]{32}$/).default("80441555167a467e967ab9487d844a30"),
     /** Customer rule for real tests: clips and voice-overs ≤ 5 s (server clamps/refuses longer). */
     CANVAS_LIVE_MAX_SECONDS: z.coerce.number().int().min(1).max(10).default(5),
     /** Phase 6 minimal budget caps for live media (USD) */

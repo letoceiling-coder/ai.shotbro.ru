@@ -341,7 +341,7 @@ async function liveGenerate(
         // aspect_ratio/input_references are accepted (verified 2026-10-30), the photo is a reference.
         ...(step.kind === "scene_video"
           ? { first_frame_url: firstFrameUrl, duration: seconds, resolution: env.CANVAS_VIDEO_RESOLUTION, generate_audio: false }
-          : { reference_urls: [firstFrameUrl], resolution: "720p" }),
+          : { reference_urls: [firstFrameUrl], resolution: "720p", heygen_voice_id: env.CANVAS_AVATAR_HEYGEN_VOICE_ID }),
       },
       ctx,
     );

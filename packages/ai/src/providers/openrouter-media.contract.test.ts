@@ -94,7 +94,13 @@ describe("OpenRouter media adapters (mock transport)", () => {
     await new OpenRouterVideoAdapter(liveEnv, transport).submit(
       "heygen/avatar-iv",
       "IMAGE_TO_VIDEO",
-      { prompt: "Привет!", aspect_ratio: "9:16", resolution: "720p", reference_urls: ["https://ai.shotbro.ru/p.jpg"] },
+      {
+        prompt: "Привет!",
+        aspect_ratio: "9:16",
+        resolution: "720p",
+        reference_urls: ["https://ai.shotbro.ru/p.jpg"],
+        heygen_voice_id: "80441555167a467e967ab9487d844a30",
+      },
       { idempotencyKey: "av1" },
     );
     expect(sent).toEqual({
@@ -103,7 +109,16 @@ describe("OpenRouter media adapters (mock transport)", () => {
       resolution: "720p",
       aspect_ratio: "9:16",
       input_references: [{ type: "image_url", image_url: { url: "https://ai.shotbro.ru/p.jpg" } }],
+      provider: { options: { heygen: { voice_id: "80441555167a467e967ab9487d844a30" } } },
     });
+  });
+
+  it("keeps OpenRouter error messages ({error:{message}})", async () => {
+    const transport = new MockHttpTransport({});
+    transport.request = async () => ({ status: 400, headers: {}, body: { error: { message: "avatar-iv requires a voice" } } });
+    await expect(
+      new OpenRouterVideoAdapter(liveEnv, transport).submit("heygen/avatar-iv", "IMAGE_TO_VIDEO", { prompt: "x" }, { idempotencyKey: "e1" }),
+    ).rejects.toMatchObject({ code: "INVALID_REQUEST", message: "avatar-iv requires a voice", httpStatus: 400 });
   });
 
   it("tts adapter validates input", () => {

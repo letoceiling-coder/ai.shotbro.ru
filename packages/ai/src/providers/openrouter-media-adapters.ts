@@ -34,6 +34,8 @@ const videoInput = z.object({
   first_frame_url: z.string().url().optional(),
   /** Reference images (e.g. heygen/avatar-iv photo, which rejects frame_images) → `input_references`. */
   reference_urls: z.array(z.string().url()).max(4).optional(),
+  /** heygen/avatar-iv with a text script needs a HeyGen voice (passthrough provider.options.heygen.voice_id). */
+  heygen_voice_id: z.string().regex(/^[0-9a-f]{32}$/).optional(),
   generate_audio: z.boolean().optional(),
 });
 
@@ -178,6 +180,7 @@ export class OpenRouterVideoAdapter extends OpenRouterMediaAdapterBase implement
         ...(parsed.reference_urls?.length
           ? { input_references: parsed.reference_urls.map((url) => ({ type: "image_url", image_url: { url } })) }
           : {}),
+        ...(parsed.heygen_voice_id ? { provider: { options: { heygen: { voice_id: parsed.heygen_voice_id } } } } : {}),
       };
       const res = await this.post("/videos", body);
       if (res.status >= 400) throw Object.assign(new Error("openrouter_video_error"), { status: res.status, body: res.body });
