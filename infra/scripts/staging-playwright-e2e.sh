@@ -51,6 +51,9 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
+# Phase 6G real generations run only in their own mode (and only inside the live window).
+if [ "$MODE" = phase6g-live ]; then export E2E_6G_LIVE=1; else export E2E_6G_LIVE=0; fi
+
 docker run --rm \
   -v "$ROOT:/app" \
   -v "${PW_NODE_VOLUME}:/app/node_modules" \
@@ -62,6 +65,7 @@ docker run --rm \
   -e E2E_TEST_EMAIL_B \
   -e E2E_TEST_PASSWORD_B \
   -e CI=1 \
+  -e E2E_6G_LIVE \
   -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
   "$PW_IMAGE" \
   bash -lc "set -euo pipefail
@@ -105,6 +109,8 @@ elif [ \"${MODE}\" = phase6-canvas ]; then
   pnpm exec playwright test e2e/phase6-canvas.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase6-full ]; then
   pnpm exec playwright test e2e/phase6-full.spec.ts --project=desktop --retries=0
+elif [ \"${MODE}\" = phase6g-live ]; then
+  pnpm exec playwright test e2e/phase6g-live.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-creative ]; then
   pnpm exec playwright test e2e/phase5-storyboard.spec.ts e2e/phase5-characters.spec.ts e2e/phase5-references.spec.ts e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = diagnostic ]; then

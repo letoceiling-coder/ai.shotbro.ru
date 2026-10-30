@@ -5,9 +5,11 @@ import type { AppEnv } from "./env.js";
  * "approved cost ⇒ execution". Scopes ship separately:
  * - talent (voice design/clone/save, avatar training): enforced since Phase 6C
  *   (quote → approval → reservation → job, re-checked in the worker);
- * - generation (images, scene video, legacy media tools): not yet — lands in Phase 6E.
+ * - generation (legacy media tools generate.image/video): stays blocked;
+ * - canvas (scene-canvas nodes): enforced since Phase 6E (quote → approval → payload re-check → jobs,
+ *   re-checked in the worker per node); live adapters wired in 6G behind CANVAS_LIVE_GENERATION_ENABLED.
  */
-export const LIVE_MEDIA_APPROVAL_ENFORCED = { talent: true, generation: false } as const;
+export const LIVE_MEDIA_APPROVAL_ENFORCED = { talent: true, generation: false, canvas: true } as const;
 
 export type LiveMediaScope = keyof typeof LIVE_MEDIA_APPROVAL_ENFORCED;
 
@@ -26,6 +28,7 @@ function requested(env: AppEnv, scope: LiveMediaScope) {
   if (scope === "talent") {
     return env.VOICE_CLONING_ENABLED || env.AVATAR_GENERATION_ENABLED || env.ELEVENLABS_PROVIDER_ENABLED || env.HEYGEN_PROVIDER_ENABLED;
   }
+  if (scope === "canvas") return env.CANVAS_LIVE_GENERATION_ENABLED;
   return env.MEDIA_GENERATION_ENABLED || env.MEDIA_PROVIDER_LIVE_EXECUTION_ENABLED;
 }
 
@@ -48,14 +51,14 @@ export function evaluateLiveMediaPolicy(env: AppEnv, scope: LiveMediaScope = "ta
     reasons.push("MEDIA_RUN_MAX_COST_USD must not exceed MEDIA_USER_DAILY_MAX_USD");
   }
   if (!LIVE_MEDIA_APPROVAL_ENFORCED[scope]) {
-    reasons.push(`server-side approval enforcement for ${scope} not shipped yet (Phase 6E)`);
+    reasons.push(`server-side approval enforcement for ${scope} not shipped`);
   }
   return { scope, liveMediaRequested, liveMediaAllowed: reasons.length === 0, reasons };
 }
 
 /** Startup guard: replaces the Phase 5K "OpenRouter + media" blanket ban with explicit per-scope rules. */
 export function assertLiveMediaStartupPolicy(env: AppEnv): void {
-  for (const scope of ["talent", "generation"] as const) {
+  for (const scope of ["talent", "generation", "canvas"] as const) {
     const p = evaluateLiveMediaPolicy(env, scope);
     if (p.liveMediaRequested && !p.liveMediaAllowed) {
       throw new Error(`Live ${scope} switches are on but blocked: ${p.reasons.join("; ")}`);

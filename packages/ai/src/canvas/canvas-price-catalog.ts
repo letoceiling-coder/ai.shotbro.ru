@@ -22,20 +22,24 @@ function imageProvider(env: AppEnv) {
   return getFalConfig(env).hasApiKey && env.FAL_PROVIDER_ENABLED ? "fal" : "openrouter";
 }
 
+/** Russian speech ≈ 14 characters per second (used to size avatar videos driven by a script). */
+export const AVATAR_SPEECH_CHARS_PER_SECOND = 14;
+
 export function quoteCanvasNode(
   env: AppEnv,
   input: { kind: RunnableCanvasKind; durationSeconds?: number; textLength?: number },
 ): CanvasNodeQuote {
   const mock = env.AI_MOCK_MODE;
-  const seconds = Math.min(10, Math.max(1, input.durationSeconds ?? 5));
+  const seconds = Math.min(10, Math.max(1, Math.round(input.durationSeconds ?? 5)));
   let providerId: string;
   let usd: number;
   let note: string;
+  // Prices: OpenRouter catalog 2026-10-30 (GET /videos/models, /images/models/{id}/endpoints).
   switch (input.kind) {
     case "first_frame":
       providerId = imageProvider(env);
-      usd = 0.04;
-      note = "Первый кадр (1 изображение)";
+      usd = 0.018; // seedream-5-0-flash: $0.018 / image
+      note = "Первый кадр (1 изображение 9:16)";
       break;
     case "upscale":
       providerId = "magnific";
@@ -43,15 +47,18 @@ export function quoteCanvasNode(
       note = "Апскейл изображения";
       break;
     case "scene_video":
-      providerId = resolveMediaProviderChain(env, "SCENE_VIDEO").selected ?? "fal";
-      usd = 0.08 * seconds;
-      note = `Видео сцены ${seconds} с`;
+      providerId = resolveMediaProviderChain(env, "SCENE_VIDEO").selected ?? "openrouter";
+      usd = 0.02 * seconds + 0.01; // grok-imagine-video-1.5-lite 480p: 2¢/s + 1¢ input image
+      note = `Видео сцены ${seconds} с (480p)`;
       break;
-    case "avatar_video":
-      providerId = resolveMediaProviderChain(env, "AVATAR_VIDEO").selected ?? "heygen";
-      usd = 0.05 * seconds;
-      note = `Видео с аватаром ${seconds} с`;
+    case "avatar_video": {
+      providerId = resolveMediaProviderChain(env, "AVATAR_VIDEO").selected ?? "openrouter";
+      const speech = Math.ceil((input.textLength ?? 0) / AVATAR_SPEECH_CHARS_PER_SECOND);
+      const s = Math.max(seconds, speech);
+      usd = 0.05 * s; // heygen/avatar-iv: 5¢/s, length follows the script
+      note = `Видео с аватаром ≈ ${s} с`;
       break;
+    }
     case "tts":
       providerId = "elevenlabs";
       usd = Math.max(0.01, (input.textLength ?? 0) * 0.0003);

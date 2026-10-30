@@ -16,6 +16,8 @@ export type HttpRequest = {
   /** multipart/form-data parts (e.g. ElevenLabs voice cloning). Takes precedence over `body`. */
   multipart?: MultipartPart[];
   timeoutMs?: number;
+  /** "binary": success bodies are returned as Buffer (audio/video downloads); errors are still parsed as JSON/text. */
+  responseType?: "json" | "binary";
 };
 
 function encodeBody(req: HttpRequest): BodyInit | undefined {
@@ -102,12 +104,17 @@ export class FetchHttpTransport implements HttpTransport {
       for (const via of modes) {
         try {
           const res = await performFetch(req, via, proxyUrl, ctrl.signal);
-          const text = await res.text();
-          let body: unknown = text;
-          try {
-            body = JSON.parse(text);
-          } catch {
-            /* plain text */
+          let body: unknown;
+          if (req.responseType === "binary" && res.status < 400) {
+            body = Buffer.from(await res.arrayBuffer());
+          } else {
+            const text = await res.text();
+            body = text;
+            try {
+              body = JSON.parse(text);
+            } catch {
+              /* plain text */
+            }
           }
           const headers: Record<string, string> = {};
           res.headers.forEach((v, k) => {

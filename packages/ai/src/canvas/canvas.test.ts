@@ -138,9 +138,11 @@ describe("canvas run plan", () => {
 describe("canvas prices", () => {
   it("charges $0 in mock mode but shows the live estimate", () => {
     const q = quoteCanvasNode(mockEnv, { kind: "scene_video", durationSeconds: 5 });
-    expect(q).toMatchObject({ chargedUsd: 0, estimatedLiveUsd: 0.4, mock: true });
+    expect(q).toMatchObject({ chargedUsd: 0, estimatedLiveUsd: 0.11, mock: true });
     expect(q.providerId.startsWith("mock-")).toBe(true);
-    expect(quoteCanvasNode(liveEnv, { kind: "scene_video", durationSeconds: 30 }).chargedUsd).toBe(0.8);
+    expect(quoteCanvasNode(liveEnv, { kind: "scene_video", durationSeconds: 30 }).chargedUsd).toBe(0.21);
+    // Avatar video length follows the script: 140 characters ≈ 10 s → $0.50.
+    expect(quoteCanvasNode(liveEnv, { kind: "avatar_video", durationSeconds: 3, textLength: 140 }).chargedUsd).toBe(0.5);
     expect(quoteCanvasNode(liveEnv, { kind: "assembly" })).toMatchObject({ chargedUsd: 0, providerId: "local-ffmpeg" });
   });
 
@@ -154,5 +156,34 @@ describe("canvas prices", () => {
     });
     expect(p.totalChargedUsd).toBe(0.44);
     expect(Object.keys(p)).toEqual(["kind", "canvasId", "items", "totalChargedUsd"]);
+  });
+});
+
+describe("live canvas gates (6G)", async () => {
+  const { liveCanvasBlockers } = await import("./canvas-live.js");
+  const base = {
+    AI_MOCK_MODE: false,
+    PROVIDER_LIVE_EXECUTION_ENABLED: true,
+    CANVAS_LIVE_GENERATION_ENABLED: true,
+    MEDIA_RUN_MAX_COST_USD: 1,
+    MEDIA_USER_DAILY_MAX_USD: 3,
+    OPENROUTER_ENABLED: true,
+    OPENROUTER_API_KEY: "or-key",
+    ELEVENLABS_PROVIDER_ENABLED: true,
+    ELEVENLABS_API_KEY: "el-key-123456",
+  } as unknown as AppEnv;
+
+  it("all open → OpenRouter image/video and ElevenLabs TTS allowed; assembly never needs a provider", () => {
+    for (const kind of ["first_frame", "scene_video", "avatar_video", "tts", "assembly"] as const) {
+      expect(liveCanvasBlockers(base, kind)).toEqual([]);
+    }
+    expect(liveCanvasBlockers(base, "upscale")).toContain("live upscale is not part of 6G");
+  });
+
+  it("any closed switch blocks with a reason", () => {
+    expect(liveCanvasBlockers({ ...base, AI_MOCK_MODE: true } as AppEnv, "first_frame").join(" ")).toMatch(/LIVE_APPROVED/);
+    expect(liveCanvasBlockers({ ...base, CANVAS_LIVE_GENERATION_ENABLED: false } as AppEnv, "scene_video").join(" ")).toMatch(/switches are off/);
+    expect(liveCanvasBlockers({ ...base, ELEVENLABS_PROVIDER_ENABLED: false } as AppEnv, "tts")).toContain("ELEVENLABS_PROVIDER_ENABLED=false");
+    expect(liveCanvasBlockers({ ...base, MEDIA_RUN_MAX_COST_USD: 50 } as AppEnv, "first_frame").join(" ")).toMatch(/MEDIA_RUN_MAX_COST_USD/);
   });
 });

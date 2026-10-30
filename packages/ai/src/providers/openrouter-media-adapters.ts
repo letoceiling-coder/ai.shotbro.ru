@@ -13,19 +13,26 @@ import { BlockedHttpTransport } from "./http-transport.js";
 import { ExecutionPolicyEngine } from "../execution/execution-policy-engine.js";
 import { mapTransportError, normalizeHttpProviderError } from "./provider-http-errors.js";
 
+/** POST /api/v1/images (OpenRouter Image API, verified 2026-10-30). */
 const imageInput = z.object({
   prompt: z.string().min(1),
   model: z.string().optional(),
   aspect_ratio: z.string().optional(),
-  image_url: z.string().url().optional(),
+  resolution: z.string().optional(),
+  /** Image-to-image: URLs or base64 data URLs. */
+  input_references: z.array(z.string().min(1)).max(4).optional(),
 });
 
+/** POST /api/v1/videos (OpenRouter Video API, verified 2026-10-30). */
 const videoInput = z.object({
   prompt: z.string().min(1),
   model: z.string().optional(),
-  duration_seconds: z.number().positive().optional(),
+  duration: z.number().int().positive().max(15).optional(),
+  resolution: z.string().optional(),
   aspect_ratio: z.string().optional(),
-  image_url: z.string().url().optional(),
+  /** First frame (image-to-video / avatar photo): public https URL. */
+  first_frame_url: z.string().url().optional(),
+  generate_audio: z.boolean().optional(),
 });
 
 const ttsInput = z.object({
@@ -110,13 +117,19 @@ export class OpenRouterImageAdapter extends OpenRouterMediaAdapterBase implement
     this.validateRequest(modelId, operation, input);
     const parsed = imageInput.parse(input);
     try {
-      const res = await this.post("/images", { ...parsed, model: parsed.model ?? modelId });
-      if (res.status >= 400) throw Object.assign(new Error("openrouter_image_error"), { status: res.status });
-      const body = res.body as { data?: Array<{ url?: string }> };
-      const url = body.data?.[0]?.url;
+      const { model, ...rest } = parsed;
+      const res = await this.post("/images", { ...rest, model: model ?? modelId, n: 1 });
+      if (res.status >= 400) throw Object.assign(new Error("openrouter_image_error"), { status: res.status, body: res.body });
+      const body = res.body as {
+        data?: Array<{ b64_json?: string; url?: string; media_type?: string }>;
+        usage?: { cost?: number };
+      };
+      const first = body.data?.[0];
+      if (!first?.b64_json && !first?.url) throw Object.assign(new Error("openrouter_image_empty"), { status: 502, body: res.body });
       return {
-        status: url ? "COMPLETED" : "SUBMITTED",
-        outputs: url ? [{ url, mimeType: "image/png" }] : undefined,
+        status: "COMPLETED",
+        outputs: [{ base64: first.b64_json, url: first.url, mimeType: first.media_type ?? "image/png" }],
+        usage: { costUsd: body.usage?.cost ?? null },
       } satisfies ProviderSubmitResult;
     } catch (err) {
       throw this.mapError(err);
@@ -150,20 +163,51 @@ export class OpenRouterVideoAdapter extends OpenRouterMediaAdapterBase implement
     this.validateRequest(modelId, operation, input);
     const parsed = videoInput.parse(input);
     try {
-      const res = await this.post("/videos", { ...parsed, model: parsed.model ?? modelId });
-      if (res.status >= 400) throw Object.assign(new Error("openrouter_video_error"), { status: res.status });
-      const body = res.body as { id?: string; job_id?: string };
-      const jobId = body.id ?? body.job_id;
+      const body: Record<string, unknown> = {
+        model: parsed.model ?? modelId,
+        prompt: parsed.prompt,
+        ...(parsed.duration ? { duration: parsed.duration } : {}),
+        ...(parsed.resolution ? { resolution: parsed.resolution } : {}),
+        ...(parsed.aspect_ratio ? { aspect_ratio: parsed.aspect_ratio } : {}),
+        ...(parsed.generate_audio != null ? { generate_audio: parsed.generate_audio } : {}),
+        ...(parsed.first_frame_url
+          ? { frame_images: [{ type: "image_url", image_url: { url: parsed.first_frame_url }, frame_type: "first_frame" }] }
+          : {}),
+      };
+      const res = await this.post("/videos", body);
+      if (res.status >= 400) throw Object.assign(new Error("openrouter_video_error"), { status: res.status, body: res.body });
+      const out = res.body as { id?: string; job_id?: string };
+      const jobId = out.id ?? out.job_id;
+      if (!jobId) throw Object.assign(new Error("openrouter_video_no_job"), { status: 502, body: res.body });
       return { status: "SUBMITTED", providerJobId: jobId } satisfies ProviderSubmitResult;
     } catch (err) {
       throw this.mapError(err);
     }
   }
 
+  /** Normalised job state: pending | in_progress → RUNNING, completed → COMPLETED, failed/cancelled/expired → FAILED. */
   async getStatus(providerJobId: string) {
     const res = await this.get(`/videos/${encodeURIComponent(providerJobId)}`);
-    const body = res.body as { status?: string };
-    return { status: body.status ?? "UNKNOWN" };
+    if (res.status >= 400) throw this.mapError({ status: res.status, body: res.body });
+    const body = res.body as { status?: string; error?: unknown; usage?: { cost?: number } };
+    const raw = String(body.status ?? "unknown").toLowerCase();
+    const status = raw === "completed" ? "COMPLETED" : ["failed", "cancelled", "expired"].includes(raw) ? "FAILED" : "RUNNING";
+    return { status, rawStatus: raw, costUsd: body.usage?.cost ?? null, error: body.error ?? null };
+  }
+
+  /** GET /videos/{id}/content — the MP4 bytes (never exposes signed URLs). */
+  async downloadContent(providerJobId: string, index = 0): Promise<Buffer> {
+    this.policy.assertProviderNetworkCall();
+    const cfg = getOpenRouterConfig(this.env);
+    const res = await this.http.request({
+      method: "GET",
+      url: `${cfg.baseUrl}/videos/${encodeURIComponent(providerJobId)}/content?index=${index}`,
+      headers: authHeaders(this.env, cfg),
+      responseType: "binary",
+      timeoutMs: 180_000,
+    });
+    if (res.status >= 400 || !Buffer.isBuffer(res.body)) throw this.mapError({ status: res.status || 502, body: res.body });
+    return res.body;
   }
 }
 

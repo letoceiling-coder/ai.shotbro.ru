@@ -78,6 +78,15 @@ export const envSchema = z
     /** Phase 6 feature switches (still require live policy + vendor switch) */
     VOICE_CLONING_ENABLED: boolFromEnv.default(false),
     AVATAR_GENERATION_ENABLED: boolFromEnv.default(false),
+    /** Phase 6G: live scene-canvas nodes (images/video/TTS via the approved canvas protocol only). */
+    CANVAS_LIVE_GENERATION_ENABLED: boolFromEnv.default(false),
+    /** Cheapest verified OpenRouter models (catalog 2026-10-30); change only together with the price catalog. */
+    CANVAS_IMAGE_MODEL: z.string().default("bytedance-seed/seedream-5-0-flash"),
+    CANVAS_VIDEO_MODEL: z.string().default("x-ai/grok-imagine-video-1.5-lite"),
+    CANVAS_VIDEO_RESOLUTION: z.string().default("480p"),
+    CANVAS_AVATAR_VIDEO_MODEL: z.string().default("heygen/avatar-iv"),
+    /** Customer rule for real tests: clips and voice-overs ≤ 5 s (server clamps/refuses longer). */
+    CANVAS_LIVE_MAX_SECONDS: z.coerce.number().int().min(1).max(10).default(5),
     /** Phase 6 minimal budget caps for live media (USD) */
     MEDIA_RUN_MAX_COST_USD: z.coerce.number().min(0).max(100).default(1),
     MEDIA_USER_DAILY_MAX_USD: z.coerce.number().min(0).max(500).default(3),

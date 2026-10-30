@@ -25,7 +25,9 @@ import {
   canvasApprovalPayload,
   canvasRunAllNodeIds,
   evaluateBudgetCaps,
+  liveCanvasBlockers,
   quoteCanvasNode,
+  AVATAR_SPEECH_CHARS_PER_SECOND,
   syncCanvasWithStoryboard,
   type CanvasRunStep,
   type CanvasSceneLite,
@@ -336,9 +338,27 @@ export class CanvasService implements OnModuleInit {
     await this.assertNodeRefs(c.workspaceId, projectId, c.payload.nodes.filter((n) => nodeIds.includes(n.id) || plan.steps.some((s) => s.inputs.some((i) => i.nodeId === n.id))));
 
     const chars = (await this.characters.list(userId, projectId)).items;
+    const live = !this.env.AI_MOCK_MODE;
+    const maxLiveSeconds = this.env.CANVAS_LIVE_MAX_SECONDS;
     const steps: Array<CanvasRunStep & { resolved: Record<string, unknown> }> = [];
-    for (const step of plan.steps) {
+    for (const rawStep of plan.steps) {
       const resolved: Record<string, unknown> = {};
+      // Real runs: minimal cost — clips ≤ CANVAS_LIVE_MAX_SECONDS (default 5 s).
+      const step = live ? { ...rawStep, durationSeconds: Math.min(rawStep.durationSeconds, maxLiveSeconds) } : rawStep;
+      if (live && (step.kind === "tts" || step.kind === "avatar_video")) {
+        const maxChars = maxLiveSeconds * AVATAR_SPEECH_CHARS_PER_SECOND;
+        if (step.text.length > maxChars) {
+          throw new BadRequestException({
+            code: "text_too_long_for_live",
+            nodeId: step.nodeId,
+            message: `Для реального запуска текст не длиннее ${maxChars} символов (≈${maxLiveSeconds} с речи)`,
+          });
+        }
+      }
+      if (live) {
+        const blockers = liveCanvasBlockers(this.env, step.kind);
+        if (blockers.length) throw new ConflictException({ code: "live_blocked", nodeId: step.nodeId, reasons: blockers });
+      }
       if (step.kind === "avatar_video" || step.kind === "tts") {
         let avatarId: string | undefined;
         let lookId: string | undefined;
@@ -369,12 +389,26 @@ export class CanvasService implements OnModuleInit {
           resolved.avatarProfileId = a.id;
           resolved.avatarKind = a.kind;
           resolved.avatarLookId = lookId ?? null;
+          if (live) {
+            // Avatar video (OpenRouter heygen/avatar-iv) animates one photo: the look preview.
+            const [look] = lookId ? await this.db.select().from(avatarLook).where(eq(avatarLook.id, lookId)).limit(1) : [];
+            const photo = look?.previewAssetId ?? a.sourceAssetIds?.[0];
+            if (!photo) throw new BadRequestException({ code: "avatar_photo_missing", nodeId: step.nodeId });
+            resolved.avatarPhotoAssetId = photo;
+          }
         }
         if (voiceId) {
           const [v] = await this.db.select().from(voiceProfile).where(eq(voiceProfile.id, voiceId)).limit(1);
           if (!v || v.workspaceId !== c.workspaceId || v.archivedAt) throw new BadRequestException({ code: "voice_not_accessible", nodeId: step.nodeId });
           if (v.status !== "READY") throw new BadRequestException({ code: "voice_not_ready", nodeId: step.nodeId });
           resolved.voiceProfileId = v.id;
+          if (live && step.kind === "tts") {
+            // Voices created while the studio ran in test mode carry mock provider ids.
+            if (!v.providerVoiceId || v.providerVoiceId.startsWith("mock")) {
+              throw new BadRequestException({ code: "voice_not_live", nodeId: step.nodeId, message: "Голос создан в тестовом режиме — добавьте голос из каталога ElevenLabs заново" });
+            }
+            resolved.providerVoiceId = v.providerVoiceId;
+          }
         } else if (step.kind === "tts") {
           throw new BadRequestException({ code: "missing_voice", nodeId: step.nodeId });
         }
@@ -647,11 +681,7 @@ export class CanvasService implements OnModuleInit {
     }
 
     const mock = this.env.AI_MOCK_MODE;
-    if (!mock) {
-      // Live generation adapters for canvas nodes land with the Phase 6G live tests.
-      await this.releaseReservation(reservation.id, "live_blocked");
-      throw new ConflictException({ code: "live_blocked", reasons: ["live canvas generation is not enabled yet (Phase 6G)"] });
-    }
+    // Live gates were re-checked by plan() above (per node); the worker checks them again per call.
 
     const runId = uuid();
     for (const [order, item] of planned.items.entries()) {

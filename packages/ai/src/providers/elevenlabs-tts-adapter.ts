@@ -80,25 +80,22 @@ export class ElevenLabsTtsAdapter implements MediaProviderAdapter {
           output_format: parsed.output_format,
         },
         timeoutMs: 120_000,
+        responseType: "binary",
       });
 
       if (res.status >= 400) {
         throw normalizeHttpProviderError({ status: res.status, body: res.body, providerId: this.providerId });
       }
 
-      const hasAudio =
-        typeof res.body === "string" ||
-        Buffer.isBuffer(res.body) ||
-        (typeof res.body === "object" && res.body !== null && (res.body as { __audio?: boolean }).__audio);
-
-      if (!hasAudio) {
-        return { status: "SUBMITTED", providerJobId: `elevenlabs-sync-${Date.now()}` };
+      // Sync endpoint: the MP3 bytes come back directly; we ingest them into MinIO (never a vendor URL).
+      if (!Buffer.isBuffer(res.body) || res.body.length === 0) {
+        throw normalizeHttpProviderError({ status: 502, body: "empty audio response", providerId: this.providerId });
       }
 
       return {
         status: "COMPLETED",
         providerJobId: `elevenlabs-${Date.now()}`,
-        outputs: [{ mimeType: "audio/mpeg" }],
+        outputs: [{ mimeType: "audio/mpeg", base64: res.body.toString("base64") }],
         usage: { characters: parsed.text.length, model_id: parsed.model_id ?? modelId },
       };
     } catch (err) {

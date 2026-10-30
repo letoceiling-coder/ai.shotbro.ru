@@ -1,0 +1,23 @@
+# Phase 6G live-test window ONLY. Never used by staging-deploy.sh: any normal deploy or
+# `staging-6g-window.sh close` recreates api/worker without this file → back to test mode.
+# Customer rules: minimal spend — clips/voice ≤ 5 s, $1 per run, $3 per user per day.
+x-live6g-env: &live6g
+  AI_MOCK_MODE: "false"
+  PROVIDER_LIVE_EXECUTION_ENABLED: "true"
+  CANVAS_LIVE_GENERATION_ENABLED: "true"
+  CANVAS_LIVE_MAX_SECONDS: "5"
+  ELEVENLABS_PROVIDER_ENABLED: "true"
+  MEDIA_RUN_MAX_COST_USD: "1"
+  MEDIA_USER_DAILY_MAX_USD: "3"
+  # Legacy generate.* tools and live media flags stay off.
+  MEDIA_GENERATION_ENABLED: "false"
+  MEDIA_PROVIDER_LIVE_EXECUTION_ENABLED: "false"
+  IMAGE_GENERATION_ENABLED: "false"
+  VIDEO_GENERATION_ENABLED: "false"
+  OPENROUTER_ALLOW_PAID_REQUESTS: "false"
+
+services:
+  api:
+    environment: *live6g
+  worker:
+    environment: *live6g

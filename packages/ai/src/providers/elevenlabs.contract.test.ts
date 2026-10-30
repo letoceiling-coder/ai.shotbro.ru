@@ -42,7 +42,7 @@ describe("ElevenLabsTtsAdapter contract (mock transport)", () => {
       "POST https://api.elevenlabs.io/v1/text-to-speech/voice-a": {
         status: 200,
         headers: { "content-type": "audio/mpeg" },
-        body: { __audio: true },
+        body: Buffer.from("ID3-mp3-bytes"),
       },
     });
     const adapter = new ElevenLabsTtsAdapter(liveEnv, transport);
@@ -53,5 +53,6 @@ describe("ElevenLabsTtsAdapter contract (mock transport)", () => {
       { idempotencyKey: "k3" },
     );
     expect(result.status).toBe("COMPLETED");
+    expect(Buffer.from(result.outputs![0]!.base64!, "base64").toString()).toBe("ID3-mp3-bytes");
   });
 });

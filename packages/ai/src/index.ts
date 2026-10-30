@@ -68,7 +68,8 @@ export {
   type TalentQuote,
   type BudgetCapCheck,
 } from "./cost/talent-price-catalog.js";
-export { quoteCanvasNode, canvasApprovalPayload, type CanvasNodeQuote } from "./canvas/canvas-price-catalog.js";
+export { quoteCanvasNode, canvasApprovalPayload, AVATAR_SPEECH_CHARS_PER_SECOND, type CanvasNodeQuote } from "./canvas/canvas-price-catalog.js";
+export { liveCanvasBlockers } from "./canvas/canvas-live.js";
 export {
   syncCanvasWithStoryboard,
   emptyCanvasPayload,

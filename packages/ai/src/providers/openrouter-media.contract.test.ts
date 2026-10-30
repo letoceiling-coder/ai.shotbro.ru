@@ -38,6 +38,52 @@ describe("OpenRouter media adapters (mock transport)", () => {
     expect(res.providerJobId).toBe("vid-job-1");
   });
 
+  const liveEnv = { ...env, AI_MOCK_MODE: false, PROVIDER_LIVE_EXECUTION_ENABLED: true, OPENROUTER_ENABLED: true } as typeof env;
+
+  it("image adapter: POST /images body and b64_json output (6G API shape)", async () => {
+    let sent: Record<string, unknown> = {};
+    const transport = new MockHttpTransport({});
+    transport.request = async (req) => {
+      sent = req.body as Record<string, unknown>;
+      return { status: 200, headers: {}, body: { data: [{ b64_json: "aGVsbG8=", media_type: "image/png" }], usage: { cost: 0.018 } } };
+    };
+    const res = await new OpenRouterImageAdapter(liveEnv, transport).submit(
+      "bytedance-seed/seedream-5-0-flash",
+      "TEXT_TO_IMAGE",
+      { prompt: "logo", aspect_ratio: "9:16", resolution: "1K" },
+      { idempotencyKey: "i1" },
+    );
+    expect(sent).toMatchObject({ model: "bytedance-seed/seedream-5-0-flash", prompt: "logo", aspect_ratio: "9:16", n: 1 });
+    expect(res.outputs?.[0]).toMatchObject({ base64: "aGVsbG8=", mimeType: "image/png" });
+    expect(res.usage).toEqual({ costUsd: 0.018 });
+  });
+
+  it("video adapter: duration + frame_images, status mapping, binary download", async () => {
+    const calls: Array<{ url: string; body?: unknown; responseType?: string }> = [];
+    const transport = new MockHttpTransport({});
+    transport.request = async (req) => {
+      calls.push({ url: req.url, body: req.body, responseType: req.responseType });
+      if (req.method === "POST") return { status: 202, headers: {}, body: { id: "job-1", status: "pending" } };
+      if (req.url.endsWith("/content?index=0")) return { status: 200, headers: {}, body: Buffer.from("mp4") };
+      return { status: 200, headers: {}, body: { status: "completed", usage: { cost: 0.07 } } };
+    };
+    const a = new OpenRouterVideoAdapter(liveEnv, transport);
+    const sub = await a.submit(
+      "x-ai/grok-imagine-video-1.5-lite",
+      "IMAGE_TO_VIDEO",
+      { prompt: "zoom", duration: 3, resolution: "480p", aspect_ratio: "9:16", first_frame_url: "https://ai.shotbro.ru/f.png", generate_audio: false },
+      { idempotencyKey: "v1" },
+    );
+    expect(sub.providerJobId).toBe("job-1");
+    expect(calls[0]!.body).toMatchObject({
+      duration: 3,
+      frame_images: [{ type: "image_url", image_url: { url: "https://ai.shotbro.ru/f.png" }, frame_type: "first_frame" }],
+    });
+    expect(await a.getStatus("job-1")).toMatchObject({ status: "COMPLETED", costUsd: 0.07 });
+    expect((await a.downloadContent("job-1")).toString()).toBe("mp4");
+    expect(calls.at(-1)!.responseType).toBe("binary");
+  });
+
   it("tts adapter validates input", () => {
     const adapter = new OpenRouterTtsAdapter(env);
     expect(() => adapter.validateRequest("openrouter/tts/auto", "TEXT_TO_SPEECH", {})).toThrow();

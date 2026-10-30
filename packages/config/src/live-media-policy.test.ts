@@ -37,11 +37,11 @@ describe("live media policy (Phase 6B)", () => {
     expect(() => assertLiveMediaStartupPolicy(env)).toThrow(/AI_MOCK_MODE=true/);
   });
 
-  it("image/video generation stays blocked even with live flags (enforcement in 6E)", () => {
+  it("legacy image/video generation tools stay blocked even with live flags", () => {
     const env = testEnv({ ...liveFlags, MEDIA_GENERATION_ENABLED: "true" });
     const p = evaluateLiveMediaPolicy(env, "generation");
     expect(p.liveMediaAllowed).toBe(false);
-    expect(p.reasons.join(" ")).toMatch(/Phase 6E/);
+    expect(p.reasons.join(" ")).toMatch(/approval enforcement for generation not shipped/);
     expect(() => assertLiveMediaStartupPolicy(env)).toThrow(/generation/);
   });
 
@@ -49,6 +49,16 @@ describe("live media policy (Phase 6B)", () => {
     const env = testEnv({ ...liveFlags, ELEVENLABS_PROVIDER_ENABLED: "true", VOICE_CLONING_ENABLED: "true" });
     expect(evaluateLiveMediaPolicy(env, "talent")).toMatchObject({ liveMediaAllowed: true, reasons: [] });
     expect(() => assertLiveMediaStartupPolicy(env)).not.toThrow();
+  });
+
+  it("canvas scope (6G): off by default, blocked in mock mode, allowed with live flags + caps", () => {
+    expect(evaluateLiveMediaPolicy(testEnv(), "canvas").liveMediaRequested).toBe(false);
+    expect(() => assertLiveMediaStartupPolicy(testEnv({ CANVAS_LIVE_GENERATION_ENABLED: "true" }))).toThrow(/canvas/);
+    const env = testEnv({ ...liveFlags, CANVAS_LIVE_GENERATION_ENABLED: "true" });
+    expect(evaluateLiveMediaPolicy(env, "canvas")).toMatchObject({ liveMediaAllowed: true, reasons: [] });
+    // Turning the canvas on must not unlock the legacy generate.* tools.
+    expect(evaluateLiveMediaPolicy(env, "generation").liveMediaRequested).toBe(false);
+    expect(env.CANVAS_VIDEO_MODEL).toBe("x-ai/grok-imagine-video-1.5-lite");
   });
 
   it("rejects caps above hard ceilings or run cap above daily cap", () => {

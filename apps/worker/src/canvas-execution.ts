@@ -7,8 +7,10 @@ import { promisify } from "node:util";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Logger } from "pino";
 import sharp from "sharp";
-import { loadEnvFromProcess } from "@shotbro/config/env";
-import { createS3Client } from "@shotbro/config/s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { ElevenLabsTtsAdapter, FetchHttpTransport, OpenRouterImageAdapter, OpenRouterVideoAdapter, liveCanvasBlockers } from "@shotbro/ai";
+import { loadEnvFromProcess, type AppEnv } from "@shotbro/config/env";
+import { createS3Client, createS3SigningClient } from "@shotbro/config/s3";
 import { approval, asset, budgetReservation, conversation, costLedgerEntry, eventLog, message, messageBlock, providerJob } from "@shotbro/db/schema";
 import { assetPlaybackRef } from "@shotbro/contracts/asset-playback";
 import { probeMediaBuffer } from "./ffprobe.js";
@@ -249,6 +251,122 @@ async function failJob(job: JobRow, code: string, message: string, log: Logger) 
   log.warn({ jobId: job.id, code, message }, "canvas node failed");
 }
 
+// ---------- Phase 6G: live generation (only after every gate is open; see liveCanvasBlockers) ----------
+
+const VIDEO_POLL_MS = 15_000;
+const VIDEO_POLL_MAX_MS = 15 * 60_000;
+
+type LiveResult = { body: Buffer; mimeType: string; costUsd: number | null; providerJobId?: string };
+
+/** Short-lived public URL of one of our assets (first frame / avatar photo for the video provider). */
+async function presignedAssetUrl(id: string, workspaceId: string) {
+  const [row] = await getWorkerDb().select().from(asset).where(eq(asset.id, id)).limit(1);
+  if (!row || row.workspaceId !== workspaceId || row.status !== "READY" || row.deletedAt) {
+    throw new CanvasJobError("ASSET_NOT_ACCESSIBLE", `asset ${id} not usable`);
+  }
+  const signer = createS3SigningClient({
+    S3_ENDPOINT: process.env.S3_ENDPOINT!,
+    S3_PUBLIC_ENDPOINT: process.env.S3_PUBLIC_ENDPOINT,
+    S3_REGION: process.env.S3_REGION!,
+    S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID!,
+    S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY!,
+    S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE === "true",
+  });
+  return getSignedUrl(signer, new GetObjectCommand({ Bucket: process.env.S3_BUCKET!, Key: row.storageKey }), { expiresIn: 1800 });
+}
+
+async function pollVideo(adapter: OpenRouterVideoAdapter, jobRowId: string, providerJobId: string, log: Logger) {
+  const started = Date.now();
+  for (;;) {
+    const st = await adapter.getStatus(providerJobId);
+    if (st.status === "COMPLETED") return st;
+    if (st.status === "FAILED") throw new CanvasJobError("PROVIDER_FAILED", `video job ${st.rawStatus}`);
+    if (Date.now() - started > VIDEO_POLL_MAX_MS) throw new CanvasJobError("TIMED_OUT", "video generation timed out");
+    log.info({ jobId: jobRowId, providerJobId, status: st.rawStatus }, "canvas live video polling");
+    await new Promise((r) => setTimeout(r, VIDEO_POLL_MS));
+  }
+}
+
+async function liveGenerate(
+  env: AppEnv,
+  job: JobRow,
+  step: Step,
+  meta: JobMeta,
+  inputAsset: (i: StepInput) => string | null,
+  log: Logger,
+): Promise<LiveResult> {
+  const http = new FetchHttpTransport();
+  const ctx = { idempotencyKey: job.idempotencyKey ?? job.id };
+  const resolved = (step.resolved ?? {}) as Record<string, string | undefined>;
+
+  if (step.kind === "first_frame") {
+    const refs: string[] = [];
+    for (const i of step.inputs.filter((x) => x.type === "image")) {
+      const id = inputAsset(i);
+      if (!id) continue;
+      const a = await readAsset(id, meta.workspaceId);
+      refs.push(`data:${a.row.mimeType};base64,${a.data.toString("base64")}`);
+    }
+    const r = await new OpenRouterImageAdapter(env, http).submit(
+      env.CANVAS_IMAGE_MODEL,
+      refs.length ? "IMAGE_TO_IMAGE" : "TEXT_TO_IMAGE",
+      { prompt: step.text, aspect_ratio: "9:16", resolution: "1K", ...(refs.length ? { input_references: refs.slice(0, 4) } : {}) },
+      ctx,
+    );
+    const out = r.outputs?.[0];
+    if (!out?.base64) throw new CanvasJobError("PROVIDER_BAD_RESPONSE", "image without inline data");
+    return { body: Buffer.from(out.base64, "base64"), mimeType: out.mimeType ?? "image/png", costUsd: (r.usage?.costUsd as number | null) ?? null };
+  }
+
+  if (step.kind === "scene_video" || step.kind === "avatar_video") {
+    const adapter = new OpenRouterVideoAdapter(env, http);
+    let frameAssetId: string | null = null;
+    if (step.kind === "scene_video") {
+      const img = step.inputs.find((i) => i.type === "image");
+      frameAssetId = img ? inputAsset(img) : null;
+      if (!frameAssetId) throw new CanvasJobError("INPUT_MISSING", "first frame missing");
+    } else {
+      frameAssetId = resolved.avatarPhotoAssetId ?? null;
+      if (!frameAssetId) throw new CanvasJobError("INPUT_MISSING", "avatar photo missing");
+    }
+    const firstFrameUrl = await presignedAssetUrl(frameAssetId, meta.workspaceId);
+    const seconds = Math.min(env.CANVAS_LIVE_MAX_SECONDS, Math.max(1, Math.round(step.durationSeconds)));
+    const sub = await adapter.submit(
+      step.kind === "scene_video" ? env.CANVAS_VIDEO_MODEL : env.CANVAS_AVATAR_VIDEO_MODEL,
+      "IMAGE_TO_VIDEO",
+      {
+        prompt: step.text || "subtle camera motion",
+        aspect_ratio: "9:16",
+        first_frame_url: firstFrameUrl,
+        ...(step.kind === "scene_video"
+          ? { duration: seconds, resolution: env.CANVAS_VIDEO_RESOLUTION, generate_audio: false }
+          : { resolution: "720p" }),
+      },
+      ctx,
+    );
+    // Persist the vendor job id first: if the worker dies, the run can be reconciled instead of paid twice.
+    await setJob(job.id, { providerJobId: sub.providerJobId ?? null, status: "RUNNING", submittedAt: new Date() });
+    const st = await pollVideo(adapter, job.id, sub.providerJobId!, log);
+    const body = await adapter.downloadContent(sub.providerJobId!);
+    return { body, mimeType: "video/mp4", costUsd: st.costUsd ?? null, providerJobId: sub.providerJobId };
+  }
+
+  if (step.kind === "tts") {
+    if (!resolved.providerVoiceId) throw new CanvasJobError("VOICE_NOT_LIVE", "voice has no provider id");
+    const r = await new ElevenLabsTtsAdapter(env, http).submit(
+      ElevenLabsTtsAdapter.defaultModelId,
+      "TEXT_TO_SPEECH",
+      { text: step.text, voiceId: resolved.providerVoiceId },
+      ctx,
+    );
+    const out = r.outputs?.[0];
+    if (!out?.base64) throw new CanvasJobError("PROVIDER_BAD_RESPONSE", "tts without audio");
+    return { body: Buffer.from(out.base64, "base64"), mimeType: "audio/mpeg", costUsd: null };
+  }
+
+  throw new CanvasJobError("LIVE_BLOCKED", `live ${step.kind} is not part of 6G`);
+}
+
 /** Phase 6F: the finished cut goes to the chat where the user approved the price. */
 async function postDeliveryToChat(job: JobRow, assetId: string, body: Buffer, log: Logger) {
   const meta = metaOf(job);
@@ -333,11 +451,20 @@ export async function executeCanvasRun(data: { runId: string }, log: Logger) {
       failed.add(meta.canvasNodeId);
       continue;
     }
-    // Never fake success: live canvas generation is not wired yet, so outside mock mode it fails.
-    if (!env.AI_MOCK_MODE || !meta.mock) {
-      await failJob(job, "LIVE_BLOCKED", "live canvas generation is not enabled (Phase 6G)", log);
+    // Never fake success: a job priced in one mode never runs in the other, and live needs every gate open.
+    const liveNow = !env.AI_MOCK_MODE;
+    if (liveNow === meta.mock) {
+      await failJob(job, "MODE_CHANGED", `job priced in ${meta.mock ? "test" : "live"} mode, studio is now ${liveNow ? "live" : "test"}`, log);
       failed.add(meta.canvasNodeId);
       continue;
+    }
+    if (liveNow) {
+      const blockers = liveCanvasBlockers(env, meta.step.kind);
+      if (blockers.length) {
+        await failJob(job, "LIVE_BLOCKED", blockers.join("; "), log);
+        failed.add(meta.canvasNodeId);
+        continue;
+      }
     }
 
     await setJob(job.id, { status: "RUNNING", startedAt: new Date(), attemptCount: job.attemptCount + 1 });
@@ -352,7 +479,13 @@ export async function executeCanvasRun(data: { runId: string }, log: Logger) {
       const seed = `${job.id}:${step.nodeId}`;
       let body: Buffer;
       let mimeType: string;
-      if (step.kind === "first_frame" || step.kind === "upscale") {
+      let actualCostUsd: number | null = meta.mock ? 0 : null;
+      if (liveNow && step.kind !== "assembly") {
+        const r = await liveGenerate(env, job, step, meta, inputAsset, log);
+        body = r.body;
+        mimeType = r.mimeType;
+        actualCostUsd = r.costUsd;
+      } else if (step.kind === "first_frame" || step.kind === "upscale") {
         for (const i of step.inputs.filter((x) => x.type === "image")) {
           const id = inputAsset(i);
           if (id) await readAsset(id, meta.workspaceId); // validates access to the reference
@@ -395,16 +528,23 @@ export async function executeCanvasRun(data: { runId: string }, log: Logger) {
         id: randomUUID(),
         projectId,
         entryType: "ACTUAL",
-        amountUsd: meta.chargedUsd,
-        source: `mock:${job.providerId}`,
-        mock: 1,
-        metadata: { providerJobId: job.id, canvasNodeId: meta.canvasNodeId, kind: step.kind },
+        // Vendor-reported cost when available (OpenRouter usage.cost), otherwise the approved estimate.
+        amountUsd: actualCostUsd ?? meta.chargedUsd,
+        source: meta.mock ? `mock:${job.providerId}` : job.providerId,
+        mock: meta.mock ? 1 : 0,
+        metadata: {
+          providerJobId: job.id,
+          canvasNodeId: meta.canvasNodeId,
+          kind: step.kind,
+          estimatedUsd: meta.chargedUsd,
+          vendorReportedUsd: actualCostUsd,
+        },
       });
       await setJob(job.id, {
         status: "COMPLETED",
         completedAt: new Date(),
         outputAssetIds: [assetId],
-        actualUsage: { bytes: body.length },
+        actualUsage: { bytes: body.length, costUsd: actualCostUsd },
         metadata: { ...meta, outputMimeType: mimeType } as unknown as Record<string, unknown>,
       });
       await emit(meta, projectId, "COMPLETED", job.id);
