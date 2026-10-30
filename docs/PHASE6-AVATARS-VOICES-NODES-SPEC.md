@@ -235,3 +235,12 @@ canvas (production_document, новый docType SCENE_CANVAS)
 | Startup guard | `assertLiveMediaStartupPolicy` заменил запрет «OpenRouter + media»: live-медиа требует `!AI_MOCK_MODE`, `PROVIDER_LIVE_EXECUTION_ENABLED`, лимиты в пределах (≤ $20 запуск, ≤ $100 день, запуск ≤ день) и enforcement approvals — до 6C всегда блок |
 | Исправлено попутно | загрузка `audio/wav` отклонялась (формат разрешён, но не распознавался) — нужна для образцов голоса |
 | Тесты | config 12, ai 21, integration 6B: дизайн → 3 превью → сохранение, клон из WAV с согласием, двойной клик, изоляция B, аватар REFERENCE |
+
+### Staging 6B (2026-10-29 UTC)
+
+| Шаг | Результат |
+|---|---|
+| Деплой API + worker | `a7f4441e`, оба running, `/health/ready` ok; rollback-образы сохранены |
+| Integration 6A+6B | **15/15**, `PHASE6A_TALENT_INTEGRATION_PASS` — `phase6-talent-integration-a7f4441e.log` |
+| `regression-strict` | **8/8**, `EXIT_CODE=0` — `regression-strict-a7f4441e.log` |
+| Mock-политика | без изменений; все talent-задания выполнены mock-провайдерами, $0 |
