@@ -256,7 +256,6 @@ function CanvasEditor({ projectId, view }: { projectId: string; view: SceneCanva
       ...ns.map((n) => ({ ...n, selected: false })),
       { id, type: "canvasNode" as const, position, selected: true, data: { kind, data: kind === "scene_video" || kind === "avatar_video" ? { durationSeconds: 5 } : {} } },
     ]);
-    writeSelection(projectId, [id]);
     markDirty();
   }
 
@@ -282,6 +281,15 @@ function CanvasEditor({ projectId, view }: { projectId: string; view: SceneCanva
     () => ({ projectId, view, pendingNodeIds: pending, runNodes: (ids) => void runNodes(ids), updateNodeData }),
     [projectId, view, pending, runNodes, updateNodeData],
   );
+
+  // Persist the selection from rendered state (restored after F5).
+  const selectedKey = nodes
+    .filter((n) => n.selected)
+    .map((n) => n.id)
+    .join("|");
+  useEffect(() => {
+    writeSelection(projectId, selectedKey ? selectedKey.split("|") : []);
+  }, [projectId, selectedKey]);
 
   const runAllIds = useMemo(() => runnableAncestors(fromFlow(nodes, edges)), [nodes, edges]);
 
@@ -341,9 +349,6 @@ function CanvasEditor({ projectId, view }: { projectId: string; view: SceneCanva
             onNodesChange={(changes) => {
               onNodesChange(changes);
               if (changes.some((c) => c.type === "remove" || (c.type === "position" && c.dragging === false))) markDirty();
-              if (changes.some((c) => c.type === "select")) {
-                queueMicrotask(() => writeSelection(projectId, latest.current.nodes.filter((n) => n.selected).map((n) => n.id)));
-              }
             }}
             onEdgesChange={(changes) => {
               onEdgesChange(changes);
