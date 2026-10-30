@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAssetMediaUrl } from "@/hooks/use-asset-media-url";
+import { apiUrl } from "@/lib/api-client";
 import {
   TALENT_STATUS_LABEL,
   useArchiveTalent,
@@ -26,6 +27,7 @@ import { ConsentBlock } from "./consent-block";
 import { AssignToCharacter } from "./assign-to-character";
 import { TalentFileInput, type UploadedFile } from "./talent-file-input";
 import { TalentPriceCard } from "./talent-price-card";
+import { VOICE_SAMPLE_SCRIPTS, VoiceRecorder } from "./voice-recorder";
 
 const KIND_LABEL: Record<VoiceProfile["kind"], string> = {
   LIBRARY: "Каталог",
@@ -54,14 +56,47 @@ export function statusVariant(status: string): "success" | "secondary" | "demo" 
   return "outline";
 }
 
-/** ▶ preview: a stored asset (design previews, saved voices) or the provider catalog URL. */
-function VoicePlayer({ assetId, url, testId }: { assetId?: string | null; url?: string | null; testId?: string }) {
+/** Catalog preview served by our API (ElevenLabs MP3 proxied and cached by the server). */
+export function catalogPreviewSrc(providerVoiceId: string | null | undefined) {
+  if (!providerVoiceId || providerVoiceId.startsWith("mock")) return null;
+  return apiUrl(`/api/v1/voices/library/${encodeURIComponent(providerVoiceId)}/preview`);
+}
+
+/** ▶ preview: a stored asset (design previews, saved voices, own recording) or a catalog preview. */
+function VoicePlayer({
+  assetId,
+  url,
+  testId,
+  label,
+}: {
+  assetId?: string | null;
+  url?: string | null;
+  testId?: string;
+  label?: string;
+}) {
   const media = useAssetMediaUrl(assetId ?? undefined);
+  const [failed, setFailed] = useState(false);
   const src = assetId ? media.data?.url : url ?? undefined;
-  if (!src) {
-    return <span className="text-[11px] text-muted-foreground">{assetId ? "Загрузка…" : "Без образца звучания"}</span>;
+  if (!src || failed) {
+    return (
+      <span className="text-[11px] text-muted-foreground" data-testid={testId ? `${testId}-none` : undefined}>
+        {assetId && !failed ? "Загрузка…" : failed ? "Образец сейчас недоступен" : "Без образца звучания"}
+      </span>
+    );
   }
-  return <audio controls preload="none" src={src} className="h-8 w-full max-w-[260px]" data-testid={testId} />;
+  return (
+    <div className="space-y-0.5">
+      {label ? <p className="text-[11px] text-muted-foreground">{label}</p> : null}
+      <audio
+        controls
+        preload="none"
+        src={src}
+        className="h-8 w-full max-w-[300px]"
+        data-testid={testId}
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
 }
 
 export function VoiceLibrary({ projectId }: { projectId: string }) {
@@ -173,7 +208,7 @@ function VoiceCard({ voice: v, projectId }: { voice: VoiceProfile; projectId: st
   const previewAssetId = v.previewAssetId ?? null;
 
   return (
-    <li className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-sm" data-testid={`voice-card-${v.id}`}>
+    <li className="min-w-0 space-y-2 rounded-xl border border-border bg-card p-3 shadow-sm" data-testid={`voice-card-${v.id}`}>
       <div className="flex items-start gap-2">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
           {v.kind === "CLONED" ? <Mic className="h-4 w-4" /> : v.kind === "DESIGNED" ? <Sparkles className="h-4 w-4" /> : <AudioLines className="h-4 w-4" />}
@@ -182,7 +217,7 @@ function VoiceCard({ voice: v, projectId }: { voice: VoiceProfile; projectId: st
           <p className="truncate text-sm font-medium">{v.name}</p>
           <p className="text-[11px] text-muted-foreground">{labelsText(v.labels) || "—"}</p>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           <Badge variant={statusVariant(v.status)} data-testid={`voice-status-${v.id}`} data-status={v.status}>
             {TALENT_STATUS_LABEL[v.status] ?? v.status}
           </Badge>
@@ -197,7 +232,17 @@ function VoiceCard({ voice: v, projectId }: { voice: VoiceProfile; projectId: st
         <p className="line-clamp-2 text-xs text-muted-foreground">«{v.designPrompt}»</p>
       ) : null}
 
-      {v.status === "READY" ? <VoicePlayer assetId={previewAssetId} url={v.previewUrl} testId={`voice-preview-${v.id}`} /> : null}
+      {v.kind === "CLONED" && v.sampleAssetIds.length ? (
+        <VoicePlayer assetId={v.sampleAssetIds[0]} label="Ваша запись (образец для клона)" testId={`voice-sample-${v.id}`} />
+      ) : null}
+      {v.status === "READY" && (previewAssetId || v.kind === "LIBRARY") ? (
+        <VoicePlayer
+          assetId={previewAssetId}
+          url={previewAssetId ? null : catalogPreviewSrc(v.providerVoiceId)}
+          label="Как звучит голос"
+          testId={`voice-preview-${v.id}`}
+        />
+      ) : null}
 
       {v.status === "FAILED" && v.lastError ? (
         <p className="text-xs text-destructive" data-testid={`voice-error-${v.id}`}>
@@ -273,6 +318,7 @@ function VoiceCatalog({ onAdded }: { onAdded: () => void }) {
   const { data, isLoading, isError, refetch } = useLibraryVoices();
   const create = useCreateVoice();
   const [error, setError] = useState<string | null>(null);
+  const [gender, setGender] = useState<"all" | "female" | "male">("all");
 
   if (isLoading) return <Skeleton className="h-40 w-full" />;
   if (isError) {
@@ -297,7 +343,6 @@ function VoiceCatalog({ onAdded }: { onAdded: () => void }) {
         name: v.name,
         providerVoiceId: v.providerVoiceId,
         labels: v.labels,
-        previewUrl: v.previewUrl ?? undefined,
       });
       onAdded();
     } catch (e) {
@@ -308,11 +353,35 @@ function VoiceCatalog({ onAdded }: { onAdded: () => void }) {
   return (
     <div className="space-y-2" data-testid="voice-catalog">
       <p className="text-xs text-muted-foreground">
-        Готовые голоса ElevenLabs — бесплатно, входят в тариф.{data?.mock ? " Тестовый режим: показан демонстрационный каталог." : ""}
+        Готовые голоса ElevenLabs — бесплатно, входят в тариф. Нажмите ▶, чтобы послушать. Все голоса читают по-русски
+        (модель multilingual), образец может быть на английском.
       </p>
+      {data?.mock ? (
+        <p className="text-xs text-[var(--sb-warning)]" data-testid="voice-catalog-demo">
+          Каталог ElevenLabs сейчас недоступен — показаны демонстрационные голоса без образцов звучания.
+        </p>
+      ) : null}
+      <div className="flex rounded-md border border-border p-0.5 text-xs" role="group" aria-label="Фильтр по полу">
+        {(
+          [
+            ["all", "Все"],
+            ["female", "Женские"],
+            ["male", "Мужские"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setGender(id)}
+            className={cn("rounded px-2 py-0.5", gender === id ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       <ul className="grid gap-2 md:grid-cols-2">
-        {(data?.items ?? []).map((v) => (
+        {(data?.items ?? []).filter((v) => gender === "all" || v.labels.gender === gender).map((v) => (
           <li
             key={v.providerVoiceId}
             className="flex flex-col gap-2 rounded-lg border border-border p-3"
@@ -323,7 +392,7 @@ function VoiceCatalog({ onAdded }: { onAdded: () => void }) {
               <span className="text-sm font-medium">{v.name}</span>
               <span className="ml-auto text-[11px] text-muted-foreground">{labelsText(v.labels)}</span>
             </div>
-            <VoicePlayer url={v.previewUrl} />
+            <VoicePlayer url={v.previewUrl ? apiUrl(v.previewUrl) : null} testId={`voice-catalog-preview-${v.providerVoiceId}`} />
             <Button
               type="button"
               size="sm"
@@ -358,6 +427,7 @@ function CreateVoiceDialog({
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const [scriptIdx, setScriptIdx] = useState(0);
   const promptOk = prompt.trim().length >= 20;
   const canSubmit = name.trim().length > 0 && (mode === "clone" ? samples.length > 0 : promptOk);
 
@@ -391,7 +461,7 @@ function CreateVoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg" data-testid="voice-create-dialog">
+      <DialogContent className="max-h-[92vh] max-w-lg overflow-y-auto" data-testid="voice-create-dialog">
         <DialogHeader>
           <DialogTitle>Новый голос</DialogTitle>
         </DialogHeader>
@@ -444,19 +514,34 @@ function CreateVoiceDialog({
           </div>
 
           {mode === "clone" ? (
-            <div className="space-y-1.5">
-              <Label>Записи голоса (1–3 файла)</Label>
+            <div className="space-y-2">
+              <Label>Образец голоса (1–3 записи)</Label>
               <p className="text-xs text-muted-foreground">
-                Лучше всего — от 1 минуты чистой речи без музыки и шума. После создания понадобится согласие человека,
-                затем вы увидите цену и подтвердите запуск.
+                Запишите голос прямо здесь, читая текст с экрана, или загрузите готовую запись. Лучше всего — около минуты
+                чистой речи без музыки и шума. Затем понадобится согласие человека, вы увидите цену и подтвердите запуск.
               </p>
+              <VoiceRecorder
+                projectId={projectId}
+                script={VOICE_SAMPLE_SCRIPTS[scriptIdx % VOICE_SAMPLE_SCRIPTS.length]!}
+                onNextScript={() => setScriptIdx((i) => i + 1)}
+                minSeconds={20}
+                maxSeconds={180}
+                fileLabel="voice-sample"
+                disabled={samples.length >= 3}
+                onSaved={(f) => {
+                  setSamples((list) => [...list, f].slice(0, 3));
+                  setScriptIdx((i) => i + 1);
+                }}
+                testId="voice-create-recorder"
+              />
+              <p className="text-[11px] text-muted-foreground">или загрузите файл (MP3, WAV, OGG):</p>
               <TalentFileInput
                 projectId={projectId}
                 accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg"
                 max={3}
                 files={samples}
                 onChange={setSamples}
-                label="Добавить запись"
+                label="Загрузить запись"
                 testId="voice-create-samples"
               />
             </div>

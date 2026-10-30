@@ -74,7 +74,7 @@ export function RealContextPanel({
           <div className="space-y-3 text-sm">
             <Badge variant="secondary">REAL · PostgreSQL</Badge>
             <p className="text-muted-foreground">
-              Проект сохраняется на сервере. Mock AI — без списания средств.
+              Проект сохраняется на сервере. Платные действия (голос, аватар, видео) всегда запускаются только после вашего подтверждения цены.
             </p>
             <div>
               <p className="text-xs font-medium uppercase text-muted-foreground">Бюджет</p>

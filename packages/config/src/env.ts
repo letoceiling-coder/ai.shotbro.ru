@@ -78,6 +78,8 @@ export const envSchema = z
     /** Phase 6 feature switches (still require live policy + vendor switch) */
     VOICE_CLONING_ENABLED: boolFromEnv.default(false),
     AVATAR_GENERATION_ENABLED: boolFromEnv.default(false),
+    /** Read-only ElevenLabs catalog + preview MP3s (free, no credits) — allowed in test mode. */
+    ELEVENLABS_CATALOG_ENABLED: boolFromEnv.default(true),
     /** Phase 6G: live scene-canvas nodes (images/video/TTS via the approved canvas protocol only). */
     CANVAS_LIVE_GENERATION_ENABLED: boolFromEnv.default(false),
     /** Cheapest verified OpenRouter models (catalog 2026-10-30); change only together with the price catalog. */

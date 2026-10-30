@@ -21,6 +21,12 @@ describe("studio-intent (5L-A)", () => {
     expect(resolveStudioMessageIntent("Установи первым кадром второй сцены")).toBe("creative_nl");
   });
 
+  it("routes voice / avatar requests to creative_nl (talent tools)", () => {
+    expect(resolveStudioMessageIntent("Подбери голос для ведущего")).toBe("creative_nl");
+    expect(resolveStudioMessageIntent("Сделай аватар из фото")).toBe("creative_nl");
+    expect(resolveStudioMessageIntent("Озвучь вторую сцену")).toBe("creative_nl");
+  });
+
   it("routes canvas requests to creative_nl (6F)", () => {
     expect(resolveStudioMessageIntent("Собери ролик на холсте")).toBe("creative_nl");
     expect(resolveStudioMessageIntent("phase6f переделай вторую сцену")).toBe("creative_nl");

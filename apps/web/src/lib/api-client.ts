@@ -1,5 +1,10 @@
 const base = process.env.NEXT_PUBLIC_API_URL ?? "";
 
+/** Absolute URL of an API path (for <audio>/<video> src that the browser loads itself). */
+export function apiUrl(path: string) {
+  return `${base}${path}`;
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const res = await fetch(`${base}${path}`, {
     ...init,

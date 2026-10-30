@@ -15,7 +15,6 @@ import {
 } from "@shotbro/contracts";
 import {
   ElevenLabsVoiceAdapter,
-  ExecutionPolicyEngine,
   FetchHttpTransport,
   MOCK_LIBRARY_VOICES,
   resolveMediaProviderChain,
@@ -159,13 +158,51 @@ export class TalentService {
 
   // ---------- voices ----------
 
-  /** ElevenLabs catalog. Mock fixtures unless live execution + vendor switch are on. */
-  async libraryVoices(): Promise<{ items: LibraryVoice[]; mock: boolean }> {
-    const vendor = resolveVoiceVendorState(this.env);
-    const live = new ExecutionPolicyEngine(this.env).resolveMode() === "LIVE_APPROVED" && vendor.vendorEnabled && vendor.hasApiKey;
-    if (!live) return { items: MOCK_LIBRARY_VOICES, mock: true };
-    const items = await new ElevenLabsVoiceAdapter(this.env, new FetchHttpTransport()).listVoices();
-    return { items, mock: false };
+  private catalogCache: { at: number; items: LibraryVoice[] } | null = null;
+  private readonly previewCache = new Map<string, Buffer>();
+
+  /** Real ElevenLabs catalog (read-only, free), cached 10 min; vendor preview URLs stay on the server. */
+  private async realCatalog(): Promise<LibraryVoice[] | null> {
+    if (!this.env.ELEVENLABS_CATALOG_ENABLED || !resolveVoiceVendorState(this.env).hasApiKey) return null;
+    if (this.catalogCache && Date.now() - this.catalogCache.at < 10 * 60_000) return this.catalogCache.items;
+    const items = await new ElevenLabsVoiceAdapter(this.env, new FetchHttpTransport()).browseCatalog();
+    this.catalogCache = { at: Date.now(), items };
+    return items;
+  }
+
+  /**
+   * ElevenLabs catalog with listenable previews. Browsing is free, so the real catalog is shown even in
+   * test mode; demo fixtures only when the key is missing or the vendor is unreachable.
+   */
+  async libraryVoices(): Promise<{ items: LibraryVoice[]; mock: boolean; catalogError?: string }> {
+    try {
+      const items = await this.realCatalog();
+      if (items) {
+        return {
+          items: items.map((v) => ({
+            ...v,
+            previewUrl: v.previewUrl ? `/api/v1/voices/library/${encodeURIComponent(v.providerVoiceId)}/preview` : null,
+          })),
+          mock: false,
+        };
+      }
+      return { items: MOCK_LIBRARY_VOICES, mock: true };
+    } catch (e) {
+      return { items: MOCK_LIBRARY_VOICES, mock: true, catalogError: e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e) };
+    }
+  }
+
+  /** Preview MP3 of a catalog voice, proxied through our server (ElevenLabs is not reachable from every network). */
+  async libraryVoicePreview(providerVoiceId: string): Promise<Buffer> {
+    const hit = this.previewCache.get(providerVoiceId);
+    if (hit) return hit;
+    const items = await this.realCatalog();
+    const voice = items?.find((v) => v.providerVoiceId === providerVoiceId);
+    if (!voice?.previewUrl) throw new NotFoundException({ code: "preview_not_found" });
+    const audio = await new ElevenLabsVoiceAdapter(this.env, new FetchHttpTransport()).fetchPreview(voice.previewUrl);
+    if (this.previewCache.size >= 80) this.previewCache.delete(this.previewCache.keys().next().value!);
+    this.previewCache.set(providerVoiceId, audio);
+    return audio;
   }
 
   async listVoices(userId: string, opts: { includeArchived?: boolean } = {}) {

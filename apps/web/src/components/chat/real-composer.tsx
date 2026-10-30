@@ -83,7 +83,7 @@ export function RealComposer({
           aria-label="Опишите задачу"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Опишите задачу — агент подготовит brief, сценарий и mock-производство…"
+          placeholder="Опишите ролик или задачу: «Напиши сценарий…», «Подбери голос…», «Собери ролик на холсте»"
           rows={1}
           className="min-h-10 resize-none"
           onKeyDown={(e) => {

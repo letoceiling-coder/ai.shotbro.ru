@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 import { MediaCapabilitySchema } from "@shotbro/contracts";
 import type { AuthedRequest } from "../auth/session.guard";
@@ -43,6 +44,16 @@ export class TalentController {
   @Get("voices/library")
   libraryVoices() {
     return this.talent.libraryVoices();
+  }
+
+  /** ▶ Listen to a catalog voice (MP3 proxied and cached by the server). */
+  @Get("voices/library/:providerVoiceId/preview")
+  async libraryVoicePreview(@Param("providerVoiceId") providerVoiceId: string, @Res() res: Response) {
+    const audio = await this.talent.libraryVoicePreview(providerVoiceId);
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.setHeader("Content-Length", String(audio.length));
+    res.end(audio);
   }
 
   @Get("voices")

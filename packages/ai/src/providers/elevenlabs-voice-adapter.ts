@@ -93,6 +93,51 @@ export class ElevenLabsVoiceAdapter implements MediaProviderAdapter {
     return { amountUsd: 0, priceStatus: "UNKNOWN", currency: "USD", billingUnit: operation === "VOICE_DESIGN" ? "preview" : "voice" };
   }
 
+  /**
+   * Read-only catalog browsing (GET /v2/voices + preview MP3s). Free, no side effects, no credits —
+   * so it is allowed in test mode too (`ELEVENLABS_CATALOG_ENABLED`). Never used for paid operations.
+   */
+  async browseCatalog(): Promise<LibraryVoice[]> {
+    const res = await this.http.request({
+      method: "GET",
+      url: `${this.base()}/v2/voices?page_size=100`,
+      headers: { "xi-api-key": this.key() },
+      timeoutMs: 30_000,
+    });
+    if (res.status >= 400) throw normalizeHttpProviderError({ status: res.status, body: res.body, providerId: this.providerId });
+    if (typeof res.body === "string") {
+      throw normalizeHttpProviderError({ status: 502, body: "html_instead_of_api_response", providerId: this.providerId });
+    }
+    return this.mapVoices(res.body);
+  }
+
+  /** Download a catalog preview MP3 (vendor CDN URL from the catalog — never sent to the browser). */
+  async fetchPreview(url: string): Promise<Buffer> {
+    const res = await this.http.request({ method: "GET", url, responseType: "binary", timeoutMs: 30_000 });
+    if (res.status >= 400 || !Buffer.isBuffer(res.body)) {
+      throw normalizeHttpProviderError({ status: res.status || 502, body: "preview_unavailable", providerId: this.providerId });
+    }
+    return res.body;
+  }
+
+  private mapVoices(body: unknown): LibraryVoice[] {
+    const voices =
+      (body as { voices?: Array<{ voice_id: string; name: string; labels?: Record<string, string>; preview_url?: string; category?: string }> })
+        ?.voices ?? [];
+    return voices.map((v) => ({
+      providerVoiceId: v.voice_id,
+      name: v.name,
+      labels: {
+        language: v.labels?.language,
+        gender: v.labels?.gender,
+        age: v.labels?.age,
+        accent: v.labels?.accent,
+      },
+      previewUrl: v.preview_url ?? null,
+      category: v.category,
+    }));
+  }
+
   /** Free to browse, but still network I/O → blocked until live execution is approved. */
   async listVoices(): Promise<LibraryVoice[]> {
     try {

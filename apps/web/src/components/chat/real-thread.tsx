@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { Sparkles } from "lucide-react";
-import { CHAT_COLUMN, CHAT_GUTTER } from "@/lib/layout";
+import { CHAT_GUTTER } from "@/lib/layout";
 import {
   mapRealMessagesToChat,
   useRealMessages,
@@ -15,7 +14,7 @@ import { useSharedProjectEvents } from "@/hooks/use-project-events";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { ChatMessage } from "./chat-message";
-import Link from "next/link";
+import { ChatWelcome } from "./chat-welcome";
 import { RealComposer } from "./real-composer";
 import { useAgentWorkspaceAutoNav } from "@/hooks/use-agent-workspace-sync";
 export function RealThread({ projectId }: { projectId: string }) {
@@ -80,20 +79,10 @@ export function RealThread({ projectId }: { projectId: string }) {
         {messagesLoading ? (
           <div className="flex min-h-[40vh] flex-1 items-center justify-center text-muted-foreground">Загрузка…</div>
         ) : messages.length === 0 ? (
-          <div className={`flex min-h-[40vh] flex-col items-center justify-center text-center ${CHAT_GUTTER}`}>
-            <Sparkles className="mb-3 size-8 text-primary" />
-            <h1 className={`${CHAT_COLUMN} text-xl font-semibold`}>AI-видеостудия</h1>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              Опишите ролик — агент покажет шаги, сценарий, согласования и mock-производство. Live AI заблокирован
-              политикой.
-            </p>
-            <p className={`${CHAT_COLUMN} mt-4 text-xs text-muted-foreground`}>
-              Нужен вход?{" "}
-              <Link href="/login" className="text-primary underline">
-                Войти
-              </Link>
-            </p>
-          </div>
+          <ChatWelcome
+            disabled={convsPending || !conversationId || send.isPending}
+            onSend={(text) => send.mutate(text)}
+          />
         ) : (
           <div className="pt-4">
             {messages.map((msg) => (

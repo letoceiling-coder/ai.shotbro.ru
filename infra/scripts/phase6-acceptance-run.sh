@@ -41,6 +41,7 @@ set +e
   set -euo pipefail
   bash "${ROOT}/infra/scripts/phase5k-media-guard-smoke.sh" "$ROOT"
   run phase6-talent-ui
+  run phase6-voice-record
   run phase6-canvas
   run phase6-full
   run regression-strict

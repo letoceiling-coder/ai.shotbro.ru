@@ -55,6 +55,8 @@ async function confirmPrice(page: Page, testId: string) {
 }
 
 async function fillConsent(page: Page, testId: string) {
+  // Voice consent defaults to «Записать голосом»; this test uploads a signed file instead.
+  await page.getByTestId(`${testId}-how-file`).click();
   await page.getByTestId(`${testId}-file-input`).setInputFiles({ name: "consent.pdf", mimeType: "application/pdf", buffer: CONSENT_PDF });
   await expect(page.getByTestId(`${testId}-file-file`)).toHaveCount(1, { timeout: 90_000 });
   await page.getByTestId(`${testId}-checkbox`).check();

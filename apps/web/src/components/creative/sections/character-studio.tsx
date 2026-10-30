@@ -137,7 +137,7 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                   data-testid="character-name"
                 />
-                {selected ? <Badge variant="outline">v{selected.version}</Badge> : <Badge variant="secondary">new</Badge>}
+                {selected ? <Badge variant="outline">версия {selected.version}</Badge> : <Badge variant="secondary">новый</Badge>}
                 <Button type="button" size="sm" onClick={() => void save()} disabled={upsert.isPending} data-testid="character-save">
                   Сохранить
                 </Button>
@@ -219,7 +219,7 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
                 </div>
               ) : null}
               <p className="text-xs text-muted-foreground">
-                Consistency: при назначении фиксируется версия профиля на storyboard. Mock fixtures — не гарантия совпадения лиц.
+                Когда персонаж назначен на сцену, в раскадровке запоминается его текущая версия — внешность не «поплывёт» при правках.
               </p>
             </>
           )}

@@ -91,14 +91,14 @@ export function ModelSelector({
         </Select>
       ) : (
         <Badge variant="secondary" className="text-[10px] font-normal">
-          {strategy === "economy" && "Mock · экономичные модели"}
-          {strategy === "balance" && "Mock · баланс качества"}
-          {strategy === "quality" && "Mock · максимальное качество"}
+          {strategy === "economy" && "Экономичные модели"}
+          {strategy === "balance" && "Баланс цены и качества"}
+          {strategy === "quality" && "Максимальное качество"}
         </Badge>
       )}
       {data?.liveExecutionBlocked ? (
-        <Badge variant="demo" className="text-[10px]">
-          Live AI заблокирован
+        <Badge variant="demo" className="text-[10px]" title="Генерации сейчас тестовые — деньги не списываются">
+          Тестовый режим · $0
         </Badge>
       ) : null}
     </div>

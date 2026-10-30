@@ -25,7 +25,7 @@ export function RealStudioEmpty() {
         <div className="max-w-md space-y-2">
           <h2 className="text-lg font-semibold">REAL-студия</h2>
           <p className="text-sm text-muted-foreground">
-            Серверные проекты, агент, Creative Workspace и mock-производство. Войдите, чтобы продолжить.
+            Сценарий, голоса, аватары, сцены и готовый ролик — в одном проекте. Войдите, чтобы продолжить.
           </p>
         </div>
         <Button asChild>

@@ -24,6 +24,10 @@ export function shouldTryCreativeTurn(content: string): boolean {
   if (lower.includes("phase5k") || lower.includes("phase6f")) return true;
   return (
     lower.includes("холст") ||
+    // Phase 6: voices and avatars are handled by the creative agent (it has the talent tools).
+    lower.includes("голос") ||
+    lower.includes("озвуч") ||
+    lower.includes("аватар") ||
     lower.includes("библиотек") ||
     lower.includes("first_frame") ||
     lower.includes("первым кадром") ||

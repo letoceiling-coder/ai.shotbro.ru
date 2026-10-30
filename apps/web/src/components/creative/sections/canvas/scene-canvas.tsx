@@ -39,6 +39,7 @@ import {
 } from "@/hooks/use-canvas";
 import { ApiError } from "@/lib/api-client";
 import { talentErrorMessage } from "@/lib/talent-errors";
+import { useStudioStore } from "@/store/studio-store";
 import { CanvasContext, CanvasNodeCard, type CanvasCtx } from "./canvas-node";
 import { fromFlow, newNodeId, runnableAncestors, toFlowEdges, toFlowNodes, type FlowNode } from "./canvas-graph";
 
@@ -127,6 +128,7 @@ function QuoteCard({
 
 function CanvasEditor({ projectId, view }: { projectId: string; view: SceneCanvasView }) {
   const qc = useQueryClient();
+  const setSection = useStudioStore((s) => s.setCreativeSection);
   const { resolvedTheme } = useTheme();
   const save = useSaveCanvas(projectId);
   const quoteMut = useQuoteCanvas(projectId);
@@ -337,9 +339,15 @@ function CanvasEditor({ projectId, view }: { projectId: string; view: SceneCanva
           </p>
         ) : null}
         {!view.scenes.length ? (
-          <p className="border-b border-border px-3 py-1 text-xs text-muted-foreground" data-testid="canvas-empty">
-            В раскадровке пока нет сцен. Попросите агента написать сценарий — сцены появятся здесь автоматически.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground" data-testid="canvas-empty">
+            <span>В раскадровке пока нет сцен — они появятся здесь автоматически.</span>
+            <Button size="sm" variant="secondary" className="h-7" onClick={() => setSection("chat")} data-testid="canvas-empty-chat">
+              Написать сценарий с агентом
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setSection("script")} data-testid="canvas-empty-script">
+              Добавить сцену вручную
+            </Button>
+          </div>
         ) : null}
         <div className="relative min-h-[420px] flex-1">
           <ReactFlow<FlowNode, Edge>
@@ -357,6 +365,11 @@ function CanvasEditor({ projectId, view }: { projectId: string; view: SceneCanva
             onConnect={onConnect}
             isValidConnection={isValidConnection}
             defaultViewport={view.payload.viewport}
+            onInit={(inst) => {
+              // Until the user moves the canvas, fit the whole scheme on screen (nodes may be off-view).
+              const vp = view.payload.viewport;
+              if (vp.x === 40 && vp.y === 40 && vp.zoom === 0.75) void inst.fitView({ padding: 0.15, maxZoom: 1 });
+            }}
             onMoveEnd={(_e, vp) => {
               const prev = viewportRef.current;
               viewportRef.current = vp;

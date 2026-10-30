@@ -63,7 +63,7 @@ export function AgentRunStrip({ projectId }: { projectId: string }) {
       {running ? (
         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           <Pause className="size-3" />
-          Mock AI · без live-вызовов
+          Тестовый режим · без списаний
         </span>
       ) : null}
     </div>

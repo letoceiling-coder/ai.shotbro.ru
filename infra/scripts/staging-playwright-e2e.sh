@@ -112,6 +112,8 @@ elif [ \"${MODE}\" = phase6-canvas ]; then
   pnpm exec playwright test e2e/phase6-canvas.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase6-full ]; then
   pnpm exec playwright test e2e/phase6-full.spec.ts --project=desktop --retries=0
+elif [ \"${MODE}\" = phase6-voice-record ]; then
+  pnpm exec playwright test e2e/phase6-voice-record.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = ui-audit ]; then
   pnpm exec playwright test e2e/ui-audit-6.spec.ts --project=desktop --retries=0 || true
 elif [ \"${MODE}\" = phase6g-live ]; then
