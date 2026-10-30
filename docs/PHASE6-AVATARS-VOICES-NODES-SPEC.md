@@ -319,3 +319,18 @@ canvas (production_document, новый docType SCENE_CANVAS)
 - **Политика `generation`**: серверное подтверждение для холста есть, но живые адаптеры генерации подключаются в 6G — до этого `LIVE_MEDIA_APPROVAL_ENFORCED.generation = false` и любой live-запуск узла отклоняется.
 - **Тесты**: `packages/ai/src/canvas/canvas.test.ts` (синхронизация, план, цены), `canvas-graph.test.ts`, Playwright `phase6-canvas` (режим раннера `phase6-canvas`). Новый `infra/scripts/staging-unit-tests.sh`: typecheck и юнит-тесты коммита на VPS в изолированной копии (локально проект не запускается).
 - **Перенесено в 6F:** инструменты агента для холста (`get_canvas`, `sync_canvas_from_storyboard`, `propose_canvas_run` — только карточка с ценой, без платного запуска) и сообщение с готовым MP4 в чате после «Монтажа».
+
+### Staging 6E (2026-10-30 UTC)
+
+| Шаг | Результат |
+|---|---|
+| Typecheck + unit на VPS (`staging-unit-tests.sh`, база `38bc9d6`) | `UNIT_EXIT_CODE=0`: contracts/api/web без новых ошибок типов; ai **117/117** (холст 11), web **16/16** (холст 2) |
+| Бэкап БД до миграции | `/var/backups/shotbro/staging-pre-0008-20261030-141414.dump` (8,4 МБ, 37 таблиц) |
+| Миграция `0008` | применена, `production_doc_type` += `SCENE_CANVAS` |
+| Деплой | API `a0ad6660`, worker `a23c08f3`, web `f4f2cbde` — у каждого `deploy_complete` |
+| Playwright `phase6-canvas` | **1/1** — раскадровка → холст, правка промпта на холсте видна в раскадровке, «Собрать всё» (одна карточка, mock) → MP4 монтажа, перезапуск одной сцены (v2 только у неё), `approval_mismatch` после правки промпта, автосохранение и F5 — `phase6-canvas-a0ad6660.log` |
+| Полный 5L-B acceptance | **`PHASE5L_B_ALL_PASS`**, `EXIT_CODE=0` — agent 2/2, regression-strict 8/8, unified 3/3, idempotency + media guard — `phase5l-b-acceptance-a0ad6660.log` |
+| Проверка в БД | кадры PNG, клипы MP4, монтаж — отдельный MP4 из клипов; резервы `CAPTURED` $0 ×2, `RELEASED` ×1 (отказ после правки) |
+| Mock-политика | без изменений, $0 |
+
+**По ходу:** первый прогон e2e упал на ожидании «2 сцены» — пустой проект при первом добавлении сцены получает стартовую «Scene 1» (поведение продукта, тест поправлен). Там же найдено расхождение: при пустом промпте генерация брала описание/название сцены, а редактор холста показывал пустое поле — исправлено (`a0ad666`). Typecheck `ai`/`worker` (NodeNext) не видит экспорты `@shotbro/contracts` — давняя проблема настройки, рантайм (`tsx`, Next) не затронут; раннер показывает её как INFO.
