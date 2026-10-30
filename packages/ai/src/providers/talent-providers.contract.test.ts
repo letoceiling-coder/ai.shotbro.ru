@@ -236,3 +236,12 @@ describe("createTalentAdapters (Phase 6B gates)", () => {
     expect(reasons).toEqual(expect.arrayContaining(["HEYGEN_PROVIDER_ENABLED=false", "HEYGEN_API_KEY missing", "AVATAR_GENERATION_ENABLED=false"]));
   });
 });
+
+describe("ElevenLabs block pages (6G)", () => {
+  it("an HTML page instead of JSON is an error, not an empty catalog", async () => {
+    const t: HttpTransport = {
+      request: async (_req: HttpRequest): Promise<HttpResponse> => ({ status: 200, headers: { "content-type": "text/html" }, body: "<!doctype html><html></html>" }),
+    };
+    await expect(new ElevenLabsVoiceAdapter(liveEnv, t).listVoices()).rejects.toBeTruthy();
+  });
+});

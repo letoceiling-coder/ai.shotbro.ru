@@ -69,6 +69,10 @@ export class ElevenLabsVoiceAdapter implements MediaProviderAdapter {
     this.policy.assertProviderNetworkCall();
     const res = await this.http.request(req);
     if (res.status >= 400) throw normalizeHttpProviderError({ status: res.status, body: res.body, providerId: this.providerId });
+    // Never treat a block page as data (an empty catalog hid a regional block in 6G).
+    if (typeof res.body === "string" && res.body.trimStart().startsWith("<")) {
+      throw normalizeHttpProviderError({ status: 502, body: "html_instead_of_api_response", providerId: this.providerId });
+    }
     return res;
   }
 

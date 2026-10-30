@@ -104,6 +104,12 @@ export class FetchHttpTransport implements HttpTransport {
       for (const via of modes) {
         try {
           const res = await performFetch(req, via, proxyUrl, ctrl.signal);
+          // An HTML page instead of an API response on the direct route = regional block page: use the proxy.
+          const contentType = res.headers.get("content-type") ?? "";
+          if (via === "direct" && modes.includes("proxy") && contentType.includes("text/html")) {
+            await res.body?.cancel().catch(() => undefined);
+            continue;
+          }
           let body: unknown;
           if (req.responseType === "binary" && res.status < 400) {
             body = Buffer.from(await res.arrayBuffer());
