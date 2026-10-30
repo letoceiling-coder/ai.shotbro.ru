@@ -197,7 +197,7 @@ export function VoiceLibrary({ projectId }: { projectId: string }) {
         )}
       </ScrollArea>
 
-      <CreateVoiceDialog projectId={projectId} open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateVoiceDialog projectId={projectId} open={createOpen} onOpenChange={setCreateOpen} onCreated={() => setTab("mine")} />
     </div>
   );
 }
@@ -414,10 +414,13 @@ function CreateVoiceDialog({
   projectId,
   open,
   onOpenChange,
+  onCreated,
 }: {
   projectId: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Show «Мои голоса» so the new draft (consent, price) is visible right away. */
+  onCreated?: () => void;
 }) {
   const create = useCreateVoice();
   const [mode, setMode] = useState<"clone" | "design">("clone");
@@ -454,6 +457,7 @@ function CreateVoiceDialog({
       }
       reset();
       onOpenChange(false);
+      onCreated?.();
     } catch (e) {
       setError(talentErrorMessage(e));
     }
