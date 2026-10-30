@@ -2,7 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { useStudioStore, type CreativeSection } from "@/store/studio-store";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type NavGroup = { id: string; label: string; items: { id: CreativeSection; label: string; hint: string }[] };
 
@@ -58,9 +59,93 @@ export function CreativeSectionNav() {
   const section = useStudioStore((s) => s.creativeSection);
   const setSection = useStudioStore((s) => s.setCreativeSection);
 
+  const scroller = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ overflow: false, left: false, right: false });
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
+
+  const updateEdges = useCallback(() => {
+    const el = scroller.current;
+    if (!el) return;
+    setEdges({
+      overflow: el.scrollWidth > el.clientWidth + 2,
+      left: el.scrollLeft > 2,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+    });
+  }, []);
+
+  // Mouse wheel scrolls the menu sideways (non-passive listener so the page itself does not scroll).
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (!delta) return;
+      e.preventDefault();
+      el.scrollBy({ left: delta, behavior: "auto" });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    const ro = new ResizeObserver(updateEdges);
+    ro.observe(el);
+    updateEdges();
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      ro.disconnect();
+    };
+  }, [updateEdges]);
+
+  // Keep the selected section visible (e.g. after the agent opens «Голоса» or a deep link).
+  useEffect(() => {
+    const btn = scroller.current?.querySelector<HTMLElement>(`[data-testid="creative-section-${section}"]`);
+    btn?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+  }, [section]);
+
+  const page = (dir: -1 | 1) => scroller.current?.scrollBy({ left: dir * Math.max(200, (scroller.current?.clientWidth ?? 400) * 0.6), behavior: "smooth" });
+
   return (
-    <ScrollArea className="w-full border-b border-border bg-background/80 backdrop-blur-sm">
-      <nav className="flex items-stretch gap-1 px-2 py-1.5" data-testid="creative-section-nav" aria-label="Разделы проекта">
+    <div className="flex w-full items-stretch border-b border-border bg-background/80 backdrop-blur-sm">
+      {edges.overflow ? (
+        <button
+          type="button"
+          aria-label="Прокрутить разделы влево"
+          title="Прокрутить влево (или колесо мыши)"
+          disabled={!edges.left}
+          onClick={() => page(-1)}
+          data-testid="creative-nav-left"
+          className="flex w-7 shrink-0 items-center justify-center border-r border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      ) : null}
+      <div
+        ref={scroller}
+        onScroll={updateEdges}
+        className="min-w-0 flex-1 cursor-grab overflow-x-auto overscroll-x-contain active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        data-testid="creative-nav-scroller"
+        // Drag with the mouse to scroll (a click without movement still selects the section).
+        onPointerDown={(e) => {
+          if (e.pointerType !== "mouse" || e.button !== 0) return;
+          drag.current = { x: e.clientX, left: scroller.current?.scrollLeft ?? 0, moved: false };
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d || !scroller.current) return;
+          const dx = e.clientX - d.x;
+          if (Math.abs(dx) > 5) d.moved = true;
+          if (d.moved) scroller.current.scrollLeft = d.left - dx;
+        }}
+        onPointerUp={() => {
+          setTimeout(() => (drag.current = null), 0);
+        }}
+        onPointerLeave={() => (drag.current = null)}
+        onClickCapture={(e) => {
+          if (drag.current?.moved) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+      >
+      <nav className="flex w-max items-stretch gap-1 px-2 py-1.5" data-testid="creative-section-nav" aria-label="Разделы проекта">
         {NAV_GROUPS.map((group, gi) => {
           const groupActive = group.items.some((i) => i.id === section);
           const single = group.items.length === 1;
@@ -103,7 +188,20 @@ export function CreativeSectionNav() {
           );
         })}
       </nav>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+      </div>
+      {edges.overflow ? (
+        <button
+          type="button"
+          aria-label="Прокрутить разделы вправо"
+          title="Прокрутить вправо (или колесо мыши)"
+          disabled={!edges.right}
+          onClick={() => page(1)}
+          data-testid="creative-nav-right"
+          className="flex w-7 shrink-0 items-center justify-center border-l border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      ) : null}
+    </div>
   );
 }

@@ -40,6 +40,18 @@ test.describe("Voice listening and in-browser recording", () => {
     await expect(page.getByTestId("chat-welcome")).toBeVisible({ timeout: 60_000 });
     await expect(page.getByTestId("chat-quick-voice")).toBeVisible();
 
+    // Section menu: on a narrow window the mouse wheel and the arrows scroll it sideways.
+    await page.setViewportSize({ width: 900, height: 900 });
+    const scroller = page.getByTestId("creative-nav-scroller");
+    await expect(page.getByTestId("creative-nav-right")).toBeEnabled({ timeout: 10_000 });
+    await scroller.hover();
+    await page.mouse.wheel(0, 400);
+    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft), { timeout: 5_000 }).toBeGreaterThan(50);
+    await scroller.evaluate((el) => (el.scrollLeft = 0));
+    await page.getByTestId("creative-nav-right").click();
+    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft), { timeout: 5_000 }).toBeGreaterThan(50);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
     // 1) Catalog: real ElevenLabs voices with a listenable preview served by our API.
     await page.getByTestId("creative-section-voices").click();
     await page.getByTestId("voice-tab-catalog").click();
