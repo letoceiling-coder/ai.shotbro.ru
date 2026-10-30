@@ -156,7 +156,7 @@ export function VoiceRecorder({
       const channels = Array.from({ length: audio.numberOfChannels }, (_, i) => audio.getChannelData(i));
       const mono = resample(downmixToMono(channels), audio.sampleRate, TARGET_RATE);
       const bytes = encodeWav(mono, TARGET_RATE);
-      const file = new File([bytes], `${fileLabel}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.wav`, { type: "audio/wav" });
+      const file = new File([bytes.buffer as ArrayBuffer], `${fileLabel}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.wav`, { type: "audio/wav" });
       if (wav) URL.revokeObjectURL(wav.url);
       setWav({ url: URL.createObjectURL(file), file, seconds: audio.duration });
       setPhase("recorded");
