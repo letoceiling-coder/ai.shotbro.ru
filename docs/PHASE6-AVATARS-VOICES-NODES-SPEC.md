@@ -244,3 +244,23 @@ canvas (production_document, новый docType SCENE_CANVAS)
 | Integration 6A+6B | **15/15**, `PHASE6A_TALENT_INTEGRATION_PASS` — `phase6-talent-integration-a7f4441e.log` |
 | `regression-strict` | **8/8**, `EXIT_CODE=0` — `regression-strict-a7f4441e.log` |
 | Mock-политика | без изменений; все talent-задания выполнены mock-провайдерами, $0 |
+
+## 15. Статус 6C (2026-10-30)
+
+**Протокол:** агент/UI → `POST /talent/operations/quote` → карточка в чате «Действие — ≈$X (тест: $0)» с кнопками «Утвердить / Отклонить», бюджет удерживается (`budget_reservation` HELD, 30 мин) → пользователь утверждает → `ApprovalsService` вызывает обработчик `TALENT_OPERATION` → сервер запускает задание → воркер `CAPTURED` / `RELEASED`.
+
+| Гарантия | Где проверяется |
+|---|---|
+| Нет запуска без APPROVED approval | `TalentJobsService.start` (409 `approval_required`) + воркер (`APPROVAL_REQUIRED`) в любом режиме |
+| Approval привязан к операции, таланту, выбранному варианту, версии таланта и цене | sha256 канонического `talentApprovalPayload`; изменение → 409 `approval_mismatch`, резерв снимается |
+| Одно approval = одно задание | идемпотентность `talent-approval:<id>` |
+| Лимиты $1 на запуск / $3 в день на пользователя | `evaluateBudgetCaps` при котировке (409 `run_cap_exceeded` / `daily_cap_exceeded`) |
+| Истёкшая котировка | 409 `quote_expired`, резерв снят |
+| Отклонение / правки | резерв `RELEASED`, ничего не запускается |
+| Агент не может потратить деньги | ни одного LLM-инструмента с `EXTERNAL_PAID`; `propose_talent_operation` создаёт только карточку |
+
+**Инструменты агента (русские описания):** `get_studio_capabilities` (провайдеры, mock/live, цены, лимиты), `list_voices`, `list_avatars`, `create_voice_profile`, `create_avatar_profile`, `assign_talent_to_character`, `propose_talent_operation`. Системный промпт: сначала возможности, платное — только через предложение с ценой, 2–3 варианта со стоимостью, согласие для клонов.
+
+**Цены (оценки, сверить с тарифами до 6G):** дизайн голоса ≈ $0.06; сохранение и клон — входят в тариф ElevenLabs; обучение фото-аватара HeyGen ≈ $1.00; аватар без HeyGen — бесплатно. В тестовом режиме списание $0, показывается оценка live-цены.
+
+**Политика live-медиа по областям:** `talent` — разрешено при всех условиях (enforcement есть); `generation` (картинки/видео сцен) — заблокировано до 6E.

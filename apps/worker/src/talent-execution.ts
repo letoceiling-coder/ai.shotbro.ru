@@ -10,6 +10,7 @@ import {
   asset,
   avatarLook,
   avatarProfile,
+  budgetReservation,
   costLedgerEntry,
   eventLog,
   providerJob,
@@ -30,6 +31,7 @@ type JobMeta = {
   ownerId: string;
   generatedVoiceId?: string;
   approvalId?: string;
+  reservationId?: string;
 };
 
 class TalentJobError extends Error {
@@ -145,6 +147,29 @@ async function isApproved(approvalId: string | undefined, projectId: string) {
   return row?.status === "APPROVED" && (!row.expiresAt || row.expiresAt > new Date());
 }
 
+
+/** Close the quote reservation: CAPTURED on success, RELEASED on failure (ledger entry either way). */
+async function settleReservation(meta: JobMeta, projectId: string, outcome: "CAPTURED" | "RELEASED", mock: boolean) {
+  if (!meta.reservationId) return;
+  const db = getWorkerDb();
+  const [r] = await db.select().from(budgetReservation).where(eq(budgetReservation.id, meta.reservationId)).limit(1);
+  if (!r || r.status !== "HELD") return;
+  await db
+    .update(budgetReservation)
+    .set({ status: outcome, updatedAt: new Date() })
+    .where(and(eq(budgetReservation.id, r.id), eq(budgetReservation.status, "HELD")));
+  await db.insert(costLedgerEntry).values({
+    id: randomUUID(),
+    projectId,
+    reservationId: r.id,
+    entryType: outcome === "CAPTURED" ? "CAPTURE" : "RELEASE",
+    amountUsd: r.amountUsd,
+    source: mock ? "mock" : "talent",
+    mock: mock ? 1 : 0,
+    metadata: { approvalId: meta.approvalId },
+  });
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Executes one talent provider_job end to end. Safe to retry: terminal jobs are skipped. */
@@ -158,6 +183,11 @@ export async function executeTalentJob(data: { jobId: string }, log: Logger) {
   const meta = (job.metadata ?? {}) as JobMeta;
   const operation = job.operation as TalentOperation;
   const approved = await isApproved(meta.approvalId, job.projectId);
+  // Defense in depth (6C): the API only enqueues approved jobs; the worker re-checks in every mode.
+  if (!approved) {
+    await fail(job.id, job.projectId, meta, "APPROVAL_REQUIRED", "no approved cost confirmation", log);
+    return { status: "FAILED", code: "APPROVAL_REQUIRED" };
+  }
   const adapters = createTalentAdapters(env, operation, { approved, transport: new FetchHttpTransport() });
 
   // Never fake success: outside mock mode, a closed live gate fails the job instead of using mocks.
@@ -179,6 +209,7 @@ export async function executeTalentJob(data: { jobId: string }, log: Logger) {
       metadata: { providerJobId: job.id, operation, talentId: meta.talentId, usage: result.usage ?? {} },
     });
     await setJob(job.id, { status: "COMPLETED", completedAt: new Date(), actualUsage: result.usage ?? {}, outputAssetIds: result.assetIds });
+    await settleReservation(meta, job.projectId, "CAPTURED", adapters.mock);
     await emit(meta.workspaceId, job.projectId, meta, "COMPLETED", job.id);
     log.info({ jobId: job.id, operation, mock: adapters.mock }, "talent job completed");
     return { status: "COMPLETED" };
@@ -192,6 +223,7 @@ export async function executeTalentJob(data: { jobId: string }, log: Logger) {
 
 async function fail(jobId: string, projectId: string, meta: JobMeta, code: string, message: string, log: Logger) {
   await setJob(jobId, { status: "FAILED", failedAt: new Date(), failureCode: code });
+  await settleReservation(meta, projectId, "RELEASED", loadEnvFromProcess().AI_MOCK_MODE);
   const db = getWorkerDb();
   const table = meta.talentType === "voice" ? voiceProfile : avatarProfile;
   const [row] = await db.select({ metadata: table.metadata }).from(table).where(eq(table.id, meta.talentId)).limit(1);

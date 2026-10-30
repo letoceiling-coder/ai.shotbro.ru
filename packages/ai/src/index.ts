@@ -61,3 +61,10 @@ export {
 export { MockHeyGenAvatarProvider, MockElevenLabsVoiceProvider, MOCK_LIBRARY_VOICES } from "./providers/mock-talent-providers.js";
 export { resolveMediaProviderChain, resolveVoiceVendorState } from "./providers/media-provider-chain.js";
 export { createTalentAdapters, liveTalentBlockers, type TalentAdapterSet } from "./providers/talent-adapters.js";
+export {
+  quoteTalentOperation,
+  evaluateBudgetCaps,
+  talentApprovalPayload,
+  type TalentQuote,
+  type BudgetCapCheck,
+} from "./cost/talent-price-catalog.js";

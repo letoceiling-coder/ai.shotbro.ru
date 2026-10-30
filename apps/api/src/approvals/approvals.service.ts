@@ -20,6 +20,16 @@ export class ApprovalsService {
     @Inject(forwardRef(() => AgentService)) private readonly agent: AgentService,
   ) {}
 
+  /** Phase 6C: feature modules react to decisions on their own target types (no circular imports). */
+  private readonly targetHandlers = new Map<
+    string,
+    (approvalId: string, status: string, userId: string) => Promise<void>
+  >();
+
+  registerTargetHandler(targetType: string, handler: (approvalId: string, status: string, userId: string) => Promise<void>) {
+    this.targetHandlers.set(targetType, handler);
+  }
+
   hashPayload(payload: Record<string, unknown>) {
     return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
   }
@@ -175,6 +185,9 @@ export class ApprovalsService {
         resourceId: approvalId,
         payload: { approvalId, status, targetType: row.targetType },
       });
+
+      const handler = this.targetHandlers.get(row.targetType);
+      if (handler) await handler(approvalId, status, userId);
 
       if (status === "APPROVED") {
         await this.agent.resumeAfterApproval(row.projectId, userId, row.targetType);

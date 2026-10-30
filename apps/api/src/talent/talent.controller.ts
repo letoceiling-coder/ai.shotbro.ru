@@ -16,7 +16,13 @@ export class TalentController {
     @Inject(TalentJobsService) private readonly jobs: TalentJobsService,
   ) {}
 
-  /** Phase 6B: clone / design / save voice, train avatar. Mock mode only until 6C approvals. */
+  /** Phase 6C: price + approval card in chat (budget held). Approving the card starts the job. */
+  @Post("talent/operations/quote")
+  quoteOperation(@Req() req: AuthedRequest, @Body() body: unknown) {
+    return this.jobs.quote(req.user.id, body);
+  }
+
+  /** Starts an operation; paid ones require an APPROVED approval from a quote (idempotent per approval). */
   @Post("talent/operations")
   startOperation(@Req() req: AuthedRequest, @Body() body: unknown) {
     return this.jobs.start(req.user.id, body);

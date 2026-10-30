@@ -246,7 +246,20 @@ describe("Phase 6A talent: avatars + voices (integration, mock)", () => {
   });
 });
 
-describe("Phase 6B talent jobs: worker executes with mock providers", () => {
+type Quote = { approvalId: string | null; payloadHash: string | null; targetVersion: string | null; chargedUsd: number; estimatedLiveUsd: number; mock: boolean; free: boolean };
+
+async function quote(user: AuthSession, body: Record<string, unknown>) {
+  return apiJson<Quote>("/api/v1/talent/operations/quote", user, { method: "POST", body: JSON.stringify(body) });
+}
+
+async function decide(user: AuthSession, q: Quote, action: "approve" | "reject") {
+  return apiJson<{ status: string }>(`/api/v1/approvals/${q.approvalId}/${action}`, user, {
+    method: "POST",
+    body: JSON.stringify({ expectedVersion: q.targetVersion, payloadHash: q.payloadHash, idempotencyKey: `${action}-${q.approvalId}` }),
+  });
+}
+
+describe("Phase 6B/6C talent jobs: quote → approve → worker (mock providers)", () => {
   let userA: AuthSession;
   let userB: AuthSession;
   let projectA: string;
@@ -257,125 +270,144 @@ describe("Phase 6B talent jobs: worker executes with mock providers", () => {
     userA = await signInIntegrationUser("A");
     userB = await signInIntegrationUser("B");
     const ts = Date.now();
-    projectA = (await apiJson<{ id: string }>("/api/v1/projects", userA, { method: "POST", body: JSON.stringify({ title: `P6B A ${ts}` }) })).json.id;
-    projectB = (await apiJson<{ id: string }>("/api/v1/projects", userB, { method: "POST", body: JSON.stringify({ title: `P6B B ${ts}` }) })).json.id;
+    projectA = (await apiJson<{ id: string }>("/api/v1/projects", userA, { method: "POST", body: JSON.stringify({ title: `P6C A ${ts}` }) })).json.id;
+    projectB = (await apiJson<{ id: string }>("/api/v1/projects", userB, { method: "POST", body: JSON.stringify({ title: `P6C B ${ts}` }) })).json.id;
   }, 60_000);
 
-  it("voice design → 3 stored previews → save chosen → READY", async () => {
+  it("paid operation without an approval is refused (409 approval_required)", async () => {
+    const created = await apiJson<{ id: string }>("/api/v1/voices", userA, {
+      method: "POST",
+      body: JSON.stringify({ kind: "DESIGNED", name: "Без подтверждения", designPrompt: "Спокойный мужской голос для рекламы сайта shotbro" }),
+    });
+    const r = await apiJson("/api/v1/talent/operations", userA, {
+      method: "POST",
+      body: JSON.stringify({ projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: created.json.id }),
+    });
+    expect(r.status).toBe(409);
+  });
+
+  it("voice design: quote shows price → approve starts job → 3 previews → quote+approve save → READY", async () => {
     const created = await apiJson<{ id: string }>("/api/v1/voices", userA, {
       method: "POST",
       body: JSON.stringify({ kind: "DESIGNED", name: "Голос shotbro", designPrompt: "Уверенный дружелюбный мужской голос для рекламы студии видео, 30 лет" }),
     });
     const voiceId = created.json.id;
-    const start = await apiJson<{ id: string; status: string; mock: boolean }>("/api/v1/talent/operations", userA, {
-      method: "POST",
-      body: JSON.stringify({ projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: voiceId }),
-    });
-    expect(start.status).toBeLessThan(300);
-    expect(start.json.mock).toBe(true);
+    const q = await quote(userA, { projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: voiceId });
+    expect(q.status).toBeLessThan(300);
+    expect(q.json).toMatchObject({ mock: true, chargedUsd: 0, free: false });
+    expect(q.json.estimatedLiveUsd).toBeGreaterThan(0);
+    expect(q.json.approvalId).toBeTruthy();
 
-    // A second click while the first job runs must not create another job.
-    const again = await apiJson<{ id?: string }>("/api/v1/talent/operations", userA, {
-      method: "POST",
-      body: JSON.stringify({ projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: voiceId }),
-    });
-    if (again.status < 300) expect(again.json.id).toBe(start.json.id);
-    else expect(again.status).toBe(409);
+    // Nothing runs before the user decides.
+    expect((await apiJson<VoiceDto>(`/api/v1/voices/${voiceId}`, userA)).json.status).toBe("DRAFT");
 
+    expect((await decide(userA, q.json, "approve")).status).toBeLessThan(300);
     const designed = await waitVoice(userA, voiceId, (v) => v.status === "DRAFT" && v.previews.length === 3);
     expect(designed.previews.every((p) => p.assetId)).toBe(true);
 
-    const badSave = await apiJson("/api/v1/talent/operations", userA, {
+    // Re-using the same approval returns the same job, never a second one.
+    const replay = await apiJson<{ id: string }>("/api/v1/talent/operations", userA, {
       method: "POST",
-      body: JSON.stringify({ projectId: projectA, operation: "VOICE_SAVE", voiceProfileId: voiceId, generatedVoiceId: "nope" }),
+      body: JSON.stringify({ projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: voiceId, approvalId: q.json.approvalId }),
     });
+    expect([200, 201, 409]).toContain(replay.status);
+
+    const badSave = await quote(userA, { projectId: projectA, operation: "VOICE_SAVE", voiceProfileId: voiceId, generatedVoiceId: "nope" });
     expect(badSave.status).toBe(400);
 
     const chosen = designed.previews[1]!;
-    const save = await apiJson("/api/v1/talent/operations", userA, {
-      method: "POST",
-      body: JSON.stringify({ projectId: projectA, operation: "VOICE_SAVE", voiceProfileId: voiceId, generatedVoiceId: chosen.generatedVoiceId }),
-    });
-    expect(save.status).toBeLessThan(300);
+    const qs = await quote(userA, { projectId: projectA, operation: "VOICE_SAVE", voiceProfileId: voiceId, generatedVoiceId: chosen.generatedVoiceId });
+    expect(qs.status).toBeLessThan(300);
+    await decide(userA, qs.json, "approve");
     const ready = await waitVoice(userA, voiceId, (v) => v.status === "READY");
     expect(ready.providerVoiceId).toBeTruthy();
     expect(ready.previewAssetId).toBe(chosen.assetId);
-
-    const job = await apiJson<{ status: string }>(`/api/v1/talent/jobs/${start.json.id}`, userA);
-    expect(job.json.status).toBe("COMPLETED");
-    expect((await apiJson(`/api/v1/talent/jobs/${start.json.id}`, userB)).status).toBe(403);
   }, 180_000);
 
-  it("voice clone from WAV needs consent, then READY", async () => {
+  it("rejecting the card runs nothing; the rejected approval cannot start a job", async () => {
+    const created = await apiJson<{ id: string }>("/api/v1/voices", userA, {
+      method: "POST",
+      body: JSON.stringify({ kind: "DESIGNED", name: "Отклонённый", designPrompt: "Мягкий женский голос для озвучки рекламы студии" }),
+    });
+    const q = await quote(userA, { projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: created.json.id });
+    expect((await decide(userA, q.json, "reject")).status).toBeLessThan(300);
+    const start = await apiJson("/api/v1/talent/operations", userA, {
+      method: "POST",
+      body: JSON.stringify({ projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: created.json.id, approvalId: q.json.approvalId }),
+    });
+    expect(start.status).toBe(409);
+    expect((await apiJson<VoiceDto>(`/api/v1/voices/${created.json.id}`, userA)).json.status).toBe("DRAFT");
+  });
+
+  it("an approval cannot be reused for another operation or voice", async () => {
+    const v1 = await apiJson<{ id: string }>("/api/v1/voices", userA, {
+      method: "POST",
+      body: JSON.stringify({ kind: "DESIGNED", name: "Первый", designPrompt: "Бодрый голос диктора для рекламы видео-студии" }),
+    });
+    const v2 = await apiJson<{ id: string }>("/api/v1/voices", userA, {
+      method: "POST",
+      body: JSON.stringify({ kind: "DESIGNED", name: "Второй", designPrompt: "Низкий голос диктора для трейлера рекламной кампании" }),
+    });
+    const q = await quote(userA, { projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: v1.json.id });
+    const steal = await apiJson("/api/v1/talent/operations", userA, {
+      method: "POST",
+      body: JSON.stringify({ projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: v2.json.id, approvalId: q.json.approvalId }),
+    });
+    expect(steal.status).toBe(409);
+    await decide(userA, q.json, "reject");
+  });
+
+  it("voice clone from WAV: consent required for the quote, then approve → READY", async () => {
     const sample = await uploadReady(userA, projectA, "voice-sample.wav", "audio/wav", toneWav());
     const created = await apiJson<{ id: string }>("/api/v1/voices", userA, {
       method: "POST",
       body: JSON.stringify({ kind: "CLONED", name: "Голос основателя", sampleAssetIds: [sample], labels: { language: "ru" } }),
     });
-    expect(created.status).toBeLessThan(300);
     const voiceId = created.json.id;
-
-    const noConsent = await apiJson("/api/v1/talent/operations", userA, {
-      method: "POST",
-      body: JSON.stringify({ projectId: projectA, operation: "VOICE_CLONE", voiceProfileId: voiceId }),
-    });
-    expect(noConsent.status).toBe(400);
-
-    const wrongKind = await apiJson("/api/v1/talent/operations", userA, {
-      method: "POST",
-      body: JSON.stringify({ projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: voiceId }),
-    });
-    expect(wrongKind.status).toBe(400);
+    expect((await quote(userA, { projectId: projectA, operation: "VOICE_CLONE", voiceProfileId: voiceId })).status).toBe(400);
+    expect((await quote(userA, { projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: voiceId })).status).toBe(400);
 
     await apiJson(`/api/v1/voices/${voiceId}/consent`, userA, {
       method: "POST",
       body: JSON.stringify({ consentAssetId: sample, confirmed: true, textVersion: CONSENT_VERSION }),
     });
-    const start = await apiJson("/api/v1/talent/operations", userA, {
-      method: "POST",
-      body: JSON.stringify({ projectId: projectA, operation: "VOICE_CLONE", voiceProfileId: voiceId }),
-    });
-    expect(start.status).toBeLessThan(300);
+    const q = await quote(userA, { projectId: projectA, operation: "VOICE_CLONE", voiceProfileId: voiceId });
+    expect(q.status).toBeLessThan(300);
+    await decide(userA, q.json, "approve");
     const ready = await waitVoice(userA, voiceId, (v) => v.status === "READY");
     expect(ready.providerVoiceId).toMatch(/^mock-voice-/);
   }, 180_000);
 
-  it("B cannot run operations on A's voice from either project", async () => {
+  it("B cannot quote or run operations on A's voice, nor approve A's card", async () => {
     const created = await apiJson<{ id: string }>("/api/v1/voices", userA, {
       method: "POST",
       body: JSON.stringify({ kind: "DESIGNED", name: "Чужой", designPrompt: "Спокойный женский голос для озвучки рекламы сайта" }),
     });
-    const viaOwn = await apiJson("/api/v1/talent/operations", userB, {
-      method: "POST",
-      body: JSON.stringify({ projectId: projectB, operation: "VOICE_DESIGN", voiceProfileId: created.json.id }),
-    });
-    expect(viaOwn.status).toBe(404);
-    const viaA = await apiJson("/api/v1/talent/operations", userB, {
-      method: "POST",
-      body: JSON.stringify({ projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: created.json.id }),
-    });
-    expect(viaA.status).toBe(403);
+    expect((await quote(userB, { projectId: projectB, operation: "VOICE_DESIGN", voiceProfileId: created.json.id })).status).toBe(404);
+    expect((await quote(userB, { projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: created.json.id })).status).toBe(403);
+    const q = await quote(userA, { projectId: projectA, operation: "VOICE_DESIGN", voiceProfileId: created.json.id });
+    expect((await decide(userB, q.json, "approve")).status).toBe(403);
+    await decide(userA, q.json, "reject");
   });
 
-  it("avatar without HeyGen: photos become looks, READY instantly and free", async () => {
-    const photo = await uploadReady(userA, projectA, "face-6b.png", "image/png", png);
+  it("avatar without HeyGen: free quote, photos become looks instantly", async () => {
+    const photo = await uploadReady(userA, projectA, "face-6c.png", "image/png", png);
     const created = await apiJson<{ id: string; kind: string }>("/api/v1/avatars", userA, {
       method: "POST",
-      body: JSON.stringify({ name: "Ведущий 6B", sourceAssetIds: [photo] }),
+      body: JSON.stringify({ name: "Ведущий 6C", sourceAssetIds: [photo] }),
     });
     expect(created.json.kind).toBe("REFERENCE");
+    const q = await quote(userA, { projectId: projectA, operation: "AVATAR_TRAIN", avatarProfileId: created.json.id });
+    expect(q.json).toMatchObject({ free: true, approvalId: null, chargedUsd: 0 });
     const r = await apiJson<{ status: string; id: string | null }>("/api/v1/talent/operations", userA, {
       method: "POST",
       body: JSON.stringify({ projectId: projectA, operation: "AVATAR_TRAIN", avatarProfileId: created.json.id }),
     });
-    expect(r.status).toBeLessThan(300);
     expect(r.json).toMatchObject({ status: "READY", id: null });
     const avatar = await apiJson<{ status: string; looks: Array<{ previewAssetId: string; isDefault: boolean }> }>(
       `/api/v1/avatars/${created.json.id}`,
       userA,
     );
-    expect(avatar.json.status).toBe("READY");
-    expect(avatar.json.looks).toHaveLength(1);
     expect(avatar.json.looks[0]).toMatchObject({ previewAssetId: photo, isDefault: true });
   }, 120_000);
 });

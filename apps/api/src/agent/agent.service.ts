@@ -1,4 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ModuleRef } from "@nestjs/core";
 import { and, eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import { AgentRuntime, CreativeAgentRuntime, ProductionOrchestrator } from "@shotbro/ai";
@@ -34,6 +35,11 @@ import { CharacterContinuityService } from "../production/character-continuity.s
 import { PromptVersionService } from "../production/prompt-version.service";
 import { TimelineDocumentService } from "../production/timeline-document.service";
 import { IdempotencyService } from "../common/idempotency.service";
+import type { TalentDelegates } from "@shotbro/ai";
+import type { TalentService } from "../talent/talent.service";
+import type { TalentJobsService } from "../talent/talent-jobs.service";
+import { TALENT_JOBS_SERVICE_TOKEN, TALENT_SERVICE_TOKEN } from "../talent/talent.tokens";
+import { buildTalentAgentDelegates } from "../talent/talent-agent-delegates";
 
 export function creativeTurnIdempotencyStorageKey(userId: string, projectId: string, clientKey: string) {
   return `creative-turn:${userId}:${projectId}:${clientKey}`;
@@ -64,7 +70,19 @@ export class AgentService {
     @Inject(PromptVersionService) private readonly prompts: PromptVersionService,
     @Inject(TimelineDocumentService) private readonly timeline: TimelineDocumentService,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(ModuleRef) private readonly moduleRef: ModuleRef,
   ) {}
+
+  /** Phase 6C: talent tools resolved lazily (TalentModule depends on modules that depend on this one). */
+  private talentDelegates(): TalentDelegates | undefined {
+    try {
+      const talent = this.moduleRef.get<TalentService>(TALENT_SERVICE_TOKEN, { strict: false });
+      const jobs = this.moduleRef.get<TalentJobsService>(TALENT_JOBS_SERVICE_TOKEN, { strict: false });
+      return buildTalentAgentDelegates({ talent, jobs, env: this.env });
+    } catch {
+      return undefined;
+    }
+  }
 
   /** Storyboard document revision invalidates downstream gates; re-open STORYBOARD approval in chat. */
   async onStoryboardDocumentRevised(userId: string, projectId: string) {
@@ -251,6 +269,7 @@ export class AgentService {
       prompts: this.prompts,
       timeline: this.timeline,
       conversationId: input.conversationId,
+      talent: this.talentDelegates(),
     });
 
     const [projRow] = await this.db.select().from(project).where(eq(project.id, projectId)).limit(1);
@@ -413,6 +432,7 @@ export class AgentService {
         prompts: this.prompts,
         timeline: this.timeline,
         conversationId,
+        talent: this.talentDelegates(),
       });
       await this.postAssistantBlocks(conversationId, projectId, [
         {

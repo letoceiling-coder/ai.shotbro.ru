@@ -37,16 +37,23 @@ describe("live media policy (Phase 6B)", () => {
     expect(() => assertLiveMediaStartupPolicy(env)).toThrow(/AI_MOCK_MODE=true/);
   });
 
-  it("even fully live config stays blocked until approval enforcement ships", () => {
+  it("image/video generation stays blocked even with live flags (enforcement in 6E)", () => {
     const env = testEnv({ ...liveFlags, MEDIA_GENERATION_ENABLED: "true" });
-    const p = evaluateLiveMediaPolicy(env);
+    const p = evaluateLiveMediaPolicy(env, "generation");
     expect(p.liveMediaAllowed).toBe(false);
-    expect(p.reasons.join(" ")).toMatch(/Phase 6C/);
+    expect(p.reasons.join(" ")).toMatch(/Phase 6E/);
+    expect(() => assertLiveMediaStartupPolicy(env)).toThrow(/generation/);
+  });
+
+  it("talent scope is allowed when live flags and caps are valid (approval enforced in 6C)", () => {
+    const env = testEnv({ ...liveFlags, ELEVENLABS_PROVIDER_ENABLED: "true", VOICE_CLONING_ENABLED: "true" });
+    expect(evaluateLiveMediaPolicy(env, "talent")).toMatchObject({ liveMediaAllowed: true, reasons: [] });
+    expect(() => assertLiveMediaStartupPolicy(env)).not.toThrow();
   });
 
   it("rejects caps above hard ceilings or run cap above daily cap", () => {
     const env = testEnv({ ...liveFlags, MEDIA_GENERATION_ENABLED: "true", MEDIA_RUN_MAX_COST_USD: "50", MEDIA_USER_DAILY_MAX_USD: "10" });
-    const reasons = evaluateLiveMediaPolicy(env).reasons.join(" ");
+    const reasons = evaluateLiveMediaPolicy(env, "generation").reasons.join(" ");
     expect(reasons).toMatch(/MEDIA_RUN_MAX_COST_USD must be in/);
     expect(reasons).toMatch(/must not exceed/);
   });

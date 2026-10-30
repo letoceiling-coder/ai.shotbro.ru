@@ -30,10 +30,123 @@ export const CREATIVE_LLM_TOOL_IDS = [
   "pick_asset_from_last_search",
   "get_production_status",
   "get_approval_status",
+  "get_studio_capabilities",
+  "list_voices",
+  "list_avatars",
+  "create_voice_profile",
+  "create_avatar_profile",
+  "assign_talent_to_character",
+  "propose_talent_operation",
 ] as const;
+
+
+/** Phase 6C: avatars + voices. Descriptions are Russian so the agent explains the same terms to the user. */
+export const TALENT_OPENAI_TOOLS: OpenAiToolDef[] = [
+  {
+    type: "function",
+    function: {
+      name: "get_studio_capabilities",
+      description:
+        "Возможности студии: какие провайдеры подключены (HeyGen → Fal → OpenRouter), тестовый ли режим, цены операций и лимиты бюджета. Вызывай перед тем, как предлагать платные действия.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_voices",
+      description: "Голоса пользователя (переиспользуемые) и библиотека ElevenLabs с фильтрами. Бесплатно.",
+      parameters: {
+        type: "object",
+        properties: { language: { type: "string", description: "например ru" }, gender: { type: "string", enum: ["male", "female"] } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_avatars",
+      description: "Аватары пользователя с образами (looks). Бесплатно.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_voice_profile",
+      description:
+        "Создать голос. LIBRARY — выбрать готовый голос из библиотеки (бесплатно, сразу готов). DESIGNED — голос по описанию 20–1000 символов (потом propose VOICE_DESIGN). CLONED — клон по аудио-образцам из библиотеки проекта (нужно согласие владельца голоса; потом propose VOICE_CLONE).",
+      parameters: {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["LIBRARY", "DESIGNED", "CLONED"] },
+          name: { type: "string" },
+          providerVoiceId: { type: "string", description: "только для LIBRARY, из list_voices" },
+          designPrompt: { type: "string", description: "только для DESIGNED" },
+          sampleAssetIds: { type: "array", items: { type: "string" }, description: "только для CLONED: audio assetId" },
+          labels: { type: "object", properties: { language: { type: "string" }, gender: { type: "string" } } },
+        },
+        required: ["kind", "name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_avatar_profile",
+      description:
+        "Создать переиспользуемый аватар из фото проекта (image assetId из search_project_assets). Можно указать голос по умолчанию. Затем propose AVATAR_TRAIN.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          sourceAssetIds: { type: "array", items: { type: "string" } },
+          defaultVoiceProfileId: { type: "string" },
+        },
+        required: ["name", "sourceAssetIds"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "assign_talent_to_character",
+      description: "Привязать аватар/голос к персонажу проекта. null — отвязать. Бесплатно.",
+      parameters: {
+        type: "object",
+        properties: {
+          characterId: { type: "string" },
+          voiceProfileId: { type: ["string", "null"] },
+          avatarProfileId: { type: ["string", "null"] },
+          avatarLookId: { type: ["string", "null"] },
+        },
+        required: ["characterId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_talent_operation",
+      description:
+        "Предложить платное действие: в чате появится карточка с ценой и кнопками «Утвердить/Отклонить». Ничего не списывается и не запускается до нажатия пользователем. Операции: VOICE_DESIGN, VOICE_SAVE (нужен generatedVoiceId варианта), VOICE_CLONE, AVATAR_TRAIN.",
+      parameters: {
+        type: "object",
+        properties: {
+          operation: { type: "string", enum: ["VOICE_DESIGN", "VOICE_SAVE", "VOICE_CLONE", "AVATAR_TRAIN"] },
+          voiceProfileId: { type: "string" },
+          avatarProfileId: { type: "string" },
+          generatedVoiceId: { type: "string" },
+        },
+        required: ["operation"],
+      },
+    },
+  },
+];
 
 export function buildCreativeOpenAiTools(): OpenAiToolDef[] {
   return [
+    ...TALENT_OPENAI_TOOLS,
     {
       type: "function",
       function: {

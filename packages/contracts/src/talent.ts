@@ -235,3 +235,28 @@ export const TalentJobSchema = z.object({
   updatedAt: z.string(),
 });
 export type TalentJob = z.infer<typeof TalentJobSchema>;
+
+/** Phase 6C: ask for a price + approval card before any paid talent operation. */
+export const TalentQuoteInputSchema = StartTalentOperationInputSchema.omit({ approvalId: true }).extend({
+  /** Chat where the approval card appears; defaults to the project's first conversation. */
+  conversationId: z.string().optional(),
+});
+export type TalentQuoteInput = z.infer<typeof TalentQuoteInputSchema>;
+
+export const TalentQuoteResultSchema = z.object({
+  approvalId: z.string().nullable(),
+  messageId: z.string().nullable(),
+  /** Needed to approve/reject via POST /approvals/:id/{approve|reject}. */
+  payloadHash: z.string().nullable(),
+  targetVersion: z.string().nullable(),
+  operation: TalentOperationSchema,
+  providerId: z.string(),
+  estimatedLiveUsd: z.number(),
+  chargedUsd: z.number(),
+  priceStatus: z.enum(["ESTIMATED", "INCLUDED_IN_PLAN", "FREE"]),
+  note: z.string(),
+  mock: z.boolean(),
+  /** true when no approval is needed (free REFERENCE avatar). */
+  free: z.boolean(),
+});
+export type TalentQuoteResult = z.infer<typeof TalentQuoteResultSchema>;

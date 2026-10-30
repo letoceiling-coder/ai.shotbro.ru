@@ -5,6 +5,7 @@ import { ToolExecutor, type ToolExecutionDelegates } from "../tool-executor.js";
 import { registerPhase4ToolHandlers } from "./tool-handlers/register.js";
 import { registerMultiproviderTools } from "./tool-handlers/multiprovider-tools.js";
 import { registerPhase5CreativeStudioTools } from "./tool-handlers/phase5-creative-tools.js";
+import { registerPhase6TalentTools } from "./tool-handlers/phase6-talent-tools.js";
 import { registerPhase5PromptStudioTools } from "./tool-handlers/phase5-prompt-tools.js";
 import { registerPhase5TimelineTools } from "./tool-handlers/phase5-timeline-tools.js";
 import { isCreativeLlmLiveEnabled } from "@shotbro/config";
@@ -45,6 +46,7 @@ export class CreativeAgentRuntime {
     registerPhase4ToolHandlers(this.executor);
     registerMultiproviderTools(this.executor, env);
     registerPhase5CreativeStudioTools(this.executor);
+    registerPhase6TalentTools(this.executor);
     registerPhase5PromptStudioTools(this.executor);
     registerPhase5TimelineTools(this.executor);
     this.registerCompositeTools();
@@ -442,6 +444,16 @@ function summarizeTool(name: string, raw: Record<string, unknown>): string {
   if (name === "assign_video_to_scene_clip") return `Видео привязано к клипу ${raw.clipId ?? ""}`;
   if (name === "estimate_cost") return `Оценка стоимости: ${JSON.stringify(raw.totalUsd ?? raw).slice(0, 80)}`;
   if (name === "compare_models") return "Сравнение моделей выполнено";
+  if (name === "get_studio_capabilities") return "Возможности студии загружены";
+  if (name === "list_voices") return "Список голосов загружен";
+  if (name === "list_avatars") return "Список аватаров загружен";
+  if (name === "create_voice_profile") return "Голос создан (черновик или готов из библиотеки)";
+  if (name === "create_avatar_profile") return "Аватар создан (черновик)";
+  if (name === "assign_talent_to_character") return "Аватар/голос привязан к персонажу";
+  if (name === "propose_talent_operation") {
+    const q = (raw.quote ?? {}) as { estimatedLiveUsd?: number; mock?: boolean };
+    return `Предложено действие — ждёт вашего подтверждения (≈$${Number(q.estimatedLiveUsd ?? 0).toFixed(2)}${q.mock ? ", тест: $0" : ""})`;
+  }
   return `${name}: OK`;
 }
 
@@ -449,6 +461,7 @@ function deepLinkFor(
   name: string,
   raw: Record<string, unknown>,
 ): AgentToolResultEnvelope["deepLink"] | undefined {
+  if (name === "assign_talent_to_character") return { creativeSection: "characters" };
   if (name === "search_project_assets") {
     const first = (raw.items as Array<{ id: string }> | undefined)?.[0];
     return first ? { creativeSection: "assets", assetId: first.id } : { creativeSection: "assets" };

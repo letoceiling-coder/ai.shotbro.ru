@@ -9,7 +9,29 @@ const emptyInput = z.object({}).strict();
 
 export type ToolHandler = (input: Record<string, unknown>, ctx: ToolRunContext) => Promise<Record<string, unknown>>;
 
+/** Phase 6C: reusable avatars/voices. The agent can draft and propose; paid work starts only after the user approves. */
+export type TalentDelegates = {
+  capabilities: (input: { projectId: string; userId: string }) => Promise<Record<string, unknown>>;
+  listVoices: (input: { userId: string; language?: string; gender?: string }) => Promise<Record<string, unknown>>;
+  listAvatars: (input: { userId: string }) => Promise<Record<string, unknown>>;
+  createVoice: (input: { userId: string; body: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+  createAvatar: (input: { userId: string; body: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+  assignToCharacter: (input: {
+    userId: string;
+    projectId: string;
+    characterId: string;
+    body: Record<string, unknown>;
+  }) => Promise<Record<string, unknown>>;
+  propose: (input: {
+    userId: string;
+    projectId: string;
+    conversationId?: string;
+    body: Record<string, unknown>;
+  }) => Promise<Record<string, unknown>>;
+};
+
 export type ToolExecutionDelegates = {
+  talent?: TalentDelegates;
   listAssets?: (projectId: string, userId: string) => Promise<Array<{ id: string; mimeType: string; originalName?: string }>>;
   searchAssets?: (input: {
     projectId: string;

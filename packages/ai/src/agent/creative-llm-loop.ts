@@ -46,6 +46,10 @@ export async function runCreativeLlmLoop(input: {
     "If ambiguous, ask a short clarifying question in Russian instead of guessing assetId.",
     "For ordinal scene references (вторая сцена, scene 2), use set_scene_first_frame_by_ordinal after search_project_assets.",
     "Never pass sceneId to set_scene_first_frame unless it came from get_storyboard in this turn.",
+    "Аватары и голоса (Phase 6): сначала get_studio_capabilities, затем list_voices / list_avatars.",
+    "Любое платное действие только через propose_talent_operation: назови пользователю цену и что произойдёт, и жди нажатия «Утвердить». Никогда не утверждай, что голос/аватар уже создан, пока статус не READY.",
+    "Если вариантов несколько (голос из библиотеки бесплатно vs голос по описанию ≈$0.06), кратко предложи 2–3 варианта со стоимостью и дай выбрать.",
+    "Клонирование голоса и фото-аватар реального человека — только с его согласием; без согласия сервер откажет, объясни это.",
     input.memoryContext ? `Server memory:\n${input.memoryContext}` : "",
   ]
     .filter(Boolean)
