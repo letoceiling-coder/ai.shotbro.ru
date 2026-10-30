@@ -174,30 +174,66 @@ async function mockVideo(seed: string, seconds: number, tmpRoot: string, log: Lo
   }
 }
 
-/** Real assembly with ffmpeg: input clips in scene order, normalised to 720×1280, optional voice track. */
+/** Duration and audio presence of one clip (ffprobe); unknown duration → 5 s. */
+async function probeClip(path: string) {
+  try {
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path],
+      { timeout: 30_000 },
+    );
+    const j = JSON.parse(stdout) as { format?: { duration?: string }; streams?: Array<{ codec_type?: string }> };
+    return {
+      seconds: Number(j.format?.duration) > 0 ? Number(j.format!.duration) : 5,
+      hasAudio: (j.streams ?? []).some((st) => st.codec_type === "audio"),
+    };
+  } catch {
+    return { seconds: 5, hasAudio: false };
+  }
+}
+
+/**
+ * Real assembly with ffmpeg: clips in scene order, normalised to 720×1280. Each clip keeps its own sound
+ * (e.g. the avatar's lip-synced speech); silent clips get silence of their length. An optional
+ * voice-over is mixed on top of the whole cut.
+ */
 async function assemble(videos: Buffer[], audio: Buffer | null, tmpRoot: string) {
   const dir = join(tmpRoot, `canvas-asm-${randomUUID()}`);
   await mkdir(dir, { recursive: true });
   try {
     const args = ["-y"];
+    const clips: Array<{ seconds: number; hasAudio: boolean }> = [];
     for (const [i, v] of videos.entries()) {
       const p = join(dir, `in${i}.mp4`);
       await writeFile(p, v);
       args.push("-i", p);
+      clips.push(await probeClip(p));
     }
     if (audio) {
       const ap = join(dir, "voice.mp3");
       await writeFile(ap, audio);
       args.push("-i", ap);
     }
-    const norm = videos
-      .map((_, i) => `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=25,format=yuv420p[v${i}]`)
-      .join(";");
-    const concat = `${videos.map((_, i) => `[v${i}]`).join("")}concat=n=${videos.length}:v=1:a=0[vout]`;
+    const parts: string[] = [];
+    clips.forEach((c, i) => {
+      parts.push(
+        `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=25,format=yuv420p[v${i}]`,
+      );
+      parts.push(
+        c.hasAudio
+          ? `[${i}:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=0:${c.seconds.toFixed(3)}[a${i}]`
+          : `anullsrc=r=44100:cl=stereo,atrim=0:${c.seconds.toFixed(3)}[a${i}]`,
+      );
+    });
+    parts.push(`${clips.map((_, i) => `[v${i}][a${i}]`).join("")}concat=n=${clips.length}:v=1:a=1[vout][cat]`);
+    if (audio) {
+      parts.push(
+        `[${clips.length}:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[vo];[cat][vo]amix=inputs=2:duration=first:normalize=0[aout]`,
+      );
+    }
     const out = join(dir, "out.mp4");
-    args.push("-filter_complex", `${norm};${concat}`, "-map", "[vout]");
-    if (audio) args.push("-map", `${videos.length}:a`, "-c:a", "aac");
-    args.push("-c:v", "libx264", "-movflags", "+faststart", out);
+    args.push("-filter_complex", parts.join(";"), "-map", "[vout]", "-map", audio ? "[aout]" : "[cat]");
+    args.push("-c:v", "libx264", "-c:a", "aac", "-movflags", "+faststart", out);
     await execFileAsync("ffmpeg", args, { timeout: 180_000 });
     return await readFile(out);
   } finally {
