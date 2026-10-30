@@ -1,4 +1,4 @@
-import type { TalentDelegates, ToolExecutionDelegates } from "@shotbro/ai";
+import type { CanvasDelegates, TalentDelegates, ToolExecutionDelegates } from "@shotbro/ai";
 import type { ReferenceRole } from "@shotbro/contracts";
 import type { ApprovalsService } from "../approvals/approvals.service";
 import type { AssetsService } from "../assets/assets.service";
@@ -24,6 +24,7 @@ export function buildAgentToolDelegates(deps: {
   timeline: TimelineDocumentService;
   conversationId: string;
   talent?: TalentDelegates;
+  canvas?: CanvasDelegates;
 }): ToolExecutionDelegates {
   const findClip = (tracks: { clips: TimelineClip[] }[], clipId: string) => {
     for (const t of tracks) {
@@ -35,6 +36,7 @@ export function buildAgentToolDelegates(deps: {
 
   return {
     talent: deps.talent,
+    canvas: deps.canvas,
     listAssets: async (projectId, userId) => {
       const list = await deps.assets.listLegacyForProject(userId, projectId);
       return list.map((a) => ({ id: a.id, mimeType: a.mimeType, originalName: a.originalName }));

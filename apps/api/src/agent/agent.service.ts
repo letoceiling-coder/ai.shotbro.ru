@@ -35,10 +35,13 @@ import { CharacterContinuityService } from "../production/character-continuity.s
 import { PromptVersionService } from "../production/prompt-version.service";
 import { TimelineDocumentService } from "../production/timeline-document.service";
 import { IdempotencyService } from "../common/idempotency.service";
-import type { TalentDelegates } from "@shotbro/ai";
+import type { CanvasDelegates, TalentDelegates } from "@shotbro/ai";
 import type { TalentService } from "../talent/talent.service";
 import type { TalentJobsService } from "../talent/talent-jobs.service";
 import { TALENT_JOBS_SERVICE_TOKEN, TALENT_SERVICE_TOKEN } from "../talent/talent.tokens";
+import { CANVAS_SERVICE_TOKEN } from "../canvas/canvas.tokens";
+import { buildCanvasAgentDelegates } from "../canvas/canvas-agent-delegates";
+import type { CanvasService } from "../canvas/canvas.service";
 import { buildTalentAgentDelegates } from "../talent/talent-agent-delegates";
 
 export function creativeTurnIdempotencyStorageKey(userId: string, projectId: string, clientKey: string) {
@@ -79,6 +82,15 @@ export class AgentService {
       const talent = this.moduleRef.get<TalentService>(TALENT_SERVICE_TOKEN, { strict: false });
       const jobs = this.moduleRef.get<TalentJobsService>(TALENT_JOBS_SERVICE_TOKEN, { strict: false });
       return buildTalentAgentDelegates({ talent, jobs, env: this.env });
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** Phase 6F: canvas tools, resolved lazily like talent (CanvasModule depends on ProductionModule). */
+  private canvasDelegates(): CanvasDelegates | undefined {
+    try {
+      return buildCanvasAgentDelegates(this.moduleRef.get<CanvasService>(CANVAS_SERVICE_TOKEN, { strict: false }));
     } catch {
       return undefined;
     }
@@ -270,6 +282,7 @@ export class AgentService {
       timeline: this.timeline,
       conversationId: input.conversationId,
       talent: this.talentDelegates(),
+      canvas: this.canvasDelegates(),
     });
 
     const [projRow] = await this.db.select().from(project).where(eq(project.id, projectId)).limit(1);
@@ -433,6 +446,7 @@ export class AgentService {
         timeline: this.timeline,
         conversationId,
         talent: this.talentDelegates(),
+      canvas: this.canvasDelegates(),
       });
       await this.postAssistantBlocks(conversationId, projectId, [
         {

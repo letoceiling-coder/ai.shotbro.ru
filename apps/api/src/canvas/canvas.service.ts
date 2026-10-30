@@ -23,6 +23,7 @@ import {
 import {
   buildCanvasRunPlan,
   canvasApprovalPayload,
+  canvasRunAllNodeIds,
   evaluateBudgetCaps,
   quoteCanvasNode,
   syncCanvasWithStoryboard,
@@ -78,6 +79,8 @@ type CanvasJobMeta = {
   step: CanvasRunStep & { resolved?: Record<string, unknown> };
   mock: boolean;
   outputMimeType?: string;
+  /** Chat that receives the finished MP4 (the conversation of the price card). */
+  conversationId?: string;
 };
 
 function runStatus(s: string): CanvasNodeRun["status"] {
@@ -443,6 +446,45 @@ export class CanvasService implements OnModuleInit {
     return c.id;
   }
 
+  // ---------- agent (Phase 6F) ----------
+
+  /** Compact canvas state for the agent: scenes, runnable nodes with their last status, latest MP4. */
+  async agentSummary(userId: string, projectId: string) {
+    const v = await this.get(userId, projectId);
+    const runnable = v.payload.nodes.filter((n) => ["first_frame", "scene_video", "avatar_video", "tts", "upscale", "assembly"].includes(n.kind));
+    const delivery = (v.runs["assembly"] ?? []).find((r) => r.status === "COMPLETED" && r.assetId);
+    return {
+      scenes: v.scenes.map((s) => ({ ordinal: s.order, sceneId: s.sceneId, title: s.title, durationSeconds: s.durationSeconds, prompt: s.firstFramePrompt.slice(0, 300) })),
+      nodes: runnable.map((n) => ({ nodeId: n.id, kind: n.kind, sceneId: n.sceneId ?? null, lastStatus: v.runs[n.id]?.[0]?.status ?? "none", versions: (v.runs[n.id] ?? []).filter((r) => r.status === "COMPLETED").length })),
+      runAllNodeCount: canvasRunAllNodeIds(v.payload).length,
+      latestDeliveryAssetId: delivery?.assetId ?? null,
+      orphanSceneIds: v.orphanSceneIds,
+      mock: v.mock,
+    };
+  }
+
+  /** The agent proposes a run; this only creates the priced approval card (same as the UI button). */
+  async proposeForAgent(
+    userId: string,
+    projectId: string,
+    input: { conversationId?: string; scope: "all" | "scene"; sceneOrdinal?: number },
+  ) {
+    const c = await this.loadSynced(userId, projectId);
+    let nodeIds: string[];
+    if (input.scope === "scene") {
+      const scene = [...c.scenes].sort((a, b) => a.order - b.order)[(input.sceneOrdinal ?? 0) - 1];
+      if (!scene) throw new BadRequestException({ code: "scene_not_found", message: `Сцены №${input.sceneOrdinal} нет в раскадровке` });
+      const sceneNodes = c.payload.nodes.filter((n) => n.sceneId === scene.sceneId && ["first_frame", "scene_video"].includes(n.kind)).map((n) => n.id);
+      // Re-do the scene and rebuild the final cut so the chat receives a fresh MP4.
+      const all = canvasRunAllNodeIds(c.payload);
+      nodeIds = [...sceneNodes, ...all.filter((id) => c.payload.nodes.find((n) => n.id === id)?.kind === "assembly")];
+    } else {
+      nodeIds = canvasRunAllNodeIds(c.payload);
+    }
+    if (!nodeIds.length) throw new BadRequestException({ code: "nothing_to_run", message: "На холсте нет узлов, подключённых к «Выдаче»" });
+    return this.quote(userId, projectId, { nodeIds, conversationId: input.conversationId });
+  }
+
   // ---------- quote ----------
 
   async quote(userId: string, projectId: string, body: unknown): Promise<CanvasQuoteResult> {
@@ -492,7 +534,7 @@ export class CanvasService implements OnModuleInit {
       reason: "canvas:run",
       createdBy: userId,
       expiresAt: new Date(Date.now() + QUOTE_TTL_MS),
-      metadata: { approvalId: created.approvalId, nodeIds: items.map((i) => i.step.nodeId), canvasId: canvas.id },
+      metadata: { approvalId: created.approvalId, nodeIds: items.map((i) => i.step.nodeId), canvasId: canvas.id, conversationId },
     });
     await this.db.insert(costLedgerEntry).values({
       id: uuid(),
@@ -582,7 +624,8 @@ export class CanvasService implements OnModuleInit {
       await this.releaseReservation(reservation.id, "quote_expired");
       throw new ConflictException({ code: "quote_expired" });
     }
-    const nodeIds = ((reservation.metadata ?? {}) as { nodeIds?: string[] }).nodeIds ?? [];
+    const resMeta = (reservation.metadata ?? {}) as { nodeIds?: string[]; conversationId?: string };
+    const nodeIds = resMeta.nodeIds ?? [];
 
     let planned: Awaited<ReturnType<CanvasService["plan"]>>;
     try {
@@ -624,6 +667,7 @@ export class CanvasService implements OnModuleInit {
         chargedUsd: item.quote.chargedUsd,
         step: item.step,
         mock,
+        conversationId: resMeta.conversationId,
       };
       await this.db.insert(providerJob).values({
         id: uuid(),

@@ -1,6 +1,7 @@
 import {
   CANVAS_ASSEMBLY_NODE_ID,
   CANVAS_OUTPUT_NODE_ID,
+  isRunnableCanvasKind,
   sceneCanvasNodeId,
   type CanvasEdge,
   type CanvasNode,
@@ -106,4 +107,21 @@ export function syncCanvasWithStoryboard(
     addedSceneIds,
     orphanSceneIds,
   };
+}
+
+/** «Собрать всё»: every runnable node that feeds the output node (directly or through other nodes). */
+export function canvasRunAllNodeIds(payload: Pick<SceneCanvasPayload, "nodes" | "edges">, rootId = CANVAS_OUTPUT_NODE_ID): string[] {
+  const kinds = new Map(payload.nodes.map((n) => [n.id, n.kind]));
+  const seen = new Set<string>();
+  const stack = [rootId];
+  while (stack.length) {
+    const id = stack.pop()!;
+    for (const e of payload.edges) {
+      if (e.target === id && !seen.has(e.source)) {
+        seen.add(e.source);
+        stack.push(e.source);
+      }
+    }
+  }
+  return [...seen].filter((id) => isRunnableCanvasKind(kinds.get(id) ?? ""));
 }

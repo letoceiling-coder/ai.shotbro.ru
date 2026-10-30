@@ -9,6 +9,7 @@ import { registerPhase4ToolHandlers } from "./tool-handlers/register.js";
 import { registerMultiproviderTools } from "./tool-handlers/multiprovider-tools.js";
 import { registerPhase5CreativeStudioTools } from "./tool-handlers/phase5-creative-tools.js";
 import { registerPhase6TalentTools } from "./tool-handlers/phase6-talent-tools.js";
+import { registerPhase6CanvasTools } from "./tool-handlers/phase6-canvas-tools.js";
 import { registerPhase5PromptStudioTools } from "./tool-handlers/phase5-prompt-tools.js";
 import { registerPhase5TimelineTools } from "./tool-handlers/phase5-timeline-tools.js";
 
@@ -45,6 +46,7 @@ export class AgentRuntime {
     registerMultiproviderTools(this.executor, env);
     registerPhase5CreativeStudioTools(this.executor);
     registerPhase6TalentTools(this.executor);
+    registerPhase6CanvasTools(this.executor);
     registerPhase5PromptStudioTools(this.executor);
     registerPhase5TimelineTools(this.executor);
   }

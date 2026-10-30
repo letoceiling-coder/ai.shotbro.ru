@@ -707,6 +707,30 @@ const EXTRA: Phase4ToolDefinition[] = [
     inputSchemaVersion: 1,
     timeoutMs: 30_000,
   },
+  {
+    id: "get_canvas",
+    displayName: "Get scene canvas",
+    description: "Scene canvas: scenes, nodes, run status, latest delivery",
+    sideEffect: "READ_ONLY",
+    costClass: "free",
+    enabled: true,
+    requiresApproval: false,
+    implementationStatus: "HANDLER",
+    inputSchemaVersion: 1,
+    timeoutMs: 30_000,
+  },
+  {
+    id: "propose_canvas_run",
+    displayName: "Propose canvas run",
+    description: "Price card for running the canvas (all or one scene); jobs start only after user approves",
+    sideEffect: "DATABASE_WRITE",
+    costClass: "free",
+    enabled: true,
+    requiresApproval: false,
+    implementationStatus: "HANDLER",
+    inputSchemaVersion: 1,
+    timeoutMs: 30_000,
+  },
 ];
 
 export const PHASE4_TOOLS: Phase4ToolDefinition[] = [

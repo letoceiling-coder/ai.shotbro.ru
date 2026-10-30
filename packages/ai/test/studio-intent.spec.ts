@@ -21,6 +21,11 @@ describe("studio-intent (5L-A)", () => {
     expect(resolveStudioMessageIntent("Установи первым кадром второй сцены")).toBe("creative_nl");
   });
 
+  it("routes canvas requests to creative_nl (6F)", () => {
+    expect(resolveStudioMessageIntent("Собери ролик на холсте")).toBe("creative_nl");
+    expect(resolveStudioMessageIntent("phase6f переделай вторую сцену")).toBe("creative_nl");
+  });
+
   it("defaults ambiguous text to production_default", () => {
     expect(resolveStudioMessageIntent("Привет, как дела?")).toBe("production_default");
     expect(resolveStudioMessageIntent("Измени второй кадр сцены")).toBe("production_default");

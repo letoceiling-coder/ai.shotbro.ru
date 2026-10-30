@@ -6,6 +6,7 @@ import { registerPhase4ToolHandlers } from "./tool-handlers/register.js";
 import { registerMultiproviderTools } from "./tool-handlers/multiprovider-tools.js";
 import { registerPhase5CreativeStudioTools } from "./tool-handlers/phase5-creative-tools.js";
 import { registerPhase6TalentTools } from "./tool-handlers/phase6-talent-tools.js";
+import { registerPhase6CanvasTools } from "./tool-handlers/phase6-canvas-tools.js";
 import { registerPhase5PromptStudioTools } from "./tool-handlers/phase5-prompt-tools.js";
 import { registerPhase5TimelineTools } from "./tool-handlers/phase5-timeline-tools.js";
 import { isCreativeLlmLiveEnabled } from "@shotbro/config";
@@ -47,6 +48,7 @@ export class CreativeAgentRuntime {
     registerMultiproviderTools(this.executor, env);
     registerPhase5CreativeStudioTools(this.executor);
     registerPhase6TalentTools(this.executor);
+    registerPhase6CanvasTools(this.executor);
     registerPhase5PromptStudioTools(this.executor);
     registerPhase5TimelineTools(this.executor);
     this.registerCompositeTools();
@@ -450,6 +452,11 @@ function summarizeTool(name: string, raw: Record<string, unknown>): string {
   if (name === "create_voice_profile") return "Голос создан (черновик или готов из библиотеки)";
   if (name === "create_avatar_profile") return "Аватар создан (черновик)";
   if (name === "assign_talent_to_character") return "Аватар/голос привязан к персонажу";
+  if (name === "get_canvas") return `Холст загружен: сцен ${(raw.scenes as unknown[] | undefined)?.length ?? 0}`;
+  if (name === "propose_canvas_run") {
+    const q = (raw.quote ?? {}) as { totalEstimatedLiveUsd?: number; mock?: boolean; items?: unknown[] };
+    return `Предложен запуск холста (${q.items?.length ?? 0} узл.) — ждёт вашего подтверждения (≈$${Number(q.totalEstimatedLiveUsd ?? 0).toFixed(2)}${q.mock ? ", тест: $0" : ""})`;
+  }
   if (name === "propose_talent_operation") {
     const q = (raw.quote ?? {}) as { estimatedLiveUsd?: number; mock?: boolean };
     return `Предложено действие — ждёт вашего подтверждения (≈$${Number(q.estimatedLiveUsd ?? 0).toFixed(2)}${q.mock ? ", тест: $0" : ""})`;
@@ -466,6 +473,8 @@ function deepLinkFor(
   if (name === "create_avatar_profile") return { creativeSection: "avatars" };
   // The price card lives in the chat: keep the user there even if a draft was created in the same turn.
   if (name === "propose_talent_operation") return { creativeSection: "chat" };
+  // Reading the canvas must not pull the user away from the chat where the price card appears.
+  if (name === "propose_canvas_run") return { creativeSection: "chat" };
   if (name === "search_project_assets") {
     const first = (raw.items as Array<{ id: string }> | undefined)?.[0];
     return first ? { creativeSection: "assets", assetId: first.id } : { creativeSection: "assets" };

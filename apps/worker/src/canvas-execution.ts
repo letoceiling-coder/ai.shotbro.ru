@@ -9,7 +9,9 @@ import type { Logger } from "pino";
 import sharp from "sharp";
 import { loadEnvFromProcess } from "@shotbro/config/env";
 import { createS3Client } from "@shotbro/config/s3";
-import { approval, asset, budgetReservation, costLedgerEntry, eventLog, providerJob } from "@shotbro/db/schema";
+import { approval, asset, budgetReservation, conversation, costLedgerEntry, eventLog, message, messageBlock, providerJob } from "@shotbro/db/schema";
+import { assetPlaybackRef } from "@shotbro/contracts/asset-playback";
+import { probeMediaBuffer } from "./ffprobe.js";
 import { getWorkerDb } from "./db.js";
 import { ensureMockFixtures, readFixture } from "./mock-fixtures.js";
 
@@ -41,6 +43,7 @@ type JobMeta = {
   step: Step;
   mock: boolean;
   outputMimeType?: string;
+  conversationId?: string;
 };
 type JobRow = typeof providerJob.$inferSelect;
 
@@ -246,6 +249,59 @@ async function failJob(job: JobRow, code: string, message: string, log: Logger) 
   log.warn({ jobId: job.id, code, message }, "canvas node failed");
 }
 
+/** Phase 6F: the finished cut goes to the chat where the user approved the price. */
+async function postDeliveryToChat(job: JobRow, assetId: string, body: Buffer, log: Logger) {
+  const meta = metaOf(job);
+  if (!meta.conversationId) return;
+  const db = getWorkerDb();
+  const [conv] = await db.select().from(conversation).where(eq(conversation.id, meta.conversationId)).limit(1);
+  if (!conv || conv.projectId !== job.projectId) return;
+  let seconds: number | null = null;
+  try {
+    const probe = await probeMediaBuffer(body, "mp4");
+    seconds = probe.durationMs ? Math.round(probe.durationMs / 1000) : null;
+  } catch {
+    /* duration label is optional */
+  }
+  const messageId = randomUUID();
+  await db.insert(message).values({
+    id: messageId,
+    conversationId: conv.id,
+    projectId: job.projectId,
+    role: "assistant",
+    content: meta.mock ? "Ролик собран на холсте (тестовый режим)" : "Ролик собран на холсте",
+    status: "sent",
+  });
+  await db.insert(messageBlock).values({
+    id: randomUUID(),
+    messageId,
+    type: "video_result",
+    payload: {
+      type: "video_result",
+      // Live canvas generation is blocked until 6G, so this card is always a test-mode result.
+      demo: true,
+      title: meta.mock ? "Ролик с холста (MOCK)" : "Ролик с холста",
+      assetId,
+      url: assetPlaybackRef(assetId),
+      durationLabel: seconds ? `${seconds}s` : "—",
+      aspectRatio: "9:16",
+      resolution: "720×1280",
+      version: 1,
+      source: "canvas",
+      canvasRunId: meta.canvasRunId,
+    },
+  });
+  await db.insert(eventLog).values({
+    id: randomUUID(),
+    workspaceId: meta.workspaceId,
+    projectId: job.projectId,
+    resourceId: messageId,
+    type: "message.created",
+    payload: { messageId, conversationId: conv.id, projectId: job.projectId, blockTypes: ["video_result"] },
+  });
+  log.info({ messageId, assetId, canvasRunId: meta.canvasRunId }, "canvas delivery posted to chat");
+}
+
 /** Executes every node of one approved canvas run in plan order. */
 export async function executeCanvasRun(data: { runId: string }, log: Logger) {
   const db = getWorkerDb();
@@ -352,6 +408,10 @@ export async function executeCanvasRun(data: { runId: string }, log: Logger) {
         metadata: { ...meta, outputMimeType: mimeType } as unknown as Record<string, unknown>,
       });
       await emit(meta, projectId, "COMPLETED", job.id);
+      if (step.kind === "assembly") {
+        // A chat hiccup must not fail an already finished, captured node.
+        await postDeliveryToChat(job, assetId, body, log).catch((e) => log.warn({ err: e }, "canvas delivery chat post failed"));
+      }
     } catch (err) {
       const code = err instanceof CanvasJobError ? err.code : "CANVAS_NODE_FAILED";
       await failJob(job, code, err instanceof Error ? err.message : "failed", log);

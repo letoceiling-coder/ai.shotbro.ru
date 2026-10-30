@@ -47,7 +47,7 @@ function detectSceneOrdinal(text: string): number | undefined {
 /** E2E / fallback only when live LLM is off or explicit mock mode. */
 export function shouldUseMockCreativePlanner(env: AppEnv, userMessage: string): boolean {
   if (process.env.CREATIVE_AGENT_MOCK_PLANNER === "1") return true;
-  if (/phase5k/i.test(userMessage)) return true;
+  if (/phase5k|phase6f/i.test(userMessage)) return true;
   if (!isCreativeLlmLiveEnabled(env)) return true;
   return false;
 }
@@ -57,6 +57,24 @@ export function planCreativeIntent(userMessage: string): CreativeIntentPlan | nu
   const sceneOrdinal = detectSceneOrdinal(userMessage);
 
   if (isProductionBootstrapUserMessage(userMessage)) return null;
+
+  // Phase 6F: scene canvas — read it and propose a run (price card in chat; nothing starts before approval).
+  if (lower.includes("холст") || lower.includes("phase6f")) {
+    const sceneRun = sceneOrdinal != null && (lower.includes("передел") || lower.includes("перезапуст") || lower.includes("сцен"));
+    return {
+      intent: "canvas_run",
+      mockAgent: true,
+      toolCalls: [
+        { id: "tc_1", name: "get_canvas", arguments: {} },
+        {
+          id: "tc_2",
+          name: "propose_canvas_run",
+          arguments: sceneRun ? { scope: "scene", sceneOrdinal } : { scope: "all" },
+        },
+      ],
+      ...(sceneOrdinal != null ? { sceneOrdinal } : {}),
+    };
+  }
 
   const creativeSignals =
     lower.includes("phase5k") ||

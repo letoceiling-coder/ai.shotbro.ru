@@ -103,6 +103,8 @@ elif [ \"${MODE}\" = phase6-talent-ui ]; then
   pnpm exec playwright test e2e/phase6-talent-ui.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase6-canvas ]; then
   pnpm exec playwright test e2e/phase6-canvas.spec.ts --project=desktop --retries=0
+elif [ \"${MODE}\" = phase6-full ]; then
+  pnpm exec playwright test e2e/phase6-full.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = phase5-creative ]; then
   pnpm exec playwright test e2e/phase5-storyboard.spec.ts e2e/phase5-characters.spec.ts e2e/phase5-references.spec.ts e2e/phase5-creative-flow.spec.ts --project=desktop --retries=0
 elif [ \"${MODE}\" = diagnostic ]; then

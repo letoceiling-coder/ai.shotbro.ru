@@ -30,8 +30,21 @@ export type TalentDelegates = {
   }) => Promise<Record<string, unknown>>;
 };
 
+/** Phase 6F: scene canvas. The agent reads the canvas and proposes runs; jobs start only after «Утвердить». */
+export type CanvasDelegates = {
+  get: (input: { projectId: string; userId: string }) => Promise<Record<string, unknown>>;
+  propose: (input: {
+    projectId: string;
+    userId: string;
+    conversationId?: string;
+    scope: "all" | "scene";
+    sceneOrdinal?: number;
+  }) => Promise<Record<string, unknown>>;
+};
+
 export type ToolExecutionDelegates = {
   talent?: TalentDelegates;
+  canvas?: CanvasDelegates;
   listAssets?: (projectId: string, userId: string) => Promise<Array<{ id: string; mimeType: string; originalName?: string }>>;
   searchAssets?: (input: {
     projectId: string;

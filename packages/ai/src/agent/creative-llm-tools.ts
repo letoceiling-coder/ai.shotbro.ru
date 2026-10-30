@@ -37,6 +37,8 @@ export const CREATIVE_LLM_TOOL_IDS = [
   "create_avatar_profile",
   "assign_talent_to_character",
   "propose_talent_operation",
+  "get_canvas",
+  "propose_canvas_run",
 ] as const;
 
 
@@ -139,6 +141,31 @@ export const TALENT_OPENAI_TOOLS: OpenAiToolDef[] = [
           generatedVoiceId: { type: "string" },
         },
         required: ["operation"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_canvas",
+      description:
+        "Холст сцен проекта: сцены раскадровки, узлы (первый кадр, видео сцены, монтаж), их статусы и готовый ролик. Холст сам строится по раскадровке. Бесплатно.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_canvas_run",
+      description:
+        "Предложить запуск холста: scope=all — собрать весь ролик (кадры → видео сцен → монтаж в MP4), scope=scene + sceneOrdinal — переделать одну сцену и пересобрать монтаж. В чате появится карточка с ценой и кнопками «Утвердить/Отклонить»; ничего не запускается до нажатия. Готовый MP4 придёт в чат сам.",
+      parameters: {
+        type: "object",
+        properties: {
+          scope: { type: "string", enum: ["all", "scene"] },
+          sceneOrdinal: { type: "number", description: "Номер сцены с 1 (для scope=scene)" },
+        },
+        required: ["scope"],
       },
     },
   },

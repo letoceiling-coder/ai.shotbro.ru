@@ -21,8 +21,9 @@ export const isProductionBootstrapMessage = isProductionBootstrapUserMessage;
 export function shouldTryCreativeTurn(content: string): boolean {
   if (isProductionBootstrapUserMessage(content)) return false;
   const lower = content.toLowerCase();
-  if (lower.includes("phase5k")) return true;
+  if (lower.includes("phase5k") || lower.includes("phase6f")) return true;
   return (
+    lower.includes("холст") ||
     lower.includes("библиотек") ||
     lower.includes("first_frame") ||
     lower.includes("первым кадром") ||

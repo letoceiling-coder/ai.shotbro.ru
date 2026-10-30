@@ -1,0 +1,1 @@
+export const CANVAS_SERVICE_TOKEN = "CANVAS_SERVICE";
