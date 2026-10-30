@@ -6,6 +6,9 @@ import { loginRealUser, openRealNewProject } from "./helpers/real-login";
  * Customer rule: minimal spend — clips and voice ≤ 5 s; theme: ad campaign for shotbro.ru.
  * Nothing is faked: the test refuses to run unless the studio reports live mode, and each paid step
  * goes through the same price card → approval as a user would.
+ *
+ * Resume without paying twice: E2E_6G_PROJECT_ID=<project> reuses completed steps of an earlier run;
+ * E2E_6G_SKIP_TTS=1 skips the ElevenLabs voice-over (e.g. while the API key's IP allowlist blocks us).
  */
 
 let loggedInStorage: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
@@ -23,8 +26,11 @@ type CanvasView = {
   };
 };
 type Quote = { approvalId: string; targetVersion: string; payloadHash: string; totalEstimatedLiveUsd: number; totalChargedUsd: number; mock: boolean; items: Array<{ nodeId: string; providerId: string; estimatedLiveUsd: number }> };
+type DoneRun = Run & { nodeId: string };
 
 const report: Array<Record<string, unknown>> = [];
+const RESUME_PROJECT = process.env.E2E_6G_PROJECT_ID?.trim() || "";
+const SKIP_TTS = process.env.E2E_6G_SKIP_TTS === "1";
 
 async function api<T>(page: Page, method: "get" | "post" | "patch" | "put", url: string, data?: unknown): Promise<T> {
   const res = await page.request[method](url, data === undefined ? undefined : { data });
@@ -36,16 +42,35 @@ const canvas = (page: Page, projectId: string) => api<CanvasView>(page, "get", `
 
 async function addNodes(page: Page, projectId: string, nodes: CanvasView["payload"]["nodes"], edges: CanvasView["payload"]["edges"]) {
   const v = await canvas(page, projectId);
+  const have = new Set(v.payload.nodes.map((n) => n.id));
+  const haveEdges = new Set(v.payload.edges.map((e) => e.id));
   await api(page, "put", `/api/v1/projects/${projectId}/canvas`, {
     expectedVersion: v.version,
-    nodes: [...v.payload.nodes, ...nodes],
-    edges: [...v.payload.edges, ...edges],
+    nodes: [...v.payload.nodes, ...nodes.filter((n) => !have.has(n.id))],
+    edges: [...v.payload.edges, ...edges.filter((e) => !haveEdges.has(e.id))],
     viewport: v.payload.viewport,
   });
 }
 
+/** Latest real (non-mock) completed run of each node, if all exist — used to resume without paying again. */
+function completedLive(v: CanvasView, nodeIds: string[]): DoneRun[] | null {
+  const out: DoneRun[] = [];
+  for (const id of nodeIds) {
+    const r = (v.runs[id] ?? []).find((x) => x.status === "COMPLETED" && !x.mock && x.assetId);
+    if (!r) return null;
+    out.push({ ...r, nodeId: id });
+  }
+  return out;
+}
+
 /** One paid step: price card → check caps → approve → wait for the real result. */
-async function runPaid(page: Page, projectId: string, label: string, nodeIds: string[], maxUsd: number, timeoutMs = 20 * 60_000) {
+async function runPaid(page: Page, projectId: string, label: string, nodeIds: string[], maxUsd: number, timeoutMs = 20 * 60_000): Promise<DoneRun[]> {
+  const prior = completedLive(await canvas(page, projectId), nodeIds);
+  if (prior && RESUME_PROJECT) {
+    report.push({ step: label, reused: true, runs: prior.map((r) => ({ node: r.nodeId, mime: r.mimeType })) });
+    console.log("6G_STEP", JSON.stringify(report.at(-1)));
+    return prior;
+  }
   const q = await api<Quote>(page, "post", `/api/v1/projects/${projectId}/canvas/quote`, { nodeIds });
   expect(q.mock, "studio must be in live mode").toBe(false);
   expect(q.totalChargedUsd).toBeLessThanOrEqual(maxUsd);
@@ -98,45 +123,56 @@ test.describe("Phase 6G live generations (minimal spend)", () => {
   test("frame → 5 s video → voice-over → avatar video → cut, all real", async ({ page }) => {
     test.setTimeout(75 * 60_000);
     await page.goto("/studio", { waitUntil: "domcontentloaded" });
-    const projectId = await openRealNewProject(page);
-    await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
 
     // Live mode or nothing.
-    const caps = await api<{ mockMode: boolean }>(page, "get", "/api/v1/talent/provider-chain?capability=SCENE_VIDEO").catch(() => ({ mockMode: true }));
-    expect((caps as { mockMode: boolean }).mockMode, "studio must be in live mode").toBe(false);
+    const chain = await api<{ mockMode: boolean }>(page, "get", "/api/v1/talent/provider-chain?capability=SCENE_VIDEO");
+    expect(chain.mockMode, "studio must be in live mode").toBe(false);
 
-    // One scene, 5 s, ad for shotbro.ru (the starter scene of an empty project is removed).
-    await api(page, "post", `/api/v1/projects/${projectId}/scripts/scenes`, { title: "ShotBro: ролик за минуту" });
-    const script = await api<{ payload: { scenes: Array<{ id: string; title: string }> } }>(page, "get", `/api/v1/projects/${projectId}/script`);
-    const scene = script.payload.scenes.find((x) => x.title === "ShotBro: ролик за минуту")!.id;
-    for (const other of script.payload.scenes.filter((x) => x.id !== scene)) {
-      await api(page, "post", `/api/v1/projects/${projectId}/scripts/scenes/${other.id}/delete`, {});
+    let projectId = RESUME_PROJECT;
+    let scene: string;
+    if (projectId) {
+      const v = await canvas(page, projectId);
+      expect(v.mock).toBe(false);
+      expect(v.scenes).toHaveLength(1);
+      scene = v.scenes[0]!.sceneId;
+    } else {
+      projectId = await openRealNewProject(page);
+      await expect(page.getByTestId("real-thread")).toBeVisible({ timeout: 60_000 });
+
+      // One scene, 5 s, ad for shotbro.ru (the starter scene of an empty project is removed).
+      await api(page, "post", `/api/v1/projects/${projectId}/scripts/scenes`, { title: "ShotBro: ролик за минуту" });
+      const script = await api<{ payload: { scenes: Array<{ id: string; title: string }> } }>(page, "get", `/api/v1/projects/${projectId}/script`);
+      scene = script.payload.scenes.find((x) => x.title === "ShotBro: ролик за минуту")!.id;
+      for (const other of script.payload.scenes.filter((x) => x.id !== scene)) {
+        await api(page, "post", `/api/v1/projects/${projectId}/scripts/scenes/${other.id}/delete`, {});
+      }
+      await api(page, "post", `/api/v1/projects/${projectId}/storyboard/sync`, {});
+      const sb = await api<{ payload: { scenes: Array<{ sceneId: string; revision: number }> } }>(page, "get", `/api/v1/projects/${projectId}/storyboard`);
+      expect(sb.payload.scenes.map((x) => x.sceneId)).toEqual([scene]);
+      await api(page, "patch", `/api/v1/projects/${projectId}/storyboard/scenes/${scene}`, {
+        expectedRevision: sb.payload.scenes[0]!.revision,
+        firstFramePrompt:
+          "Vertical 9:16 ad frame: a smartphone on a dark violet desk showing a video editor with the text SHOTBRO, neon purple light, clean modern product shot, no people",
+        videoMotionPrompt: "slow push-in on the phone screen, subtle neon light flicker",
+      });
+
+      // Canvas: only this scene's chain (drop nodes of removed scenes), clip length 5 s.
+      let v = await canvas(page, projectId);
+      expect(v.mock).toBe(false);
+      const keepNode = (n: { sceneId?: string }) => !n.sceneId || n.sceneId === scene;
+      const kept = new Set(v.payload.nodes.filter(keepNode).map((n) => n.id));
+      await api(page, "put", `/api/v1/projects/${projectId}/canvas`, {
+        expectedVersion: v.version,
+        nodes: v.payload.nodes.filter(keepNode).map((n) => (n.id === `scene:${scene}:video` ? { ...n, data: { ...n.data, durationSeconds: 5 } } : n)),
+        edges: v.payload.edges.filter((e) => kept.has(e.source) && kept.has(e.target)),
+        viewport: v.payload.viewport,
+      });
+      v = await canvas(page, projectId);
+      expect(v.payload.nodes.filter((n) => n.sceneId).map((n) => n.id).sort()).toEqual(
+        [`scene:${scene}:frame`, `scene:${scene}:prompt`, `scene:${scene}:video`].sort(),
+      );
     }
-    await api(page, "post", `/api/v1/projects/${projectId}/storyboard/sync`, {});
-    const sb = await api<{ payload: { scenes: Array<{ sceneId: string; revision: number }> } }>(page, "get", `/api/v1/projects/${projectId}/storyboard`);
-    expect(sb.payload.scenes.map((x) => x.sceneId)).toEqual([scene]);
-    await api(page, "patch", `/api/v1/projects/${projectId}/storyboard/scenes/${scene}`, {
-      expectedRevision: sb.payload.scenes[0]!.revision,
-      firstFramePrompt:
-        "Vertical 9:16 ad frame: a smartphone on a dark violet desk showing a video editor with the text SHOTBRO, neon purple light, clean modern product shot, no people",
-      videoMotionPrompt: "slow push-in on the phone screen, subtle neon light flicker",
-    });
-
-    // Canvas: only this scene's chain (drop nodes of removed scenes), clip length 5 s.
-    let v = await canvas(page, projectId);
-    expect(v.mock).toBe(false);
-    const keepNode = (n: { sceneId?: string }) => !n.sceneId || n.sceneId === scene;
-    const kept = new Set(v.payload.nodes.filter(keepNode).map((n) => n.id));
-    await api(page, "put", `/api/v1/projects/${projectId}/canvas`, {
-      expectedVersion: v.version,
-      nodes: v.payload.nodes.filter(keepNode).map((n) => (n.id === `scene:${scene}:video` ? { ...n, data: { ...n.data, durationSeconds: 5 } } : n)),
-      edges: v.payload.edges.filter((e) => kept.has(e.source) && kept.has(e.target)),
-      viewport: v.payload.viewport,
-    });
-    v = await canvas(page, projectId);
-    expect(v.payload.nodes.filter((n) => n.sceneId).map((n) => n.id).sort()).toEqual(
-      [`scene:${scene}:frame`, `scene:${scene}:prompt`, `scene:${scene}:video`].sort(),
-    );
+    console.log("6G_PROJECT", projectId);
 
     // 1) First frame (OpenRouter image, ≈ $0.02) + fictional presenter portrait for the avatar (no real person).
     await addNodes(
@@ -158,28 +194,34 @@ test.describe("Phase 6G live generations (minimal spend)", () => {
     expect(clipInfo.sizeBytes).toBeGreaterThan(10_000);
 
     // 3) Voice-over ≤ 5 s with a real ElevenLabs catalog voice (credits of the paid plan).
-    const library = await api<{ items: Array<{ providerVoiceId: string; name: string; labels?: { language?: string } }>; mock: boolean }>(page, "get", "/api/v1/voices/library");
-    expect(library.mock).toBe(false);
-    const pick = library.items.find((x) => x.labels?.language === "ru") ?? library.items[0]!;
-    const voice = await api<{ id: string; status: string }>(page, "post", "/api/v1/voices", { kind: "LIBRARY", name: `6G ${pick.name}`, providerVoiceId: pick.providerVoiceId });
-    expect(voice.status).toBe("READY");
-    const line = "ShotBro — ролик за минуту. Заходите на shotbro.ru"; // ≈ 3.5 s
-    await addNodes(
-      page,
-      projectId,
-      [
-        { id: "vo-text", kind: "prompt", position: { x: 0, y: 900 }, data: { text: line } },
-        { id: "vo-voice", kind: "voice", position: { x: 0, y: 1050 }, data: { voiceProfileId: voice.id } },
-        { id: "vo", kind: "tts", position: { x: 340, y: 950 }, data: {} },
-      ],
-      [
-        { id: "e:vo-text->vo", source: "vo-text", target: "vo" },
-        { id: "e:vo-voice->vo", source: "vo-voice", target: "vo" },
-        { id: "e:vo->assembly", source: "vo", target: "assembly" },
-      ],
-    );
-    const [vo] = await runPaid(page, projectId, "tts ≤5s", ["vo"], 0.05, 3 * 60_000);
-    expect((await assetInfo(page, vo!.assetId!)).mimeType).toBe("audio/mpeg");
+    if (SKIP_TTS) {
+      report.push({ step: "tts ≤5s", skipped: "E2E_6G_SKIP_TTS=1 (ElevenLabs key IP allowlist)" });
+      console.log("6G_STEP", JSON.stringify(report.at(-1)));
+    } else {
+      const library = await api<{ items: Array<{ providerVoiceId: string; name: string; labels?: { language?: string } }>; mock: boolean }>(page, "get", "/api/v1/voices/library");
+      expect(library.mock).toBe(false);
+      expect(library.items.length, "ElevenLabs catalog is empty — check API key / IP allowlist").toBeGreaterThan(0);
+      const pick = library.items.find((x) => x.labels?.language === "ru") ?? library.items[0]!;
+      const voice = await api<{ id: string; status: string }>(page, "post", "/api/v1/voices", { kind: "LIBRARY", name: `6G ${pick.name}`, providerVoiceId: pick.providerVoiceId });
+      expect(voice.status).toBe("READY");
+      const line = "ShotBro — ролик за минуту. Заходите на shotbro.ru"; // ≈ 3.5 s
+      await addNodes(
+        page,
+        projectId,
+        [
+          { id: "vo-text", kind: "prompt", position: { x: 0, y: 900 }, data: { text: line } },
+          { id: "vo-voice", kind: "voice", position: { x: 0, y: 1050 }, data: { voiceProfileId: voice.id } },
+          { id: "vo", kind: "tts", position: { x: 340, y: 950 }, data: {} },
+        ],
+        [
+          { id: "e:vo-text->vo", source: "vo-text", target: "vo" },
+          { id: "e:vo-voice->vo", source: "vo-voice", target: "vo" },
+          { id: "e:vo->assembly", source: "vo", target: "assembly" },
+        ],
+      );
+      const [vo] = await runPaid(page, projectId, "tts ≤5s", ["vo"], 0.05, 3 * 60_000);
+      expect((await assetInfo(page, vo!.assetId!)).mimeType).toBe("audio/mpeg");
+    }
 
     // 4) Avatar video from the generated (fictional) portrait, script ≤ 5 s (OpenRouter heygen/avatar-iv ≈ $0.25).
     const avatar = await api<{ id: string; kind: string }>(page, "post", "/api/v1/avatars", { name: "6G ведущий (вымышленный)", sourceAssetIds: [portrait!.assetId] });
@@ -203,7 +245,7 @@ test.describe("Phase 6G live generations (minimal spend)", () => {
     const [host] = await runPaid(page, projectId, "avatar_video ≤5s", ["host-video"], 0.3);
     expect((await assetInfo(page, host!.assetId!)).mimeType).toBe("video/mp4");
 
-    // 5) Final cut on our server (free): scene clip + avatar clip + voice-over.
+    // 5) Final cut on our server (free): scene clip + avatar clip (+ voice-over when present).
     const [cut] = await runPaid(page, projectId, "assembly", ["assembly"], 0);
     const cutInfo = await assetInfo(page, cut!.assetId!);
     expect(cutInfo.mimeType).toBe("video/mp4");

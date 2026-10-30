@@ -66,6 +66,8 @@ docker run --rm \
   -e E2E_TEST_PASSWORD_B \
   -e CI=1 \
   -e E2E_6G_LIVE \
+  -e E2E_6G_PROJECT_ID \
+  -e E2E_6G_SKIP_TTS \
   -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
   "$PW_IMAGE" \
   bash -lc "set -euo pipefail
