@@ -291,3 +291,14 @@ canvas (production_document, новый docType SCENE_CANVAS)
 - **SSE** `talent.updated` обновляет библиотеки и персонажей без F5.
 - **Агент**: `create_voice_profile` → раздел «Голоса», `create_avatar_profile` → «Аватары», `propose_talent_operation` оставляет пользователя в чате, где карточка подтверждения.
 - **Тесты**: unit (навигация покрывает все разделы, коды ошибок), Playwright `phase6-talent-ui` (режим раннера `phase6-talent-ui`).
+
+### Staging 6D (2026-10-30 UTC)
+
+| Шаг | Результат |
+|---|---|
+| Деплой | API `d0850e4e`, web `8081c227` |
+| Playwright `phase6-talent-ui` | **1/1** — каталог → mock-клон с согласием → mock-аватар → привязка к персонажу → F5 и прямые ссылки — `phase6-talent-ui-8081c227.log` |
+| Полный 5L-B acceptance | **`PHASE5L_B_ALL_PASS`**, `EXIT_CODE=0` — agent 2/2, regression-strict 8/8, unified 3/3 — `phase5l-b-acceptance-8081c227.log` |
+| Mock-политика | без изменений, $0 |
+
+**Инцидент по ходу:** первая сборка web на `d0850e4e` упала на типах (несуществующие варианты `Badge destructive` и `Button link`). Локальный `tsc` тогда прервался по таймауту без вывода и был ошибочно принят за успех. Старый web продолжал работать, исправлено в `8081c22`. Дополнительно: `staging-deploy.sh` в связке «api; web» записал `DEPLOY_EXIT_CODE=0` при упавшей сборке web — код выхода сборки web нужно проверять отдельно (`deploy_complete services=web`).
