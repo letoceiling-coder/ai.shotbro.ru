@@ -54,7 +54,7 @@ export function CharacterTalentPanel({ projectId, character }: { projectId: stri
               </option>
             ))}
           </select>
-          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setSection("voices")}>
+          <Button type="button" variant="ghost" size="sm" className="h-auto p-0 text-xs text-primary underline-offset-4 hover:bg-transparent hover:underline" onClick={() => setSection("voices")}>
             Все голоса →
           </Button>
         </div>
@@ -94,7 +94,7 @@ export function CharacterTalentPanel({ projectId, character }: { projectId: stri
               ))}
             </select>
           ) : null}
-          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setSection("avatars")}>
+          <Button type="button" variant="ghost" size="sm" className="h-auto p-0 text-xs text-primary underline-offset-4 hover:bg-transparent hover:underline" onClick={() => setSection("avatars")}>
             Все аватары →
           </Button>
         </div>

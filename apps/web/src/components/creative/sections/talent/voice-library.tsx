@@ -47,9 +47,9 @@ function labelsText(l: VoiceProfile["labels"] | LibraryVoice["labels"]) {
   return [l.language, l.gender, l.age].filter(Boolean).map((x) => LABEL_RU[x!] ?? x).join(" · ");
 }
 
-export function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
-  if (status === "READY") return "default";
-  if (status === "FAILED") return "destructive";
+export function statusVariant(status: string): "success" | "secondary" | "demo" | "outline" {
+  if (status === "READY") return "success";
+  if (status === "FAILED") return "demo";
   if (status === "CREATING" || status === "AWAITING_APPROVAL") return "secondary";
   return "outline";
 }
