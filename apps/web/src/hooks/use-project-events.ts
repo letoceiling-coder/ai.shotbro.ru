@@ -24,6 +24,7 @@ const SSE_EVENT_TYPES = [
   "provider.job.created",
   "provider.job.status",
   "agent.runtime.rollout.changed",
+  "talent.updated",
 ] as const;
 
 type ProjectEventPayload = {
@@ -72,6 +73,11 @@ function handleEventPayload(
       invalidateForEvent(qc, projectId, data);
     }
     if (data.type === "provider.job.created" || data.type === "provider.job.status") {
+      invalidateForEvent(qc, projectId, data);
+    }
+    if (data.type === "talent.updated") {
+      // Voices/avatars live at workspace level: refresh the libraries and character links.
+      void qc.invalidateQueries({ queryKey: ["talent"] });
       invalidateForEvent(qc, projectId, data);
     }
   } catch {

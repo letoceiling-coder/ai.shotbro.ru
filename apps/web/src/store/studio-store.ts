@@ -25,7 +25,9 @@ export type CreativeSection =
   | "models"
   | "production"
   | "timeline"
-  | "assets";
+  | "assets"
+  | "voices"
+  | "avatars";
 
 type AdStageMap = Record<string, AdDemoStage>;
 

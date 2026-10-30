@@ -11,19 +11,34 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   });
   if (!res.ok) {
     const retryAfter = Number(res.headers.get("retry-after"));
-    throw new ApiError(res.status, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : undefined);
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      body = undefined;
+    }
+    throw new ApiError(res.status, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : undefined, body);
   }
   return res.json();
 }
 
 /** HTTP error with status so React Query can retry rate limits (429) and 5xx, but not 4xx. */
 export class ApiError extends Error {
+  /** Server error code (`{ code }` in the body), e.g. `consent_required`, `user_daily_cap_exceeded`. */
+  readonly code?: string;
   constructor(
     readonly status: number,
     readonly retryAfterMs?: number,
+    readonly body?: unknown,
   ) {
     super(`API ${status}`);
     this.name = "ApiError";
+    const b = body as { code?: unknown; message?: unknown } | undefined;
+    // Nest wraps HttpException objects as-is, so `code` sits at the top level.
+    if (b && typeof b.code === "string") this.code = b.code;
+    else if (b && b.message && typeof (b.message as { code?: unknown }).code === "string") {
+      this.code = (b.message as { code: string }).code;
+    }
   }
 }
 

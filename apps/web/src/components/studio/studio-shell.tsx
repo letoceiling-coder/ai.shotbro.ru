@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StudioSidebar } from "./studio-sidebar";
 import { StudioHeader } from "./studio-header";
 import { DemoModeBanner } from "./demo-mode-banner";
@@ -11,12 +11,18 @@ import { ContextPanel } from "./context-panel";
 import { RealContextPanel } from "./real-context-panel";
 import { AgentRunStrip } from "./agent-run-strip";
 import { useStudioRuntimeMode } from "@/components/auth/studio-mode-provider";
-import { useStudioStore } from "@/store/studio-store";
+import { useStudioStore, type CreativeSection } from "@/store/studio-store";
 
-export function StudioShell() {
+export function StudioShell({ initialSection }: { initialSection?: CreativeSection } = {}) {
   const { mode } = useStudioRuntimeMode();
   const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
+  const setCreativeSection = useStudioStore((s) => s.setCreativeSection);
   const [mobileContext, setMobileContext] = useState(false);
+
+  // Direct links (/studio/library/voices, /studio/library/avatars) open their section once.
+  useEffect(() => {
+    if (initialSection) setCreativeSection(initialSection);
+  }, [initialSection, setCreativeSection]);
 
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-background">

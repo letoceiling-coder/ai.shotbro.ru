@@ -15,7 +15,9 @@ export async function pinRealProjectOnReload(
     | "timeline"
     | "script"
     | "production"
-    | "assets" = "models",
+    | "assets"
+    | "voices"
+    | "avatars" = "models",
   options?: { creativeAutoNavigate?: boolean },
 ) {
   await page.evaluate(

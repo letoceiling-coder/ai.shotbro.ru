@@ -462,6 +462,10 @@ function deepLinkFor(
   raw: Record<string, unknown>,
 ): AgentToolResultEnvelope["deepLink"] | undefined {
   if (name === "assign_talent_to_character") return { creativeSection: "characters" };
+  if (name === "create_voice_profile") return { creativeSection: "voices" };
+  if (name === "create_avatar_profile") return { creativeSection: "avatars" };
+  // The price card lives in the chat: keep the user there even if a draft was created in the same turn.
+  if (name === "propose_talent_operation") return { creativeSection: "chat" };
   if (name === "search_project_assets") {
     const first = (raw.items as Array<{ id: string }> | undefined)?.[0];
     return first ? { creativeSection: "assets", assetId: first.id } : { creativeSection: "assets" };

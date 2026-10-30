@@ -264,6 +264,8 @@ export const AgentToolResultBlockSchema = z.object({
         "references",
         "characters",
         "models",
+        "voices",
+        "avatars",
       ]),
       sceneId: z.string().optional(),
       assetId: z.string().optional(),

@@ -18,6 +18,7 @@ import {
 import { useActiveScript } from "@/hooks/use-creative-documents";
 import { AssetPickerDialog } from "./asset-picker-dialog";
 import { WorkspaceState } from "./workspace-state";
+import { CharacterTalentPanel } from "./talent/character-talent-panel";
 import type { CharacterProfile } from "@shotbro/contracts";
 
 export function CharacterStudio({ projectId }: { projectId: string }) {
@@ -92,7 +93,7 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
     <div className="flex min-h-0 flex-1 flex-col md:flex-row" data-testid="character-studio">
       <aside className="w-full border-b border-border md:w-64 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between p-3">
-          <h2 className="text-sm font-semibold">Character Studio</h2>
+          <h2 className="text-sm font-semibold">Персонажи</h2>
           <Button
             type="button"
             size="sm"
@@ -142,11 +143,11 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
                 </Button>
               </div>
               <Field label="Описание" value={draft.description ?? ""} onChange={(v) => setDraft({ ...draft, description: v })} />
-              <Field label="Appearance" value={draft.appearance ?? ""} onChange={(v) => setDraft({ ...draft, appearance: v })} />
-              <Field label="Wardrobe" value={draft.wardrobe ?? ""} onChange={(v) => setDraft({ ...draft, wardrobe: v })} />
-              <Field label="Voice notes" value={draft.voiceNotes ?? ""} onChange={(v) => setDraft({ ...draft, voiceNotes: v })} />
+              <Field label="Внешность" value={draft.appearance ?? ""} onChange={(v) => setDraft({ ...draft, appearance: v })} />
+              <Field label="Одежда" value={draft.wardrobe ?? ""} onChange={(v) => setDraft({ ...draft, wardrobe: v })} />
+              <Field label="Заметки о голосе" value={draft.voiceNotes ?? ""} onChange={(v) => setDraft({ ...draft, voiceNotes: v })} />
               <div>
-                <Label>Primary reference</Label>
+                <Label>Главное фото</Label>
                 <div className="mt-1 flex items-center gap-2">
                   <code className="text-xs">{draft.primaryReferenceAssetId ?? "—"}</code>
                   <Button type="button" size="sm" variant="secondary" data-testid="character-upload-ref" onClick={() => setPickerOpen(true)}>
@@ -154,6 +155,7 @@ export function CharacterStudio({ projectId }: { projectId: string }) {
                   </Button>
                 </div>
               </div>
+              {selected ? <CharacterTalentPanel projectId={projectId} character={selected} /> : null}
               {selected ? (
                 <div className="space-y-2 rounded-lg border border-border p-3">
                   <Label>Назначить на сцену</Label>
