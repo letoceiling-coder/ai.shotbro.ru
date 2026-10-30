@@ -72,7 +72,7 @@ info_tsc ai-typecheck pnpm --filter @shotbro/ai exec tsc --noEmit
 info_tsc worker-typecheck pnpm --filter worker exec tsc --noEmit
 test_step ai-test env S3_ENDPOINT=http://127.0.0.1:9000 S3_REGION=us-east-1 S3_BUCKET=unit-test S3_ACCESS_KEY_ID=unit-test-key S3_SECRET_ACCESS_KEY=unit-test-secret pnpm --filter @shotbro/ai test
 test_step web-test pnpm --filter web exec vitest run src
-# @shotbro/config has no own vitest: run its tests (live-media policy etc.) with the ai package's vitest.
+# @shotbro/config has no own vitest: run its tests (live-media policy etc.) with the vitest of the ai package.
 test_step config-test pnpm --filter @shotbro/ai exec vitest run --root ../config src
 exit $fails
 '
