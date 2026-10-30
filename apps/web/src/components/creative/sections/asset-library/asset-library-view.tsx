@@ -41,7 +41,7 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const uploadInputId = useId();
   const upload = useRealUpload(projectId);
-  const { data, isLoading, isFetching, refetch } = useAssetLibrary(projectId, filters, cursor);
+  const { data, isLoading, isFetching, isError, refetch } = useAssetLibrary(projectId, filters, cursor);
   const filterKey = `${filters.q}\u0000${filters.filter}\u0000${filters.sort}`;
   // Items are tagged with the filter set they belong to. A reset effect on mount used to wipe
   // cached data (React Query keeps the same reference), leaving "Библиотека пуста" for READY assets.
@@ -194,6 +194,17 @@ export function AssetLibraryView({ projectId }: { projectId: string }) {
               <Skeleton key={i} className="aspect-video w-full rounded-lg" />
             ))}
           </div>
+        ) : isError && items.length === 0 ? (
+          <WorkspaceState
+            title="Не удалось загрузить библиотеку"
+            state="error"
+            message="Сервер временно ограничил запросы или недоступен. Файлы не потеряны."
+            action={
+              <Button size="sm" variant="secondary" onClick={() => void refetch()} data-testid="asset-library-retry">
+                Повторить
+              </Button>
+            }
+          />
         ) : items.length === 0 ? (
           <WorkspaceState
             title="Библиотека пуста"

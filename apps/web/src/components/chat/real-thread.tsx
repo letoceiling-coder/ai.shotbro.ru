@@ -11,7 +11,7 @@ import {
   useSendRealMessage,
 } from "@/hooks/use-real-studio";
 import { useRealUpload } from "@/hooks/use-real-upload";
-import { useProjectEvents } from "@/hooks/use-project-events";
+import { useSharedProjectEvents } from "@/hooks/use-project-events";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { ChatMessage } from "./chat-message";
@@ -40,7 +40,7 @@ export function RealThread({ projectId }: { projectId: string }) {
     useRealMessages(conversationId);
   const send = useSendRealMessage(conversationId, projectId);
   const upload = useRealUpload(projectId);
-  const { connected: sseConnected } = useProjectEvents(projectId);
+  const { connected: sseConnected } = useSharedProjectEvents(projectId);
   const fileRef = useRef<HTMLInputElement>(null);
   const { data: assets } = useQuery({
     queryKey: ["assets", projectId],

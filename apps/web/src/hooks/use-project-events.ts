@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type MutableRefObject, createContext, useContext } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateCreativeProjectQueries } from "@/lib/invalidate-creative-project-queries";
 
@@ -77,6 +77,16 @@ function handleEventPayload(
   } catch {
     /* ignore malformed */
   }
+}
+
+/** One SSE connection per open project, shared by every Creative Workspace section. */
+export const ProjectEventsContext = createContext<{ projectId: string; connected: boolean } | null>(null);
+
+/** Use the workspace-level connection when present; otherwise open one (e.g. chat outside the workspace). */
+export function useSharedProjectEvents(projectId: string | undefined) {
+  const shared = useContext(ProjectEventsContext);
+  const own = useProjectEvents(shared && shared.projectId === projectId ? undefined : projectId);
+  return shared && shared.projectId === projectId ? { connected: shared.connected } : own;
 }
 
 export function useProjectEvents(projectId: string | undefined) {

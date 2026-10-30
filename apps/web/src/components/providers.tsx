@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { Toaster } from "sonner";
 import { StudioModeProvider } from "@/components/auth/studio-mode-provider";
 import type { ThreadMessageLike } from "@assistant-ui/react";
+import { queryRetryDelay, shouldRetryQuery } from "@/lib/api-client";
 
 /** Demo runtime: chat content is driven by Zustand, not LLM streaming. */
 function DemoAssistantProvider({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,15 @@ function DemoAssistantProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          // 429/5xx back off and retry (rate limit under load); other 4xx fail fast.
+          queries: { retry: shouldRetryQuery, retryDelay: queryRetryDelay },
+        },
+      }),
+  );
 
   const content = useMemo(
     () => (

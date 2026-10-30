@@ -2,6 +2,7 @@
 
 import { RealThread } from "@/components/chat/real-thread";
 import { useStudioStore } from "@/store/studio-store";
+import { ProjectEventsContext, useProjectEvents } from "@/hooks/use-project-events";
 import { CreativeSectionNav } from "./creative-section-nav";
 import { ScriptEditor } from "./sections/script-editor";
 import { BriefSection } from "./sections/brief-section";
@@ -16,8 +17,11 @@ import { ProductionSection } from "./sections/production-section";
 
 export function CreativeWorkspace({ projectId }: { projectId: string }) {
   const section = useStudioStore((s) => s.creativeSection);
+  // Live updates (uploads READY, agent changes) must reach every section, not only the chat.
+  const { connected } = useProjectEvents(projectId);
 
   return (
+    <ProjectEventsContext.Provider value={{ projectId, connected }}>
     <div className="flex min-h-0 flex-1 flex-col" data-testid="creative-workspace">
       <CreativeSectionNav />
       <div className="flex min-h-0 flex-1 flex-col">
@@ -34,5 +38,6 @@ export function CreativeWorkspace({ projectId }: { projectId: string }) {
         {section === "assets" ? <ProjectAssetsSection projectId={projectId} /> : null}
       </div>
     </div>
+    </ProjectEventsContext.Provider>
   );
 }

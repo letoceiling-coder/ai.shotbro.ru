@@ -10,9 +10,36 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     },
   });
   if (!res.ok) {
-    throw new Error(`API ${res.status}`);
+    const retryAfter = Number(res.headers.get("retry-after"));
+    throw new ApiError(res.status, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : undefined);
   }
   return res.json();
+}
+
+/** HTTP error with status so React Query can retry rate limits (429) and 5xx, but not 4xx. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly retryAfterMs?: number,
+  ) {
+    super(`API ${status}`);
+    this.name = "ApiError";
+  }
+}
+
+const RETRYABLE_ATTEMPTS = 6;
+
+export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (error instanceof ApiError) {
+    if (error.status === 429 || error.status >= 500) return failureCount < RETRYABLE_ATTEMPTS;
+    return false;
+  }
+  return failureCount < 3;
+}
+
+export function queryRetryDelay(attempt: number, error: unknown): number {
+  if (error instanceof ApiError && error.retryAfterMs) return Math.min(error.retryAfterMs, 60_000);
+  return Math.min(1000 * 2 ** attempt, 15_000);
 }
 
 export const api = {

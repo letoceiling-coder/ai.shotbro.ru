@@ -71,6 +71,7 @@ export function useRealUpload(projectId: string | undefined) {
       if (projectId) {
         qc.invalidateQueries({ queryKey: ["assets", projectId] });
         qc.invalidateQueries({ queryKey: ["project-assets", projectId] });
+        qc.invalidateQueries({ queryKey: ["asset-library", projectId] });
       }
     },
     onSettled: () => {
