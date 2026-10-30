@@ -84,6 +84,28 @@ describe("OpenRouter media adapters (mock transport)", () => {
     expect(calls.at(-1)!.responseType).toBe("binary");
   });
 
+  it("video adapter: avatar photo goes as input_references (heygen/avatar-iv rejects frame_images)", async () => {
+    let sent: Record<string, unknown> = {};
+    const transport = new MockHttpTransport({});
+    transport.request = async (req) => {
+      sent = req.body as Record<string, unknown>;
+      return { status: 202, headers: {}, body: { id: "job-av" } };
+    };
+    await new OpenRouterVideoAdapter(liveEnv, transport).submit(
+      "heygen/avatar-iv",
+      "IMAGE_TO_VIDEO",
+      { prompt: "Привет!", aspect_ratio: "9:16", resolution: "720p", reference_urls: ["https://ai.shotbro.ru/p.jpg"] },
+      { idempotencyKey: "av1" },
+    );
+    expect(sent).toEqual({
+      model: "heygen/avatar-iv",
+      prompt: "Привет!",
+      resolution: "720p",
+      aspect_ratio: "9:16",
+      input_references: [{ type: "image_url", image_url: { url: "https://ai.shotbro.ru/p.jpg" } }],
+    });
+  });
+
   it("tts adapter validates input", () => {
     const adapter = new OpenRouterTtsAdapter(env);
     expect(() => adapter.validateRequest("openrouter/tts/auto", "TEXT_TO_SPEECH", {})).toThrow();

@@ -30,8 +30,10 @@ const videoInput = z.object({
   duration: z.number().int().positive().max(15).optional(),
   resolution: z.string().optional(),
   aspect_ratio: z.string().optional(),
-  /** First frame (image-to-video / avatar photo): public https URL. */
+  /** First frame (image-to-video): public https URL → `frame_images`. */
   first_frame_url: z.string().url().optional(),
+  /** Reference images (e.g. heygen/avatar-iv photo, which rejects frame_images) → `input_references`. */
+  reference_urls: z.array(z.string().url()).max(4).optional(),
   generate_audio: z.boolean().optional(),
 });
 
@@ -172,6 +174,9 @@ export class OpenRouterVideoAdapter extends OpenRouterMediaAdapterBase implement
         ...(parsed.generate_audio != null ? { generate_audio: parsed.generate_audio } : {}),
         ...(parsed.first_frame_url
           ? { frame_images: [{ type: "image_url", image_url: { url: parsed.first_frame_url }, frame_type: "first_frame" }] }
+          : {}),
+        ...(parsed.reference_urls?.length
+          ? { input_references: parsed.reference_urls.map((url) => ({ type: "image_url", image_url: { url } })) }
           : {}),
       };
       const res = await this.post("/videos", body);

@@ -337,10 +337,11 @@ async function liveGenerate(
       {
         prompt: step.text || "subtle camera motion",
         aspect_ratio: "9:16",
-        first_frame_url: firstFrameUrl,
+        // Scene video: image-to-video first frame. heygen/avatar-iv: only model/prompt/resolution/
+        // aspect_ratio/input_references are accepted (verified 2026-10-30), the photo is a reference.
         ...(step.kind === "scene_video"
-          ? { duration: seconds, resolution: env.CANVAS_VIDEO_RESOLUTION, generate_audio: false }
-          : { resolution: "720p" }),
+          ? { first_frame_url: firstFrameUrl, duration: seconds, resolution: env.CANVAS_VIDEO_RESOLUTION, generate_audio: false }
+          : { reference_urls: [firstFrameUrl], resolution: "720p" }),
       },
       ctx,
     );
@@ -553,8 +554,11 @@ export async function executeCanvasRun(data: { runId: string }, log: Logger) {
         await postDeliveryToChat(job, assetId, body, log).catch((e) => log.warn({ err: e }, "canvas delivery chat post failed"));
       }
     } catch (err) {
-      const code = err instanceof CanvasJobError ? err.code : "CANVAS_NODE_FAILED";
-      await failJob(job, code, err instanceof Error ? err.message : "failed", log);
+      // Provider adapters throw plain NormalizedProviderError objects — keep their code and message.
+      const e = err as { code?: unknown; message?: unknown; httpStatus?: unknown };
+      const code = err instanceof CanvasJobError ? err.code : typeof e?.code === "string" ? `PROVIDER_${e.code}` : "CANVAS_NODE_FAILED";
+      const message = typeof e?.message === "string" ? e.message : String(err);
+      await failJob(job, code, `${message}${typeof e?.httpStatus === "number" ? ` (HTTP ${e.httpStatus})` : ""}`, log);
       failed.add(meta.canvasNodeId);
     }
   }
