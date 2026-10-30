@@ -31,6 +31,8 @@ type DoneRun = Run & { nodeId: string };
 const report: Array<Record<string, unknown>> = [];
 const RESUME_PROJECT = process.env.E2E_6G_PROJECT_ID?.trim() || "";
 const SKIP_TTS = process.env.E2E_6G_SKIP_TTS === "1";
+/** Node ids to run again even when resuming (e.g. "assembly" after a fix to the cut). */
+const RERUN = new Set((process.env.E2E_6G_RERUN ?? "").split(",").map((x) => x.trim()).filter(Boolean));
 
 async function api<T>(page: Page, method: "get" | "post" | "patch" | "put", url: string, data?: unknown): Promise<T> {
   const res = await page.request[method](url, data === undefined ? undefined : { data });
@@ -66,7 +68,7 @@ function completedLive(v: CanvasView, nodeIds: string[]): DoneRun[] | null {
 /** One paid step: price card → check caps → approve → wait for the real result. */
 async function runPaid(page: Page, projectId: string, label: string, nodeIds: string[], maxUsd: number, timeoutMs = 20 * 60_000): Promise<DoneRun[]> {
   const prior = completedLive(await canvas(page, projectId), nodeIds);
-  if (prior && RESUME_PROJECT) {
+  if (prior && RESUME_PROJECT && !nodeIds.some((id) => RERUN.has(id))) {
     report.push({ step: label, reused: true, runs: prior.map((r) => ({ node: r.nodeId, mime: r.mimeType })) });
     console.log("6G_STEP", JSON.stringify(report.at(-1)));
     return prior;
